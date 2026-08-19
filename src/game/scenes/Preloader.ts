@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { CHARACTERS, GAME_ASSETS } from '../assets';
 
 export class Preloader extends Scene
 {
@@ -9,20 +10,16 @@ export class Preloader extends Scene
 
     init ()
     {
-        //  We loaded this image in our Boot Scene, so we can display it here
-        this.add.image(512, 384, 'background');
-
-        //  A simple progress bar. This is the outline of the bar.
-        this.add.rectangle(512, 384, 468, 32).setStrokeStyle(1, 0xffffff);
-
-        //  This is the progress bar itself. It will increase in size from the left based on the % of progress.
-        const bar = this.add.rectangle(512-230, 384, 4, 28, 0xffffff);
+        this.cameras.main.setBackgroundColor('#142436');
+        this.add.text(180, 286, 'SKYLINE HOP', { fontFamily: 'Arial Black', fontSize: 25, color: '#f7f1df' }).setOrigin(0.5);
+        this.add.rectangle(180, 330, 184, 8, 0x2b4054);
+        const bar = this.add.rectangle(88, 330, 0, 8, 0xff5a73).setOrigin(0, 0.5);
 
         //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
         this.load.on('progress', (progress: number) => {
 
             //  Update the progress bar (our bar is 464px wide, so 100% = 464px)
-            bar.width = 4 + (460 * progress);
+            bar.width = 184 * progress;
 
         });
     }
@@ -32,8 +29,12 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
-        this.load.image('logo', 'logo.png');
-        this.load.image('star', 'star.png');
+        this.load.svg('background-sky', GAME_ASSETS.sky, { width: 360, height: 640 });
+        this.load.svg('background-city', GAME_ASSETS.city, { width: 720, height: 640 });
+        this.load.svg('background-street', GAME_ASSETS.street, { width: 720, height: 180 });
+        this.load.svg('obstacle', GAME_ASSETS.obstacle, { width: 76, height: 480 });
+        this.load.svg('reward', GAME_ASSETS.reward, { width: 48, height: 48 });
+        CHARACTERS.forEach((character) => this.load.svg(character.textureKey, character.image, { width: 72, height: 72 }));
     }
 
     create ()
@@ -42,6 +43,6 @@ export class Preloader extends Scene
         //  For example, you can define global animations here, so we can use them in other scenes.
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
-        this.scene.start('MainMenu');
+        this.scene.start('Game');
     }
 }

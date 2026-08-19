@@ -28,37 +28,89 @@ body {
 
 .game-shell {
     position: relative;
-    margin-inline: auto;
-    width: min(100vw, calc(100svh * 0.5625));
-    height: min(100svh, calc(100vw * 1.77778));
-    max-width: 480px;
-    max-height: 853px;
+    --stage-width: min(100vw, calc(100svh * 0.5625));
+    --stage-height: min(100svh, calc(100vw * 1.77778));
+    width: 100vw;
+    height: 100svh;
     overflow: hidden;
     isolation: isolate;
-    background: #b9ddd8;
-    box-shadow: 0 0 0 1px rgba(247, 241, 223, .12), 0 22px 70px rgba(0, 0, 0, .45);
+    background: #091723;
 }
 
-#game-container, #game-container canvas {
+#game-container {
     position: absolute;
     inset: 0;
-    width: 100% !important;
-    height: 100% !important;
+    background: #b9ddd8;
+}
+
+#game-container canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--stage-width) !important;
+    height: var(--stage-height) !important;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
     display: block;
     touch-action: none;
+}
+
+.topbar, .menu-layer, .hud {
+    width: var(--stage-width);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
 }
 
 .topbar {
     position: absolute;
     z-index: 40;
     top: max(12px, env(safe-area-inset-top));
-    left: 14px;
-    right: 14px;
     height: 42px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     pointer-events: none;
+}
+
+/* Keep the interactive overlays aligned to the centered portrait stage. */
+.menu-layer, .hud {
+    position: absolute;
+    inset-block: 0;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.result-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(9, 23, 35, .38);
+    pointer-events: auto;
+}
+
+.result-layer .result-sheet {
+    width: min(calc(var(--stage-width) - 28px), 480px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+}
+
+.dialog-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    background: rgba(9, 23, 35, .76);
+    backdrop-filter: blur(6px);
+}
+
+/* The Phaser container itself remains full-screen while the canvas stays 9:16. */
+#game-container {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .brand-lockup {
@@ -100,13 +152,6 @@ body {
 
 .icon-button:hover, .dialog-close:hover { transform: translateY(-2px); background: #142436; }
 .account-active { color: #ffc857; }
-
-.menu-layer, .result-layer, .hud {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    pointer-events: none;
-}
 
 .title-block {
     position: absolute;
@@ -240,7 +285,6 @@ body {
     transform: translateX(-50%);
 }
 
-.result-layer { background: rgba(9, 23, 35, .38); pointer-events: auto; }
 .result-sheet {
     position: absolute;
     left: 14px;
@@ -261,17 +305,6 @@ body {
 .result-best b { color: #ffc857; font-size: 15px; }
 .result-actions { display: flex; gap: 8px; margin-top: 10px; }
 .sync-status { margin: 10px 0 0; color: #a8bbb9; font-size: 11px; }
-
-.dialog-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: 100;
-    display: grid;
-    place-items: center;
-    padding: 14px;
-    background: rgba(9, 23, 35, .76);
-    backdrop-filter: blur(6px);
-}
 
 .dialog {
     position: relative;
@@ -328,7 +361,7 @@ body {
 
 @media (max-width: 480px) {
     body { background: #b9ddd8; }
-    .game-shell { width: 100vw; height: 100svh; max-width: none; max-height: none; box-shadow: none; }
+    .game-shell { background: #b9ddd8; }
 }
 
 @media (prefers-reduced-motion: reduce) {

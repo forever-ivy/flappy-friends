@@ -226,24 +226,22 @@ body {
     animation: controls-in .55s .08s cubic-bezier(.2, .8, .2, 1) both;
 }
 
-.selected-copy { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 11px; }
-.selected-copy div { display: flex; flex-direction: column; }
-.selected-copy span { color: #bb8ba0; font-size: 10px; font-weight: 800; }
-.selected-copy strong { font-size: 22px; line-height: 1.05; }
-.selected-copy p { max-width: 120px; margin: 0; color: #99617a; font-size: 11px; text-align: right; }
+/* 不显示角色名：左侧固定「当前角色」标签，右侧为所选角色的标语 */
+.selected-copy { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+.selected-copy span { flex-shrink: 0; color: #bb8ba0; font-size: 10px; font-weight: 800; }
+.selected-copy p { margin: 0; color: #99617a; font-size: 11px; text-align: right; }
 
 .character-rail {
     display: grid;
-    /* 只有诺娃与莫斯两位角色，两列并排更饱满 */
+    /* 两位角色一行并排；卡片上只有高清头像（256² portrait），无名字文本 */
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
+    gap: 8px;
 }
 
 .character-choice {
     min-width: 0;
-    height: 76px;
-    padding: 4px 2px 5px;
-    color: #99617a;
+    height: 72px;
+    padding: 4px 2px;
     background: var(--pink-pale);
     border: 2px solid var(--line);
     border-radius: var(--radius-card);
@@ -252,9 +250,8 @@ body {
 }
 
 .character-choice:hover { transform: translateY(-2px); }
-.character-choice.selected { color: var(--ink-strong); background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px); }
-.character-choice img { display: block; width: 50px; height: 50px; margin: 0 auto; object-fit: contain; }
-.character-choice span { display: block; overflow: hidden; font-size: 12px; font-weight: 900; text-overflow: ellipsis; }
+.character-choice.selected { background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px); }
+.character-choice img { display: block; width: 52px; height: 52px; margin: 0 auto; object-fit: contain; }
 
 .stats-line {
     display: grid;
@@ -423,8 +420,8 @@ body {
     .title-block { top: 62px; }
     .title-block h1 { font-size: 43px; }
     .menu-controls { padding: 11px; }
-    .character-choice { height: 67px; }
-    .character-choice img { width: 43px; height: 43px; }
+    .character-choice { height: 56px; }
+    .character-choice img { width: 44px; height: 44px; }
     .stats-line { margin: 9px 0; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
 }
@@ -433,11 +430,11 @@ body {
 @media (min-width: 900px) {
     .title-block h1 { font-size: 64px; }
     .eyebrow { font-size: 13px; }
-    .selected-copy strong { font-size: 24px; }
+    .selected-copy p { font-size: 12px; }
     .score-number { font-size: 62px; }
     .result-score { font-size: 84px; }
-    .character-choice { height: 84px; }
-    .character-choice img { width: 56px; height: 56px; }
+    .character-choice { height: 72px; }
+    .character-choice img { width: 60px; height: 60px; }
 }
 
 /* 横屏矮窗口（手机横过来、分屏）：进一步压缩纵向占用 */
@@ -445,7 +442,7 @@ body {
     .title-block { top: 44px; }
     .title-block h1 { font-size: 34px; }
     .menu-controls { padding: 8px; }
-    .character-choice { height: 56px; }
+    .character-choice { height: 48px; }
     .character-choice img { width: 36px; height: 36px; }
     .primary-button, .secondary-button, .save-button { min-height: 38px; }
     .stats-line { margin: 6px 0; }

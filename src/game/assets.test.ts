@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-    CHARACTER_BITMAP_SIZE, CHARACTER_PORTRAIT_SIZE, CHARACTER_TEXTURE_SIZE,
-    CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS,
-} from './assets';
+import { CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -44,33 +41,32 @@ describe('game assets manifest', () => {
         expect(pngSize(GAME_ASSETS.sparkle)).toEqual({ width: 24, height: 24 });
     });
 
-    it('ships every in-game character sprite as a 3x bitmap (216x216 for logical 72)', () => {
-        expect(CHARACTER_BITMAP_SIZE).toBe(CHARACTER_TEXTURE_SIZE * 3);
+    it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical 72)', () => {
         CHARACTERS.forEach((character) => {
-            expect(pngSize(character.image)).toEqual({ width: CHARACTER_BITMAP_SIZE, height: CHARACTER_BITMAP_SIZE });
+            expect(pngSize(character.image)).toEqual({ width: CHARACTER_SPRITE_SIZE, height: CHARACTER_SPRITE_SIZE });
             expect(character.collisionRadius).toBeGreaterThan(0);
-            // 碰撞圆按逻辑 72px 空间定义，必须能放进逻辑贴图内
+            // 碰撞半径在逻辑 72 坐标系里定义，必须落在显示尺寸内
             expect(character.collisionRadius * 2).toBeLessThanOrEqual(CHARACTER_TEXTURE_SIZE);
         });
     });
 
-    it('ships a dedicated hi-res menu portrait for every character', () => {
+    it('ships a dedicated 256x256 menu portrait per character (never the in-game sprite)', () => {
         CHARACTERS.forEach((character) => {
-            expect(character.portrait).not.toBe(character.image);
             expect(pngSize(character.portrait)).toEqual({ width: CHARACTER_PORTRAIT_SIZE, height: CHARACTER_PORTRAIT_SIZE });
+            expect(character.portrait).not.toBe(character.image);
         });
     });
 });
 
 describe('character roster', () => {
-    it('keeps exactly the two HD characters: nova and moss', () => {
+    it('keeps exactly the two original-art characters: nova and moss', () => {
         expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
     });
 
-    it('falls back to nova for retired ids from old saves or the backend', () => {
+    it('falls back to nova for retired ids (sol / violet) from old saves or the backend', () => {
+        expect(getCharacter('moss').id).toBe('moss');
         expect(getCharacter('sol').id).toBe('nova');
         expect(getCharacter('violet').id).toBe('nova');
         expect(getCharacter('unknown').id).toBe('nova');
-        expect(getCharacter('moss').id).toBe('moss');
     });
 });

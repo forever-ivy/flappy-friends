@@ -5,14 +5,7 @@ import {
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import {
-    CHARACTER_TEXTURE_SIZE,
-    getCharacter,
-    ObstacleVariant,
-    OBSTACLE_VARIANT_COUNT,
-    getObstacleVariantTextureKey,
-    getObstacleVariantTopTextureKey,
-} from '../assets';
+import { CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant } from '../assets';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
 import { EventBus } from '../EventBus';
@@ -27,6 +20,10 @@ interface ObstaclePair {
 }
 
 const COUNTDOWN_TEXT_Y = 264;
+
+// 漂浮星光（少女梦幻氛围）：白色星光贴图 tint 成粉彩色，缓慢向左上飘并闪烁
+const SPARKLE_COUNT = 14;
+const SPARKLE_TINTS = [0xffffff, 0xffd3e8, 0xd9c8ff, 0xbcd9ff, 0xfff0c9];
 
 export class Game extends Scene {
     private phase: GamePhase = 'idle';
@@ -44,6 +41,8 @@ export class Game extends Scene {
     private rewardCount = 0;
     private startedAt = 0;
     private random = createSeededRandom(Date.now());
+    private sparkles: Phaser.GameObjects.Image[] = [];
+    private lastVariantIndex = -1;
     private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
     private resizeHandler = () => {
@@ -59,6 +58,7 @@ export class Game extends Scene {
         this.sky = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'background-sky');
         this.city = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 'background-city');
         this.street = this.add.tileSprite(GAME_WIDTH / 2, 565, GAME_WIDTH, 180, 'background-street').setDepth(2);
+        this.createAmbientSparkles();
         this.obstacles = this.physics.add.group({ allowGravity: false, immovable: true });
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
 
@@ -111,6 +111,10 @@ export class Game extends Scene {
         this.city.setSize(width, GAME_HEIGHT).setPosition(width / 2, GAME_HEIGHT / 2);
         this.street.setSize(width, 180).setPosition(width / 2, 565);
         if (this.countdownText?.active) this.countdownText.setPosition(width / 2, COUNTDOWN_TEXT_Y);
+        // 画布变窄时把滞留在右侧画外的星光挪回可见区
+        this.sparkles.forEach((sparkle) => {
+            if (sparkle.x > width + 16) sparkle.x = Math.random() * width;
+        });
         // 对局中途窗口缩放时把角色重新锚定到新宽度的目标位置
         this.player.setX(computePlayerX(width));
         syncStageVars(this.scale.displaySize.width, this.scale.displaySize.height);
@@ -121,6 +125,7 @@ export class Game extends Scene {
         const scrollSpeed = this.phase === 'playing' ? getDifficulty(this.currentScore()).speed : 22;
         this.city.tilePositionX += scrollSpeed * 0.18 * seconds;
         this.street.tilePositionX += scrollSpeed * seconds;
+        this.driftSparkles(scrollSpeed, seconds);
 
         if (this.phase !== 'playing') return;
         const difficulty = getDifficulty(this.currentScore());
@@ -151,6 +156,46 @@ export class Game extends Scene {
         if (isOutOfBounds(this.player.y)) this.finishRun();
     }
 
+    // 星光只做氛围装饰：用 Math.random 布点与闪烁，不消耗对局的种子随机序列
+    private createAmbientSparkles() {
+        const width = this.scale.gameSize.width;
+        for (let index = 0; index < SPARKLE_COUNT; index += 1) {
+            const sparkle = this.add.image(Math.random() * width, 30 + Math.random() * 510, 'fx-sparkle')
+                .setDepth(4)
+                .setScale(0.45 + Math.random() * 0.65)
+                .setAlpha(0.15)
+                .setTint(SPARKLE_TINTS[index % SPARKLE_TINTS.length]);
+            this.tweens.add({
+                targets: sparkle,
+                alpha: { from: 0.12, to: 0.85 },
+                angle: { from: -14, to: 14 },
+                duration: 1100 + Math.random() * 1400,
+                delay: Math.random() * 1200,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.inOut',
+            });
+            this.sparkles.push(sparkle);
+        }
+    }
+
+    private driftSparkles(scrollSpeed: number, seconds: number) {
+        const width = this.scale.gameSize.width;
+        this.sparkles.forEach((sparkle, index) => {
+            // 视差介于中景（0.18x）与街面（1x）之间，另加缓慢上飘
+            sparkle.x -= scrollSpeed * 0.3 * seconds;
+            sparkle.y -= (5 + (index % 3) * 3) * seconds;
+            if (sparkle.x < -16) {
+                sparkle.x = width + 16;
+                sparkle.y = 30 + Math.random() * 510;
+            }
+            if (sparkle.y < -16) {
+                sparkle.y = 570;
+                sparkle.x = Math.random() * width;
+            }
+        });
+    }
+
     private selectCharacter(characterId: string) {
         this.selectedCharacter = characterId;
         if (this.phase === 'idle' || this.phase === 'over') this.applyCharacterBody(characterId);
@@ -172,6 +217,7 @@ export class Game extends Scene {
         this.lastGapSkewSign = 0;
         this.pipeCount = 0;
         this.rewardCount = 0;
+        this.lastVariantIndex = -1;
         this.player.clearTint().setPosition(computePlayerX(this.scale.gameSize.width), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -237,22 +283,19 @@ export class Game extends Scene {
         const centerBase = topLimit + this.random() * (bottomLimit - topLimit);
         const center = Phaser.Math.Clamp(centerBase, topLimit + gapSkew, bottomLimit + gapSkew);
         const obstacleHeight = 480;
-        const pairIndex = this.pairs.length;
-        const bottomVariant = (pairIndex % OBSTACLE_VARIANT_COUNT) as ObstacleVariant;
-        const topVariant = ((pairIndex + 2) % OBSTACLE_VARIANT_COUNT) as ObstacleVariant;
-
+        const variant = this.pickObstacleVariant();
         const topY = center - gap / 2 - gapSkew - obstacleHeight / 2;
         const bottomY = center + gap / 2 - gapSkew + obstacleHeight / 2;
 
-        const top = this.createObstacle(x, topY, true, topVariant);
-        const bottom = this.createObstacle(x, bottomY, false, bottomVariant);
+        const top = this.createObstacle(x, topY, variant.topKey);
+        const bottom = this.createObstacle(x, bottomY, variant.bottomKey);
         const pair: ObstaclePair = { top, bottom, scored: false };
 
-        // 轻微粉色粒子/光晕：只增强视觉，不改碰撞与计分。
+        // 轻微粉彩粒子/光晕（色调跟随变体配色）：只增强视觉，不改碰撞与计分。
         const topEdgeY = topY + obstacleHeight / 2;
         const bottomEdgeY = bottomY - obstacleHeight / 2;
-        this.spawnObstacleGlow(x, topEdgeY, true, topVariant);
-        this.spawnObstacleGlow(x, bottomEdgeY, false, bottomVariant);
+        this.spawnObstacleGlow(x, topEdgeY, true, variant);
+        this.spawnObstacleGlow(x, bottomEdgeY, false, variant);
 
         if (shouldSpawnReward(this.random())) {
             const safeOffset = Math.min(42, gap / 2 - 30);
@@ -270,9 +313,18 @@ export class Game extends Scene {
         this.pairs.push(pair);
     }
 
-    private createObstacle(x: number, y: number, flip: boolean, variant: ObstacleVariant): Phaser.Physics.Arcade.Image {
-        // 顶柱与底柱是两张独立贴图（柱身竖排文字不能翻转），碰撞体参数完全一致
-        const textureKey = flip ? getObstacleVariantTopTextureKey(variant) : getObstacleVariantTextureKey(variant);
+    // 障碍多样性：按种子随机选变体（可复现），且相邻两对强制不同色增强变化感
+    private pickObstacleVariant(): ObstacleVariant {
+        let index = Math.floor(this.random() * OBSTACLE_VARIANTS.length) % OBSTACLE_VARIANTS.length;
+        if (OBSTACLE_VARIANTS.length > 1 && index === this.lastVariantIndex) {
+            index = (index + 1) % OBSTACLE_VARIANTS.length;
+        }
+        this.lastVariantIndex = index;
+        return OBSTACLE_VARIANTS[index];
+    }
+
+    private createObstacle(x: number, y: number, textureKey: string): Phaser.Physics.Arcade.Image {
+        // 顶柱与底柱是两张独立贴图（柱身竖排文字不能翻转），所有变体碰撞体参数完全一致
         const obstacle = this.physics.add.image(x, y, textureKey).setDepth(6);
         obstacle.setImmovable(true);
         obstacle.body!.allowGravity = false;
@@ -282,8 +334,9 @@ export class Game extends Scene {
     }
 
     private spawnObstacleGlow(x: number, y: number, flip: boolean, variant: ObstacleVariant) {
-        const baseColors = [0xffb3e1, 0xffd1f0, 0xff9bdc];
-        const c0 = baseColors[variant] ?? 0xffb3e1;
+        // 光晕色跟随变体粉彩配色（樱花粉 / 薰衣草 / 晴空蓝 / 蜜桃橘）
+        const glowTints: Record<string, number> = { classic: 0xffb3e1, wish: 0xd9c8ff, rain: 0xbcd9ff, aim: 0xffd0b3 };
+        const c0 = glowTints[variant.id] ?? 0xffb3e1;
         const c1 = 0xffffff;
         const dir = flip ? -1 : 1;
 

@@ -27,22 +27,30 @@ export const GAME_ASSETS = {
     sky: 'game/background-sky.png',
     city: 'game/background-city.png',
     street: 'game/background-street.png',
-    // 障碍分顶 / 底两张贴图：柱身带竖排文字，不能翻转复用，物理体两张完全一致
-    obstacle: 'game/obstacle.png',
-    obstacleTop: 'game/obstacle-top.png',
     reward: 'game/reward.png',
     // 副奖励贴图（蝴蝶结镜子），与主奖励（蝴蝶结叉子）在生成时交替出现，玩法与计分完全一致
     rewardMirror: 'game/reward-mirror.png',
+    // 漂浮星光贴图（白色基底，游戏内 tint 成粉彩色），仅氛围装饰不参与碰撞
+    sparkle: 'game/fx-sparkle.png',
 } as const;
 
-export const OBSTACLE_VARIANT_COUNT = 3 as const;
-export type ObstacleVariant = 0 | 1 | 2;
+// 障碍变体清单：每个变体是一对底柱 / 顶柱贴图（柱身竖排文字不同，不能翻转复用），
+// 生成时按种子随机选取且相邻两对不重复；物理体参数全部一致（改这里只影响视觉）
+export interface ObstacleVariant {
+    id: string;
+    palette: string;
+    bottomKey: string;
+    bottomImage: string;
+    topKey: string;
+    topImage: string;
+}
 
-export const getObstacleVariantTextureKey = (variant: ObstacleVariant): string => `obstacle-${variant}`;
-export const getObstacleVariantTopTextureKey = (variant: ObstacleVariant): string => `obstacle-top-${variant}`;
-
-export const getObstacleVariantTexturePath = (variant: ObstacleVariant): string => `game/obstacle-${variant}.png`;
-export const getObstacleVariantTopTexturePath = (variant: ObstacleVariant): string => `game/obstacle-top-${variant}.png`;
+export const OBSTACLE_VARIANTS: readonly ObstacleVariant[] = [
+    { id: 'classic', palette: '樱花粉', bottomKey: 'obstacle', bottomImage: 'game/obstacle.png', topKey: 'obstacle-top', topImage: 'game/obstacle-top.png' },
+    { id: 'wish', palette: '薰衣草', bottomKey: 'obstacle-wish', bottomImage: 'game/obstacle-wish.png', topKey: 'obstacle-wish-top', topImage: 'game/obstacle-wish-top.png' },
+    { id: 'rain', palette: '晴空蓝', bottomKey: 'obstacle-rain', bottomImage: 'game/obstacle-rain.png', topKey: 'obstacle-rain-top', topImage: 'game/obstacle-rain-top.png' },
+    { id: 'aim', palette: '蜜桃橘', bottomKey: 'obstacle-aim', bottomImage: 'game/obstacle-aim.png', topKey: 'obstacle-aim-top', topImage: 'game/obstacle-aim-top.png' },
+];
 
 // 音效清单：当前用 WebAudio 合成，替换真实音频文件时只需改这里与 sfx.ts 的实现
 export interface SfxSweep {

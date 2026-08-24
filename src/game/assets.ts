@@ -35,6 +35,15 @@ export const GAME_ASSETS = {
     rewardMirror: 'game/reward-mirror.png',
 } as const;
 
+export const OBSTACLE_VARIANT_COUNT = 3 as const;
+export type ObstacleVariant = 0 | 1 | 2;
+
+export const getObstacleVariantTextureKey = (variant: ObstacleVariant): string => `obstacle-${variant}`;
+export const getObstacleVariantTopTextureKey = (variant: ObstacleVariant): string => `obstacle-top-${variant}`;
+
+export const getObstacleVariantTexturePath = (variant: ObstacleVariant): string => `game/obstacle-${variant}.png`;
+export const getObstacleVariantTopTexturePath = (variant: ObstacleVariant): string => `game/obstacle-top-${variant}.png`;
+
 // 音效清单：当前用 WebAudio 合成，替换真实音频文件时只需改这里与 sfx.ts 的实现
 export interface SfxSweep {
     from: number;

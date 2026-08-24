@@ -1,0 +1,17 @@
+services:
+  game:
+    build:
+      context: .
+      args:
+        PB_VERSION: 0.39.11
+    restart: unless-stopped
+    environment:
+      PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL}
+      PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD}
+    volumes:
+      - pb_data:/pb/pb_data
+    ports:
+      - "127.0.0.1:${GAME_PORT:-8090}:8090"
+
+volumes:
+  pb_data:

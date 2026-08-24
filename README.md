@@ -1,6 +1,8 @@
-# Skyline Hop
+# 天际跳跳（Skyline Hop）
 
-Skyline Hop is a mobile-first Flappy-style game built from the official Phaser React TypeScript template. It uses Phaser 4 for the game loop and physics, React for the menu and account UI, and PocketBase for username authentication, saved progress, and leaderboards.
+「天际跳跳」是一款移动端优先的 Flappy 类小游戏，基于官方 Phaser React TypeScript 模板构建。游戏循环与物理由 Phaser 4 驱动，菜单与账户界面用 React 实现，用户名登录、进度保存与排行榜由 PocketBase 提供。
+
+游戏内共有两位可选角色：**诺娃**（藏青条纹衫）与 **莫斯**（浅蓝番茄衫）。旧存档或后端中已下架的角色 id（sol / violet）读取时会自动回退到诺娃。
 
 ## Local Development
 
@@ -42,14 +44,14 @@ docker compose up -d --build
 
 Put the service behind the existing Nginx/Caddy HTTPS reverse proxy. Keep the `pb_data` volume backed up. The PocketBase dashboard is available at `/_/`; restrict it to an administrator network or IP in the reverse proxy.
 
-## Game Rules
+## 游戏规则
 
-- Passing an obstacle pair gives 1 point.
-- Obstacle pairs cycle through four pastel slogan-pillar variants (sakura pink, lavender, sky blue, peach); adjacent pairs never repeat a color. The variety is visual only — every variant shares the same hitbox.
-- 35% of pairs contain a collectible reward worth 5 points.
-- Scroll speed increases and the gap narrows at 10, 25, and 50 points.
-- The best-score and total-score leaderboards are separate.
-- Password recovery is intentionally not provided because accounts do not collect email addresses.
+- 每穿过一对障碍柱得 1 分。
+- 障碍柱共四套粉彩标语变体（樱花粉、薰衣草、晴空蓝、蜜桃橘）轮换出现，相邻两对不重色；差异仅在视觉，所有变体碰撞体完全一致。
+- 35% 的障碍柱之间会出现可收集奖励，每个 5 分。
+- 达到 10、25、50 分时滚动速度加快、缺口收窄。
+- 最高分与累计分是两个独立的排行榜。
+- 账户不收集邮箱，因此有意不提供密码找回。
 
 ## Art Assets
 

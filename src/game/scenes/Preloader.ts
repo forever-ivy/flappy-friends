@@ -14,7 +14,7 @@ export class Preloader extends Scene
         // 画布宽度随视口自适应（360–960），加载界面按当前宽度居中
         const centerX = this.scale.gameSize.width / 2;
         this.cameras.main.setBackgroundColor('#fdeef4');
-        this.add.text(centerX, 286, 'SKYLINE HOP', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c' }).setOrigin(0.5);
+        this.add.text(centerX, 286, '天际跳跳', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c' }).setOrigin(0.5);
         this.add.rectangle(centerX, 330, 184, 8, 0xf3cdda);
         const bar = this.add.rectangle(centerX - 92, 330, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
 
@@ -32,7 +32,8 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
-        // PNG 均按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480 / 奖励 48x48 / 角色 72x72）
+        // 背景/障碍/奖励按逻辑 1x 交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480 / 奖励 48x48）；
+        // 角色贴图按 3x 位图交付（216x216），Game 场景 setDisplaySize 缩回逻辑 72 以保证高分屏清晰
         this.load.image('background-sky', GAME_ASSETS.sky);
         this.load.image('background-city', GAME_ASSETS.city);
         this.load.image('background-street', GAME_ASSETS.street);

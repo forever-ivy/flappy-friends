@@ -4,21 +4,29 @@ export interface CharacterDefinition {
     tagline: string;
     textureKey: string;
     image: string;
+    /** 菜单角色卡与排行榜专用高清立绘（192x192），避免把局内小贴图拉大变糊 */
+    portrait: string;
     color: string;
     collisionRadius: number;
 }
 
+// 只保留两位高清原色角色：诺娃（藏青条纹衫）与莫斯（浅蓝番茄衫）。
+// 旧存档/后端仍可能出现已下架的 sol / violet，getCharacter 会优雅回退到诺娃。
 export const CHARACTERS: readonly CharacterDefinition[] = [
-    { id: 'nova', name: 'Nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', color: '#5b7ca8', collisionRadius: 14 },
-    { id: 'moss', name: 'Moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', color: '#8fb7e8', collisionRadius: 14 },
-    { id: 'sol', name: 'Sol', tagline: '张开手臂去飞', textureKey: 'character-sol', image: 'game/character-sol.png', color: '#4f9e72', collisionRadius: 14 },
-    { id: 'violet', name: 'Violet', tagline: '稳稳飘过花海', textureKey: 'character-violet', image: 'game/character-violet.png', color: '#7a5aa8', collisionRadius: 14 },
+    { id: 'nova', name: '诺娃', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', portrait: 'game/portrait-nova.png', color: '#5b7ca8', collisionRadius: 14 },
+    { id: 'moss', name: '莫斯', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', portrait: 'game/portrait-moss.png', color: '#8fb7e8', collisionRadius: 14 },
 ];
 
 export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];
 
-// 角色贴图在 Preloader 中的逻辑加载尺寸（正方形），碰撞圆以贴图中心为圆心
+// 角色在画布上的逻辑显示尺寸（正方形），碰撞圆以此为准、以贴图中心为圆心
 export const CHARACTER_TEXTURE_SIZE = 72;
+
+// 局内角色贴图按 3x 位图交付（216x216），Phaser 用 setDisplaySize 缩回逻辑 72，保证高分屏清晰
+export const CHARACTER_BITMAP_SIZE = 216;
+
+// 菜单头像位图边长（正方形）
+export const CHARACTER_PORTRAIT_SIZE = 192;
 
 // 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切
 export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;

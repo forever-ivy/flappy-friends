@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from './assets';
+import {
+    CHARACTER_BITMAP_SIZE, CHARACTER_PORTRAIT_SIZE, CHARACTER_TEXTURE_SIZE,
+    CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS,
+} from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -41,11 +44,33 @@ describe('game assets manifest', () => {
         expect(pngSize(GAME_ASSETS.sparkle)).toEqual({ width: 24, height: 24 });
     });
 
-    it('ships every character texture at 72x72 with a collision circle inside it', () => {
+    it('ships every in-game character sprite as a 3x bitmap (216x216 for logical 72)', () => {
+        expect(CHARACTER_BITMAP_SIZE).toBe(CHARACTER_TEXTURE_SIZE * 3);
         CHARACTERS.forEach((character) => {
-            expect(pngSize(character.image)).toEqual({ width: 72, height: 72 });
+            expect(pngSize(character.image)).toEqual({ width: CHARACTER_BITMAP_SIZE, height: CHARACTER_BITMAP_SIZE });
             expect(character.collisionRadius).toBeGreaterThan(0);
-            expect(character.collisionRadius * 2).toBeLessThanOrEqual(72);
+            // 碰撞圆按逻辑 72px 空间定义，必须能放进逻辑贴图内
+            expect(character.collisionRadius * 2).toBeLessThanOrEqual(CHARACTER_TEXTURE_SIZE);
         });
+    });
+
+    it('ships a dedicated hi-res menu portrait for every character', () => {
+        CHARACTERS.forEach((character) => {
+            expect(character.portrait).not.toBe(character.image);
+            expect(pngSize(character.portrait)).toEqual({ width: CHARACTER_PORTRAIT_SIZE, height: CHARACTER_PORTRAIT_SIZE });
+        });
+    });
+});
+
+describe('character roster', () => {
+    it('keeps exactly the two HD characters: nova and moss', () => {
+        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
+    });
+
+    it('falls back to nova for retired ids from old saves or the backend', () => {
+        expect(getCharacter('sol').id).toBe('nova');
+        expect(getCharacter('violet').id).toBe('nova');
+        expect(getCharacter('unknown').id).toBe('nova');
+        expect(getCharacter('moss').id).toBe('moss');
     });
 });

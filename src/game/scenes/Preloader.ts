@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { CHARACTERS, GAME_ASSETS, SKY_TEXTURE_SIZE } from '../assets';
+import { CHARACTERS, GAME_ASSETS } from '../assets';
 import { syncStageVars } from '../stageSync';
 
 export class Preloader extends Scene
@@ -13,10 +13,10 @@ export class Preloader extends Scene
     {
         // 画布宽度随视口自适应（360–960），加载界面按当前宽度居中
         const centerX = this.scale.gameSize.width / 2;
-        this.cameras.main.setBackgroundColor('#142436');
-        this.add.text(centerX, 286, 'SKYLINE HOP', { fontFamily: 'Arial Black', fontSize: 25, color: '#f7f1df' }).setOrigin(0.5);
-        this.add.rectangle(centerX, 330, 184, 8, 0x2b4054);
-        const bar = this.add.rectangle(centerX - 92, 330, 0, 8, 0xff5a73).setOrigin(0, 0.5);
+        this.cameras.main.setBackgroundColor('#fdeef4');
+        this.add.text(centerX, 286, 'SKYLINE HOP', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c' }).setOrigin(0.5);
+        this.add.rectangle(centerX, 330, 184, 8, 0xf3cdda);
+        const bar = this.add.rectangle(centerX - 92, 330, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
 
         //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
         this.load.on('progress', (progress: number) => {
@@ -32,12 +32,14 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
-        this.load.svg('background-sky', GAME_ASSETS.sky, SKY_TEXTURE_SIZE);
-        this.load.svg('background-city', GAME_ASSETS.city, { width: 720, height: 640 });
-        this.load.svg('background-street', GAME_ASSETS.street, { width: 720, height: 180 });
-        this.load.svg('obstacle', GAME_ASSETS.obstacle, { width: 76, height: 480 });
-        this.load.svg('reward', GAME_ASSETS.reward, { width: 48, height: 48 });
-        CHARACTERS.forEach((character) => this.load.svg(character.textureKey, character.image, { width: 72, height: 72 }));
+        // PNG 均按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480 / 奖励 48x48 / 角色 72x72）
+        this.load.image('background-sky', GAME_ASSETS.sky);
+        this.load.image('background-city', GAME_ASSETS.city);
+        this.load.image('background-street', GAME_ASSETS.street);
+        this.load.image('obstacle', GAME_ASSETS.obstacle);
+        this.load.image('obstacle-top', GAME_ASSETS.obstacleTop);
+        this.load.image('reward', GAME_ASSETS.reward);
+        CHARACTERS.forEach((character) => this.load.image(character.textureKey, character.image));
     }
 
     create ()

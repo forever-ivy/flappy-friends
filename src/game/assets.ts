@@ -9,10 +9,10 @@ export interface CharacterDefinition {
 }
 
 export const CHARACTERS: readonly CharacterDefinition[] = [
-    { id: 'nova', name: 'Nova', tagline: '闪得刚刚好', textureKey: 'character-nova', image: 'game/character-nova.svg', color: '#ff5a73', collisionRadius: 14 },
-    { id: 'moss', name: 'Moss', tagline: '稳稳穿过街区', textureKey: 'character-moss', image: 'game/character-moss.svg', color: '#36c6a1', collisionRadius: 14 },
-    { id: 'sol', name: 'Sol', tagline: '速度就是节奏', textureKey: 'character-sol', image: 'game/character-sol.svg', color: '#ffc857', collisionRadius: 14 },
-    { id: 'violet', name: 'Violet', tagline: '高分也要漂亮', textureKey: 'character-violet', image: 'game/character-violet.svg', color: '#8b78ff', collisionRadius: 14 },
+    { id: 'nova', name: 'Nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', color: '#5b7ca8', collisionRadius: 14 },
+    { id: 'moss', name: 'Moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', color: '#8fb7e8', collisionRadius: 14 },
+    { id: 'sol', name: 'Sol', tagline: '张开手臂去飞', textureKey: 'character-sol', image: 'game/character-sol.png', color: '#6f9dd6', collisionRadius: 14 },
+    { id: 'violet', name: 'Violet', tagline: '稳稳飘过花海', textureKey: 'character-violet', image: 'game/character-violet.png', color: '#41597d', collisionRadius: 14 },
 ];
 
 export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];
@@ -20,15 +20,17 @@ export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find
 // 角色贴图在 Preloader 中的逻辑加载尺寸（正方形），碰撞圆以贴图中心为圆心
 export const CHARACTER_TEXTURE_SIZE = 72;
 
-// 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，中央 360×640 与旧版一致，窄屏时左右对称裁切
+// 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切
 export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;
 
 export const GAME_ASSETS = {
-    sky: 'game/background-sky.svg',
-    city: 'game/background-city.svg',
-    street: 'game/background-street.svg',
-    obstacle: 'game/obstacle.svg',
-    reward: 'game/reward.svg',
+    sky: 'game/background-sky.png',
+    city: 'game/background-city.png',
+    street: 'game/background-street.png',
+    // 障碍分顶 / 底两张贴图：柱身带竖排文字，不能翻转复用，物理体两张完全一致
+    obstacle: 'game/obstacle.png',
+    obstacleTop: 'game/obstacle-top.png',
+    reward: 'game/reward.png',
 } as const;
 
 // 音效清单：当前用 WebAudio 合成，替换真实音频文件时只需改这里与 sfx.ts 的实现

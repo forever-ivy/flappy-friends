@@ -3,7 +3,7 @@
 本文约定 Skyline Hop 的全部游戏资产。目标：**替换素材只需要覆盖同名文件（或改资产清单），不需要改动玩法代码。**
 
 - 资产清单（唯一被代码引用的入口）：`src/game/assets.ts`
-- 当前素材目录：`public/assets/game/`（樱花奇比主题 PNG，由 `scripts/generate_assets.py` 从 `resource/` 源素材生成）
+- 当前素材目录：`public/assets/game/`（樱花奇比主题 PNG，由 `scripts/generate_assets.py` 从 `pictures/` 高清透明底源素材生成；仅障碍柱身文字仍取自 `resource/barrier*.jpg`）
 - 逻辑画布**高度恒 640，宽度按视口宽高比在 360–960 自适应**（Phaser `Scale.FIT` 缩放，超宽屏两侧留边；手机竖屏仍为 360×640）。下表所有尺寸均为逻辑像素；当前 PNG 按 **1× 逻辑尺寸**交付（画布本身按逻辑分辨率渲染再由 CSS 放大，1× 与更高倍率视觉一致）。
 
 ## 全局调色板（樱花奇比主题）
@@ -24,7 +24,7 @@
 
 文件：`character-{id}.png`，`id ∈ nova | moss | sol | violet`。菜单头像复用同一文件，因此**必须透明背景**。
 
-来源映射（`resource/`）：`role1–3` 为同一对奇比双人图，`role4/role5` 为两人的单人飞行姿态——nova = 持蝴蝶结叉子的藏青条纹衫男孩（role1–3 左，取 role3 裁切）；moss = 持蝴蝶结镜子的浅蓝衫男孩（role1–3 右）；sol = role4（浅蓝衫展臂姿态）；violet = role5（藏青条纹衫姿态）。源图朝左，已水平翻转为头朝右。
+来源映射（`pictures/`，2048×2048 高清透明底）：nova = `IMG_5246.PNG`（藏青条纹衫男孩，HD 原色）；moss = `IMG_5247.PNG`（浅蓝番茄衫男孩，HD 原色）；sol = IMG_5247 的青绿衣装色相变体；violet = IMG_5246 的蓝紫衣装色相变体（变体仅旋转蓝色系衣装色相，肤色 / 头发不变，由 `scripts/generate_assets.py` 派生）。源图朝左，已水平翻转为头朝右。
 
 | 项 | 规格 |
 | --- | --- |
@@ -38,6 +38,8 @@
 **动画帧排列（未来升级路径）**：如需飞行动画，制作横向序列帧 `character-{id}-fly.png`，帧尺寸 72×72，4–6 帧从左到右为一个完整扑翼循环，首帧保持与静态帧一致。届时只需在清单中登记帧数，加载与动画创建代码已预留 `textureKey` 命名规则。
 
 ## 背景（三层视差）
+
+三层均派生自 `pictures/IMG_5250.PNG`（樱花树秋千竖屏场景）：调色板逐色采样自该图，飘落花瓣为其直接裁切，樱花树 / 秋千 / 树篱按其画法在平铺画布上重构（源图为单屏构图，不能直接无缝平铺）。
 
 | 文件 | 逻辑尺寸 | 用法 |
 | --- | --- | --- |
@@ -65,14 +67,14 @@
 
 ## 奖励物
 
-文件：`reward.png`。
+文件：`reward.png`（主奖励，蝴蝶结叉子）与 `reward-mirror.png`（副奖励，蝴蝶结镜子），生成时按障碍对序交替出现，玩法 / 碰撞 / 计分完全一致。
 
 | 项 | 规格 |
 | --- | --- |
-| 画布 | 48×48，透明背景 |
+| 画布 | 48×48，透明背景（两张一致） |
 | 锚点 | 中心；生成于间隙中心 ±42px 内（代码计算安全偏移） |
 | 动态 | 代码内以 2.4s/圈自转 + 拾取时 8 向粒子闪光——素材画正即可，不要自带旋转 |
-| 视觉 | 系着粉色蝴蝶结的小叉子（取自 `resource/award1.jpg`，与 nova 手中道具呼应）；`resource/award2.jpg`（蝴蝶结小镜子）为备用替换素材 |
+| 视觉 | 叉子取自 `pictures/IMG_5248.PNG`，镜子取自 `pictures/IMG_5245.PNG`（均为高清透明底，摆正后适配画布） |
 
 ## 音效
 
@@ -82,7 +84,7 @@
 
 1. 新文件与旧文件**同名同逻辑尺寸**，直接覆盖 `public/assets/game/` 下对应文件；或
 2. 新文件名不同时，改 `src/game/assets.ts` 清单里的路径与尺寸参数（新角色需同步登记 `id/name/tagline/color/collisionRadius`）。
-3. 从 `resource/` 源素材重新生成全套资产：`pip install pillow && python3 scripts/generate_assets.py`。
+3. 从 `pictures/` 高清源素材重新生成全套资产：`pip install pillow && python3 scripts/generate_assets.py`。
 4. `npm run dev` 本地确认，替换后跑 `npm test`（碰撞盒与清单一致性由清单单测覆盖）。
 
 任何情况下都不需要改 `src/game/scenes/Game.ts` 的玩法逻辑。

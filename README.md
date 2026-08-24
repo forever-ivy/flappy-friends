@@ -11,6 +11,10 @@ npm run dev
 
 Open `http://localhost:8080`. Visitors can play without an account. A player only needs to register when they want to save runs and appear on the leaderboards.
 
+## Desktop Support
+
+The playfield height stays at 640 logical pixels while the width adapts to the viewport aspect ratio between 360 and 960; ultrawide monitors get letterboxed bars. Keyboard controls: `Space` / `↑` / `W` to flap, `Space` or `Enter` to start from the menu, `Enter` to replay after a run. On touch devices the game plays exactly as before (360-wide portrait view).
+
 ## Checks
 
 ```bash

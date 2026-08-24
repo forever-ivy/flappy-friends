@@ -1,8 +1,13 @@
 import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
-import { calculateScore, createSeededRandom, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult, shouldSpawnReward } from '../../domain/game';
+import {
+    calculateScore, computeGameWidth, computePlayerX, createSeededRandom,
+    FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult,
+    shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
+} from '../../domain/game';
 import { CHARACTER_TEXTURE_SIZE, getCharacter } from '../assets';
 import { playSfx } from '../sfx';
+import { syncStageVars } from '../stageSync';
 import { EventBus } from '../EventBus';
 
 type GamePhase = 'idle' | 'countdown' | 'playing' | 'over';
@@ -14,6 +19,8 @@ interface ObstaclePair {
     scored: boolean;
 }
 
+const COUNTDOWN_TEXT_Y = 264;
+
 export class Game extends Scene {
     private phase: GamePhase = 'idle';
     private selectedCharacter = 'nova';
@@ -21,26 +28,33 @@ export class Game extends Scene {
     private obstacles!: Phaser.Physics.Arcade.Group;
     private rewards!: Phaser.Physics.Arcade.Group;
     private pairs: ObstaclePair[] = [];
+    private sky!: Phaser.GameObjects.Image;
     private city!: Phaser.GameObjects.TileSprite;
     private street!: Phaser.GameObjects.TileSprite;
     private idleTween?: Phaser.Tweens.Tween;
+    private countdownText?: Phaser.GameObjects.Text;
     private pipeCount = 0;
     private rewardCount = 0;
     private startedAt = 0;
     private random = createSeededRandom(Date.now());
+    private flapKeyHandler = () => this.flap();
+    private resizeHandler = () => {
+        this.maybeApplyGameWidth();
+        this.layout();
+    };
 
     constructor() {
         super('Game');
     }
 
     create() {
-        this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'background-sky');
+        this.sky = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'background-sky');
         this.city = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 'background-city');
         this.street = this.add.tileSprite(GAME_WIDTH / 2, 565, GAME_WIDTH, 180, 'background-street').setDepth(2);
         this.obstacles = this.physics.add.group({ allowGravity: false, immovable: true });
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
 
-        this.player = this.physics.add.sprite(88, 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
+        this.player = this.physics.add.sprite(computePlayerX(this.scale.gameSize.width), 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
         this.player.setCollideWorldBounds(false);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -48,11 +62,22 @@ export class Game extends Scene {
         this.physics.add.collider(this.player, this.obstacles, () => this.finishRun());
         this.physics.add.overlap(this.player, this.rewards, (_player, reward) => this.collectReward(reward as Phaser.Physics.Arcade.Image));
         this.input.on('pointerdown', () => this.flap());
-        this.input.keyboard?.on('keydown-SPACE', () => this.flap());
+        this.input.keyboard?.on('keydown-SPACE', this.flapKeyHandler);
+        this.input.keyboard?.on('keydown-UP', this.flapKeyHandler);
+        this.input.keyboard?.on('keydown-W', this.flapKeyHandler);
         EventBus.on('game:start', this.startRun, this);
         EventBus.on('character:selected', this.selectCharacter, this);
 
+        // 视口变化时先校正画布逻辑宽度（360–960），再按新宽度重排版
+        this.scale.on('resize', this.resizeHandler);
+        this.maybeApplyGameWidth();
+        this.layout();
+
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.scale.off('resize', this.resizeHandler);
+            this.input.keyboard?.off('keydown-SPACE', this.flapKeyHandler);
+            this.input.keyboard?.off('keydown-UP', this.flapKeyHandler);
+            this.input.keyboard?.off('keydown-W', this.flapKeyHandler);
             EventBus.off('game:start', this.startRun, this);
             EventBus.off('character:selected', this.selectCharacter, this);
         });
@@ -60,6 +85,27 @@ export class Game extends Scene {
         this.startIdleTween();
         EventBus.emit('game:ready');
         EventBus.emit('current-scene-ready', this);
+    }
+
+    // 画布高度恒 640，宽度跟随视口宽高比；与当前一致时不重复 setGameSize，避免事件回环
+    private maybeApplyGameWidth() {
+        const desired = computeGameWidth(this.scale.parentSize.width, this.scale.parentSize.height);
+        if (desired !== this.scale.gameSize.width) {
+            this.scale.setGameSize(desired, GAME_HEIGHT);
+            this.scale.refresh();
+        }
+    }
+
+    // 按当前画布宽度重排背景与锚点；可安全重复调用
+    private layout() {
+        const width = this.scale.gameSize.width;
+        this.sky.setPosition(width / 2, GAME_HEIGHT / 2);
+        this.city.setSize(width, GAME_HEIGHT).setPosition(width / 2, GAME_HEIGHT / 2);
+        this.street.setSize(width, 180).setPosition(width / 2, 565);
+        if (this.countdownText?.active) this.countdownText.setPosition(width / 2, COUNTDOWN_TEXT_Y);
+        // 对局中途窗口缩放时把角色重新锚定到新宽度的目标位置
+        this.player.setX(computePlayerX(width));
+        syncStageVars(this.scale.displaySize.width, this.scale.displaySize.height);
     }
 
     update(_time: number, delta: number) {
@@ -83,7 +129,7 @@ export class Game extends Scene {
         });
 
         const latest = this.pairs[this.pairs.length - 1];
-        if (!latest || latest.top.x < 180) this.spawnPair();
+        if (!latest || latest.top.x < this.scale.gameSize.width - SPAWN_TRIGGER_FROM_RIGHT) this.spawnPair();
 
         const removed = this.pairs.filter((pair) => pair.top.x < -70);
         removed.forEach((pair) => {
@@ -117,16 +163,13 @@ export class Game extends Scene {
         this.random = createSeededRandom(payload.seed ?? Date.now());
         this.pipeCount = 0;
         this.rewardCount = 0;
-        this.player.clearTint().setPosition(88, 300).setAngle(0).setVelocity(0, 0);
+        this.player.clearTint().setPosition(computePlayerX(this.scale.gameSize.width), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
         this.idleTween?.stop();
         this.emitScore();
 
-        const countdownStyle = {
-            fontFamily: 'Arial Black', fontSize: 66, color: '#f7f1df', stroke: '#142436', strokeThickness: 8,
-        };
-        let countdown = this.add.text(180, 264, '3', countdownStyle).setOrigin(0.5).setDepth(30);
+        this.showCountdown('3');
         const sequence = ['3', '2', '1', 'GO'];
         let index = 0;
         this.time.addEvent({
@@ -135,22 +178,33 @@ export class Game extends Scene {
             callback: () => {
                 index += 1;
                 const nextText = sequence[index] ?? '';
-                countdown.destroy();
-                countdown = this.add.text(180, 264, nextText, countdownStyle).setOrigin(0.5).setDepth(30).setScale(1.2);
-                this.tweens.add({ targets: countdown, scale: 1, alpha: 0.86, duration: 260 });
+                this.showCountdown(nextText, 1.2);
+                this.tweens.add({ targets: this.countdownText, scale: 1, alpha: 0.86, duration: 260 });
                 if (index === sequence.length - 1) {
                     this.time.delayedCall(360, () => {
-                        countdown.destroy();
+                        this.clearCountdown();
                         this.phase = 'playing';
                         this.startedAt = Date.now();
                         this.playerBody().setAllowGravity(true);
-                        this.spawnPair(480);
+                        this.spawnPair(this.scale.gameSize.width + FIRST_PIPE_EXTRA);
                         EventBus.emit('game:phase', 'playing');
                     });
                 }
             },
         });
     };
+
+    private showCountdown(text: string, scale = 1) {
+        this.countdownText?.destroy();
+        this.countdownText = this.add.text(this.scale.gameSize.width / 2, COUNTDOWN_TEXT_Y, text, {
+            fontFamily: 'Arial Black', fontSize: 66, color: '#f7f1df', stroke: '#142436', strokeThickness: 8,
+        }).setOrigin(0.5).setDepth(30).setScale(scale);
+    }
+
+    private clearCountdown() {
+        this.countdownText?.destroy();
+        this.countdownText = undefined;
+    }
 
     private flap() {
         if (this.phase !== 'playing') return;
@@ -159,7 +213,7 @@ export class Game extends Scene {
         this.tweens.add({ targets: this.player, scaleX: 1.1, scaleY: 0.9, duration: 80, yoyo: true });
     }
 
-    private spawnPair(x = 420) {
+    private spawnPair(x = this.scale.gameSize.width + SPAWN_OFFSCREEN_X) {
         const { gap } = getDifficulty(this.currentScore());
         const topLimit = 108 + gap / 2;
         const bottomLimit = GAME_HEIGHT - 86 - gap / 2 - 108;

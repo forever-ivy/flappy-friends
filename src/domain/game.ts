@@ -1,7 +1,30 @@
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
+// 大屏适配：画布高度恒定，宽度按视口比例在 [GAME_WIDTH, MAX_GAME_WIDTH] 内自适应
+export const MAX_GAME_WIDTH = 960;
+
+// 障碍生成几何：触发线与生成点都相对画布右缘，360 宽时与旧硬编码完全一致（180 / 420 / 480），
+// 任意宽度下相邻障碍中心距恒为 (SPAWN_OFFSCREEN_X + SPAWN_TRIGGER_FROM_RIGHT) = 240
+export const SPAWN_TRIGGER_FROM_RIGHT = 180;
+export const SPAWN_OFFSCREEN_X = 60;
+export const FIRST_PIPE_EXTRA = 120;
+
+// 玩家横向锚点：随画布等比右移，限制桌面端的前瞻视野倍数（360→88，960→235）
+export const PLAYER_BASE_X = 88;
+export const PLAYER_MAX_X = 240;
+
 export const REWARD_POINTS = 5;
 export const REWARD_CHANCE = 0.35;
+
+export function computeGameWidth(viewportWidth: number, viewportHeight: number): number {
+    if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
+        || viewportWidth <= 0 || viewportHeight <= 0) return GAME_WIDTH;
+    return Math.max(GAME_WIDTH, Math.min(MAX_GAME_WIDTH, Math.round((viewportWidth / viewportHeight) * GAME_HEIGHT)));
+}
+
+export function computePlayerX(width: number): number {
+    return Math.min(PLAYER_MAX_X, Math.max(PLAYER_BASE_X, Math.round((width * PLAYER_BASE_X) / GAME_WIDTH)));
+}
 
 // 角色中心点越过这两条线（顶部 / 底部）即判定本局结束
 export const KILL_TOP = 18;

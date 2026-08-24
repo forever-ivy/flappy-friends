@@ -28,8 +28,8 @@ body {
 
 .game-shell {
     position: relative;
-    --stage-width: min(100vw, calc(100svh * 0.5625));
-    --stage-height: min(100svh, calc(100vw * 1.77778));
+    /* --stage-width/--stage-height 由 Phaser 实际显示尺寸经 JS 写入（见 src/game/stageSync.ts），
+       回退值保持旧的 9:16 居中计算，覆盖 JS 生效前的短暂启动期 */
     width: 100vw;
     height: 100svh;
     overflow: hidden;
@@ -47,8 +47,8 @@ body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: var(--stage-width) !important;
-    height: var(--stage-height) !important;
+    width: var(--stage-width, min(100vw, calc(100svh * 0.5625))) !important;
+    height: var(--stage-height, min(100svh, calc(100vw * 1.77778))) !important;
     margin: 0 !important;
     transform: translate(-50%, -50%);
     display: block;
@@ -56,7 +56,7 @@ body {
 }
 
 .topbar, .menu-layer, .hud {
-    width: var(--stage-width);
+    width: var(--stage-width, min(100vw, calc(100svh * 0.5625)));
     left: 50%;
     right: auto;
     transform: translateX(-50%);
@@ -90,10 +90,11 @@ body {
 }
 
 .result-layer .result-sheet {
-    width: min(calc(var(--stage-width) - 28px), 480px);
+    width: min(calc(var(--stage-width, 100vw) - 28px), 480px);
     left: 50%;
     right: auto;
-    transform: translateX(-50%);
+    /* 用独立 translate 属性居中：controls-in 动画的 transform 会覆盖静态 transform 声明 */
+    translate: -50% 0;
 }
 
 .dialog-backdrop {
@@ -180,9 +181,12 @@ body {
 
 .menu-controls {
     position: absolute;
-    left: 14px;
-    right: 14px;
+    left: 50%;
+    right: auto;
     bottom: max(14px, env(safe-area-inset-bottom));
+    /* 大屏限宽居中；360 宽画布下 min() 取 100% - 28px，与旧版左右各 14px 完全一致 */
+    width: min(100% - 28px, 520px);
+    translate: -50% 0;
     padding: 14px;
     color: #f7f1df;
     background: rgba(20, 36, 54, .94);
@@ -232,6 +236,27 @@ body {
 
 .stats-line span + span { border-left: 1px solid #405767; }
 .stats-line b { display: block; color: #f7f1df; font-size: 17px; }
+
+.key-hint { margin: 12px 0 0; color: #9eb6b4; font-size: 11px; text-align: center; }
+.key-hint kbd {
+    display: inline-block;
+    min-width: 20px;
+    margin: 0 2px;
+    padding: 2px 6px;
+    color: #f7f1df;
+    background: #243c4d;
+    border: 1px solid #59707b;
+    border-bottom-width: 3px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+@media (hover: none) {
+    .key-hint { display: none; }
+}
 
 .primary-button, .secondary-button, .save-button {
     min-height: 48px;
@@ -309,6 +334,7 @@ body {
 .dialog {
     position: relative;
     width: 100%;
+    max-width: 430px;
     max-height: calc(100% - 24px);
     padding: 24px 18px 18px;
     overflow: hidden;
@@ -357,6 +383,28 @@ body {
     .character-choice img { width: 43px; height: 43px; }
     .stats-line { margin: 9px 0; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
+}
+
+/* 桌面大屏：画布变宽后适度放大关键排版 */
+@media (min-width: 900px) {
+    .title-block h1 { font-size: 64px; }
+    .eyebrow { font-size: 13px; }
+    .selected-copy strong { font-size: 24px; }
+    .score-number { font-size: 62px; }
+    .result-score { font-size: 84px; }
+    .character-choice { height: 84px; }
+    .character-choice img { width: 56px; height: 56px; }
+}
+
+/* 横屏矮窗口（手机横过来、分屏）：进一步压缩纵向占用 */
+@media (max-height: 520px) {
+    .title-block { top: 44px; }
+    .title-block h1 { font-size: 34px; }
+    .menu-controls { padding: 8px; }
+    .character-choice { height: 56px; }
+    .character-choice img { width: 36px; height: 36px; }
+    .primary-button, .secondary-button, .save-button { min-height: 38px; }
+    .stats-line { margin: 6px 0; }
 }
 
 @media (max-width: 480px) {

@@ -32,6 +32,26 @@ function App() {
 
     useEffect(() => onAuthChange(setPlayer), []);
 
+    // 桌面端键盘快捷键：菜单 空格/回车 开始，结算 回车 重开。
+    // 忽略按住重复、修饰键、输入框与按钮焦点（避免与原生按钮激活双触发）以及弹窗打开时。
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+            const target = event.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+                || target.tagName === 'BUTTON' || target.isContentEditable)) return;
+            if (overlay !== 'none') return;
+            const start = screen === 'menu' && (event.code === 'Space' || event.code === 'Enter');
+            const restart = screen === 'gameover' && event.code === 'Enter';
+            if (start || restart) {
+                event.preventDefault();
+                play();
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [screen, overlay, progress]);
+
     useEffect(() => {
         const onReady = () => EventBus.emit('character:selected', progress.selectedCharacter);
         const onScore = (next: ScoreState) => setScore(next);
@@ -152,6 +172,8 @@ function App() {
                             <span><b>{localStats.totalScore}</b> 累计</span>
                             <span><b>{localStats.gamesPlayed}</b> 局</span>
                         </div>
+
+                        <p className="key-hint" aria-hidden="true"><kbd>空格</kbd>/<kbd>↑</kbd> 起飞 · <kbd>Enter</kbd> 开始 / 重开</p>
 
                         <button className="primary-button" onClick={play}>
                             <Play size={21} fill="currentColor" /> 开始游戏

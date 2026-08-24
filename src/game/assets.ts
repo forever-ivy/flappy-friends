@@ -20,6 +20,9 @@ export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find
 // 角色贴图在 Preloader 中的逻辑加载尺寸（正方形），碰撞圆以贴图中心为圆心
 export const CHARACTER_TEXTURE_SIZE = 72;
 
+// 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，中央 360×640 与旧版一致，窄屏时左右对称裁切
+export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;
+
 export const GAME_ASSETS = {
     sky: 'game/background-sky.svg',
     city: 'game/background-city.svg',

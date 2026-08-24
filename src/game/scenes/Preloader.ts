@@ -32,7 +32,8 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
-        // PNG 均按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480 / 奖励 48x48 / 角色 72x72）
+        // 背景/障碍/奖励按逻辑 1x 交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480 / 奖励 48x48）；
+        // 角色贴图按 3x 位图交付（216x216），Game 场景 setDisplaySize 缩回逻辑 72 以保证高分屏清晰
         this.load.image('background-sky', GAME_ASSETS.sky);
         this.load.image('background-city', GAME_ASSETS.city);
         this.load.image('background-street', GAME_ASSETS.street);

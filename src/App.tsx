@@ -161,7 +161,7 @@ function App() {
                                     aria-pressed={character.id === selected.id}
                                     title={`选择 ${character.name}`}
                                 >
-                                    <img src={`/assets/${character.image}`} alt="" />
+                                    <img src={`/assets/${character.portrait}`} alt="" />
                                     <span>{character.name}</span>
                                 </button>
                             ))}
@@ -311,7 +311,7 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
                         return (
                             <div className="leaderboard-row" key={entry.playerId}>
                                 <b className="rank">{entry.rank}</b>
-                                <img src={`/assets/${character.image}`} alt="" />
+                                <img src={`/assets/${character.portrait}`} alt="" />
                                 <span>{entry.username}</span>
                                 <strong>{entry.score}</strong>
                             </div>

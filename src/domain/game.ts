@@ -16,6 +16,19 @@ export const PLAYER_MAX_X = 240;
 export const REWARD_POINTS = 5;
 export const REWARD_CHANCE = 0.35;
 
+// Canvas 渲染倍率：打断「canvas 逻辑 72px → CSS/浏览器位图放大」的糊化链条。
+// canvas 后备像素 = 逻辑尺寸 × 倍率（相机 setZoom 同倍率，逻辑坐标不变），
+// 倍率 = 画布实际显示所需的设备像素高 / 逻辑高（640）向上取整，clamp 到 [1, 3]。
+// 同时覆盖两类放大源：高 DPR 屏（dpr≥2）与桌面大窗口（640 逻辑高被 CSS 拉伸到 ~1000px）。
+export const MAX_RENDER_SCALE = 3;
+
+export function computeRenderScale(devicePixelRatio: number, viewportHeight: number): number {
+    const dpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    const cssHeight = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : GAME_HEIGHT;
+    const devicePixelHeight = cssHeight * dpr;
+    return Math.min(MAX_RENDER_SCALE, Math.max(1, Math.ceil(devicePixelHeight / GAME_HEIGHT)));
+}
+
 export function computeGameWidth(viewportWidth: number, viewportHeight: number): number {
     if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
         || viewportWidth <= 0 || viewportHeight <= 0) return GAME_WIDTH;

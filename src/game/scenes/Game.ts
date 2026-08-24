@@ -6,6 +6,7 @@ import {
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
 import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant } from '../assets';
+import { getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
 import { EventBus } from '../EventBus';
@@ -42,6 +43,8 @@ export class Game extends Scene {
     private startedAt = 0;
     private random = createSeededRandom(Date.now());
     private sparkles: Phaser.GameObjects.Image[] = [];
+    // canvas 后备像素 = 逻辑尺寸 × renderScale；相机 setZoom(renderScale) 还原逻辑坐标系
+    private renderScale = getRenderScale();
     private lastVariantIndex = -1;
     private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
@@ -62,7 +65,7 @@ export class Game extends Scene {
         this.obstacles = this.physics.add.group({ allowGravity: false, immovable: true });
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
 
-        this.player = this.physics.add.sprite(computePlayerX(this.scale.gameSize.width), 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
+        this.player = this.physics.add.sprite(computePlayerX(this.logicalWidth()), 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
         this.player.setCollideWorldBounds(false);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -95,18 +98,26 @@ export class Game extends Scene {
         EventBus.emit('current-scene-ready', this);
     }
 
-    // 画布高度恒 640，宽度跟随视口宽高比；与当前一致时不重复 setGameSize，避免事件回环
+    // gameSize 是乘过 renderScale 的 canvas 后备像素，除回倍率即游戏逻辑宽度
+    private logicalWidth() {
+        return this.scale.gameSize.width / this.renderScale;
+    }
+
+    // 画布逻辑高度恒 640，宽度跟随视口宽高比；与当前一致时不重复 setGameSize，避免事件回环
     private maybeApplyGameWidth() {
         const desired = computeGameWidth(this.scale.parentSize.width, this.scale.parentSize.height);
-        if (desired !== this.scale.gameSize.width) {
-            this.scale.setGameSize(desired, GAME_HEIGHT);
+        if (desired !== this.logicalWidth()) {
+            this.scale.setGameSize(desired * this.renderScale, GAME_HEIGHT * this.renderScale);
             this.scale.refresh();
         }
     }
 
     // 按当前画布宽度重排背景与锚点；可安全重复调用
     private layout() {
-        const width = this.scale.gameSize.width;
+        const width = this.logicalWidth();
+        // 相机放大 renderScale 倍并对准逻辑区域中心：世界坐标（物理/难度/碰撞）保持 360–960 × 640 不变
+        this.cameras.main.setZoom(this.renderScale);
+        this.cameras.main.centerOn(width / 2, GAME_HEIGHT / 2);
         this.sky.setPosition(width / 2, GAME_HEIGHT / 2);
         this.city.setSize(width, GAME_HEIGHT).setPosition(width / 2, GAME_HEIGHT / 2);
         this.street.setSize(width, 180).setPosition(width / 2, 565);
@@ -142,7 +153,7 @@ export class Game extends Scene {
         });
 
         const latest = this.pairs[this.pairs.length - 1];
-        if (!latest || latest.top.x < this.scale.gameSize.width - SPAWN_TRIGGER_FROM_RIGHT) this.spawnPair();
+        if (!latest || latest.top.x < this.logicalWidth() - SPAWN_TRIGGER_FROM_RIGHT) this.spawnPair();
 
         const removed = this.pairs.filter((pair) => pair.top.x < -70);
         removed.forEach((pair) => {
@@ -158,7 +169,7 @@ export class Game extends Scene {
 
     // 星光只做氛围装饰：用 Math.random 布点与闪烁，不消耗对局的种子随机序列
     private createAmbientSparkles() {
-        const width = this.scale.gameSize.width;
+        const width = this.logicalWidth();
         for (let index = 0; index < SPARKLE_COUNT; index += 1) {
             const sparkle = this.add.image(Math.random() * width, 30 + Math.random() * 510, 'fx-sparkle')
                 .setDepth(4)
@@ -180,7 +191,7 @@ export class Game extends Scene {
     }
 
     private driftSparkles(scrollSpeed: number, seconds: number) {
-        const width = this.scale.gameSize.width;
+        const width = this.logicalWidth();
         this.sparkles.forEach((sparkle, index) => {
             // 视差介于中景（0.18x）与街面（1x）之间，另加缓慢上飘
             sparkle.x -= scrollSpeed * 0.3 * seconds;
@@ -222,7 +233,7 @@ export class Game extends Scene {
         this.pipeCount = 0;
         this.rewardCount = 0;
         this.lastVariantIndex = -1;
-        this.player.clearTint().setPosition(computePlayerX(this.scale.gameSize.width), 300).setAngle(0).setVelocity(0, 0);
+        this.player.clearTint().setPosition(computePlayerX(this.logicalWidth()), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
         this.idleTween?.stop();
@@ -245,7 +256,7 @@ export class Game extends Scene {
                         this.phase = 'playing';
                         this.startedAt = Date.now();
                         this.playerBody().setAllowGravity(true);
-                        this.spawnPair(this.scale.gameSize.width + FIRST_PIPE_EXTRA);
+                        this.spawnPair(this.logicalWidth() + FIRST_PIPE_EXTRA);
                         EventBus.emit('game:phase', 'playing');
                     });
                 }
@@ -255,8 +266,9 @@ export class Game extends Scene {
 
     private showCountdown(text: string, scale = 1) {
         this.countdownText?.destroy();
-        this.countdownText = this.add.text(this.scale.gameSize.width / 2, COUNTDOWN_TEXT_Y, text, {
-            fontFamily: 'Arial Black', fontSize: 66, color: '#fff6f9', stroke: '#d97a99', strokeThickness: 8,
+        this.countdownText = this.add.text(this.logicalWidth() / 2, COUNTDOWN_TEXT_Y, text, {
+            // resolution 跟随渲染倍率：文字位图按 canvas 实际像素密度绘制，相机 zoom 后仍锐利
+            fontFamily: 'Arial Black', fontSize: 66, color: '#fff6f9', stroke: '#d97a99', strokeThickness: 8, resolution: this.renderScale,
         }).setOrigin(0.5).setDepth(30).setScale(scale);
     }
 
@@ -273,7 +285,7 @@ export class Game extends Scene {
         this.tweens.add({ targets: this.player, scaleX: this.player.scaleX * 1.1, scaleY: this.player.scaleY * 0.9, duration: 80, yoyo: true });
     }
 
-    private spawnPair(x = this.scale.gameSize.width + SPAWN_OFFSCREEN_X) {
+    private spawnPair(x = this.logicalWidth() + SPAWN_OFFSCREEN_X) {
         const { gap } = getDifficulty(this.currentScore());
         const topLimit = 108 + gap / 2;
         const bottomLimit = GAME_HEIGHT - 86 - gap / 2 - 108;

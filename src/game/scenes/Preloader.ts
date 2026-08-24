@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { CHARACTERS, GAME_ASSETS } from '../assets';
+import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
 import { syncStageVars } from '../stageSync';
 
 export class Preloader extends Scene
@@ -36,10 +36,13 @@ export class Preloader extends Scene
         this.load.image('background-sky', GAME_ASSETS.sky);
         this.load.image('background-city', GAME_ASSETS.city);
         this.load.image('background-street', GAME_ASSETS.street);
-        this.load.image('obstacle', GAME_ASSETS.obstacle);
-        this.load.image('obstacle-top', GAME_ASSETS.obstacleTop);
         this.load.image('reward', GAME_ASSETS.reward);
         this.load.image('reward-mirror', GAME_ASSETS.rewardMirror);
+        this.load.image('fx-sparkle', GAME_ASSETS.sparkle);
+        OBSTACLE_VARIANTS.forEach((variant) => {
+            this.load.image(variant.bottomKey, variant.bottomImage);
+            this.load.image(variant.topKey, variant.topImage);
+        });
         CHARACTERS.forEach((character) => this.load.image(character.textureKey, character.image));
     }
 

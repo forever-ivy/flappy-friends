@@ -21,9 +21,8 @@ export class Preloader extends Scene
         // 画布宽度随视口自适应（360–960），加载界面按当前宽度居中
         const centerX = logicalWidth / 2;
         this.cameras.main.setBackgroundColor('#fdeef4');
-        this.add.text(centerX, 286, '天际跳跳', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c', resolution: renderScale }).setOrigin(0.5);
-        this.add.rectangle(centerX, 330, 184, 8, 0xf3cdda);
-        const bar = this.add.rectangle(centerX - 92, 330, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
+        this.add.rectangle(centerX, 320, 184, 8, 0xf3cdda);
+        const bar = this.add.rectangle(centerX - 92, 320, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
 
         //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
         this.load.on('progress', (progress: number) => {

@@ -45,6 +45,7 @@ Put the service behind the existing Nginx/Caddy HTTPS reverse proxy. Keep the `p
 ## Game Rules
 
 - Passing an obstacle pair gives 1 point.
+- Obstacle pairs cycle through four pastel slogan-pillar variants (sakura pink, lavender, sky blue, peach); adjacent pairs never repeat a color. The variety is visual only — every variant shares the same hitbox.
 - 35% of pairs contain a collectible reward worth 5 points.
 - Scroll speed increases and the gap narrows at 10, 25, and 50 points.
 - The best-score and total-score leaderboards are separate.

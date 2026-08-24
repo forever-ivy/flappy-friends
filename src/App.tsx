@@ -104,52 +104,35 @@ function App() {
         setMuted(!muted);
     };
 
-    const localStats = player ?? progress;
-
     return (
         <main className="game-shell">
             <PhaserGame />
 
-            <header className="topbar">
-                <div className="brand-lockup">
-                    <span className="brand-mark" aria-hidden="true">跳</span>
-                    <span>天际跳跳</span>
-                </div>
-                {screen !== 'playing' && (
+            {screen !== 'playing' && (
+                <header className="topbar">
                     <nav className="top-actions" aria-label="账户与排名">
-                        <button className="icon-button" onClick={toggleMute} title={muted ? '开启音效' : '关闭音效'} aria-label={muted ? '开启音效' : '关闭音效'}>
+                        <button className="icon-button" onClick={toggleMute} aria-label={muted ? '开启音效' : '关闭音效'}>
                             {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
                         </button>
-                        <button className="icon-button" onClick={() => setOverlay('leaderboard')} title="排行榜" aria-label="打开排行榜">
+                        <button className="icon-button" onClick={() => setOverlay('leaderboard')} aria-label="打开排行榜">
                             <Trophy size={19} />
                         </button>
                         {player ? (
-                            <button className="icon-button account-active" onClick={signOut} title={`退出 ${player.username}`} aria-label="退出登录">
+                            <button className="icon-button account-active" onClick={signOut} aria-label="退出登录">
                                 <LogOut size={19} />
                             </button>
                         ) : (
-                            <button className="icon-button" onClick={() => setOverlay('auth')} title="登录保存进度" aria-label="登录">
+                            <button className="icon-button" onClick={() => setOverlay('auth')} aria-label="登录">
                                 <CircleUserRound size={20} />
                             </button>
                         )}
                     </nav>
-                )}
-            </header>
+                </header>
+            )}
 
             {screen === 'menu' && (
                 <section className="menu-layer" aria-label="开始游戏">
-                    <div className="title-block">
-                        <p className="eyebrow">穿过樱花花海</p>
-                        <h1>天际<br />跳跳</h1>
-                    </div>
-
                     <div className="menu-controls">
-                        <div className="selected-copy">
-                            <span>当前角色</span>
-                            <p>{selected.tagline}</p>
-                        </div>
-
-                        {/* 卡片不显示角色名，仅靠高清头像的衣装颜色区分；头像用 256² portrait，不复用局内精灵 */}
                         <div className="character-rail" role="list" aria-label="选择角色">
                             {CHARACTERS.map((character) => (
                                 <button
@@ -157,23 +140,14 @@ function App() {
                                     className={`character-choice ${character.id === selected.id ? 'selected' : ''}`}
                                     onClick={() => chooseCharacter(character.id)}
                                     aria-pressed={character.id === selected.id}
-                                    title={character.tagline}
                                 >
                                     <img src={`/assets/${character.portrait}`} alt="" />
                                 </button>
                             ))}
                         </div>
 
-                        <div className="stats-line" aria-label="游戏进度">
-                            <span><b>{localStats.bestScore}</b> 最高</span>
-                            <span><b>{localStats.totalScore}</b> 累计</span>
-                            <span><b>{localStats.gamesPlayed}</b> 局</span>
-                        </div>
-
-                        <p className="key-hint" aria-hidden="true"><kbd>空格</kbd>/<kbd>↑</kbd> 起飞 · <kbd>Enter</kbd> 开始 / 重开</p>
-
-                        <button className="primary-button" onClick={play}>
-                            <Play size={21} fill="currentColor" /> 开始游戏
+                        <button className="primary-button" onClick={play} aria-label="开始游戏">
+                            <Play size={21} fill="currentColor" />
                         </button>
                     </div>
                 </section>
@@ -189,22 +163,15 @@ function App() {
             {screen === 'gameover' && lastRun && (
                 <section className="result-layer" aria-label="本局结果">
                     <div className="result-sheet">
-                        <p className="eyebrow">游戏结束</p>
                         <div className="result-score">{lastRun.totalScore}</div>
-                        <p className="result-breakdown">穿越 {lastRun.pipeCount} · 奖励 {lastRun.rewardCount} × 5</p>
-                        <div className="result-best">
-                            <span>历史最高</span><b>{localStats.bestScore}</b>
-                            <span>累计积分</span><b>{localStats.totalScore}</b>
-                        </div>
                         {!player && (
-                            <button className="save-button" onClick={() => setOverlay('auth')}>
-                                <LogIn size={18} /> 登录并保存
+                            <button className="save-button" onClick={() => setOverlay('auth')} aria-label="登录并保存">
+                                <LogIn size={18} />
                             </button>
                         )}
-                        {player && syncing && <p className="sync-status">正在保存成绩…</p>}
                         <div className="result-actions">
-                            <button className="secondary-button" onClick={() => setScreen('menu')}><Home size={19} /> 选角色</button>
-                            <button className="primary-button compact" onClick={play}><RotateCcw size={19} /> 再来一局</button>
+                            <button className="secondary-button" onClick={() => setScreen('menu')} aria-label="选角色"><Home size={19} /></button>
+                            <button className="primary-button compact" onClick={play} aria-label="再来一局"><RotateCcw size={19} /></button>
                         </div>
                     </div>
                 </section>

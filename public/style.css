@@ -95,7 +95,7 @@ body {
     height: 42px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     pointer-events: none;
 }
 
@@ -116,11 +116,13 @@ body {
 }
 
 .result-layer .result-sheet {
-    width: min(calc(var(--stage-width, 100vw) - 28px), 480px);
+    width: min(calc(var(--stage-width, 100vw) - 28px), 420px);
     left: 50%;
+    top: 50%;
     right: auto;
+    bottom: auto;
     /* 用独立 translate 属性居中：controls-in 动画的 transform 会覆盖静态 transform 声明 */
-    translate: -50% 0;
+    translate: -50% -50%;
 }
 
 .dialog-backdrop {
@@ -140,29 +142,7 @@ body {
     height: 100% !important;
 }
 
-.brand-lockup {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #fff6f9;
-    font-family: "Arial Black", Impact, sans-serif;
-    font-size: 13px;
-    text-shadow: var(--text-outline);
-}
-
-.brand-mark {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    color: #7a4459;
-    background: #ffb1cf;
-    border: 2px solid #b4606a;
-    border-radius: 50%;
-    text-shadow: none;
-}
-
-.top-actions { display: flex; gap: 7px; pointer-events: auto; }
+.top-actions { display: flex; gap: 7px; margin-right: 10px; pointer-events: auto; }
 
 .icon-button, .dialog-close {
     width: 38px;
@@ -181,42 +161,15 @@ body {
 .icon-button:hover, .dialog-close:hover { transform: translateY(-2px); background: #ffd9e8; }
 .account-active { color: #e0608a; }
 
-.title-block {
-    position: absolute;
-    top: 74px;
-    left: 24px;
-    color: #fff6f9;
-    animation: title-in .55s cubic-bezier(.2, .8, .2, 1) both;
-}
-
-.eyebrow {
-    margin: 0 0 6px;
-    color: #d94f6e;
-    font-size: 11px;
-    font-weight: 900;
-    text-transform: uppercase;
-}
-
-.title-block h1 {
-    margin: 0;
-    color: #fff6f9;
-    font-family: "Arial Black", Impact, sans-serif;
-    font-size: 50px;
-    /* 中文字形占满 em 框，行高略放宽避免两行笔画相叠 */
-    line-height: 1.06;
-    font-weight: 900;
-    text-shadow: var(--text-outline);
-}
-
 .menu-controls {
     position: absolute;
     left: 50%;
+    top: 50%;
     right: auto;
-    bottom: max(14px, env(safe-area-inset-bottom));
-    /* 大屏限宽居中；360 宽画布下 min() 取 100% - 28px，与旧版左右各 14px 完全一致 */
-    width: min(100% - 28px, 520px);
-    translate: -50% 0;
-    padding: 14px;
+    bottom: auto;
+    width: min(100% - 28px, 420px);
+    translate: -50% -50%;
+    padding: 16px;
     color: var(--ink);
     background: rgba(255, 247, 251, .94);
     border: 3px solid var(--stroke);
@@ -226,16 +179,12 @@ body {
     animation: controls-in .55s .08s cubic-bezier(.2, .8, .2, 1) both;
 }
 
-/* 不显示角色名：左侧固定「当前角色」标签，右侧为所选角色的标语 */
-.selected-copy { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
-.selected-copy span { flex-shrink: 0; color: #bb8ba0; font-size: 10px; font-weight: 800; }
-.selected-copy p { margin: 0; color: #99617a; font-size: 11px; text-align: right; }
-
 .character-rail {
     display: grid;
     /* 两位角色一行并排；卡片上只有高清头像（256² portrait），无名字文本 */
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+    margin-bottom: 14px;
 }
 
 .character-choice {
@@ -252,39 +201,6 @@ body {
 .character-choice:hover { transform: translateY(-2px); }
 .character-choice.selected { background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px); }
 .character-choice img { display: block; width: 52px; height: 52px; margin: 0 auto; object-fit: contain; }
-
-.stats-line {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    margin: 13px 0;
-    color: #bb8ba0;
-    font-size: 10px;
-    text-align: center;
-}
-
-.stats-line span + span { border-left: 1px solid #f0cfdd; }
-.stats-line b { display: block; color: #6b3a50; font-size: 17px; }
-
-.key-hint { margin: 12px 0 0; color: #bb8ba0; font-size: 11px; text-align: center; }
-.key-hint kbd {
-    display: inline-block;
-    min-width: 20px;
-    margin: 0 2px;
-    padding: 2px 6px;
-    color: #7a4459;
-    background: #fbe4ee;
-    border: 1px solid #e5b3c8;
-    border-bottom-width: 3px;
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 10px;
-    font-weight: 800;
-    line-height: 1.4;
-}
-
-@media (hover: none) {
-    .key-hint { display: none; }
-}
 
 /* 按钮统一「手绘贴纸」样式：同色系描边 + 实底边缘，替代 3D 悬浮阴影与扁平混搭 */
 .primary-button, .secondary-button, .save-button {
@@ -345,10 +261,13 @@ body {
 
 .result-sheet {
     position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: max(14px, env(safe-area-inset-bottom));
-    padding: 20px 18px 17px;
+    left: 50%;
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    width: min(calc(var(--stage-width, 100vw) - 28px), 420px);
+    translate: -50% -50%;
+    padding: 24px 18px 18px;
     color: var(--ink);
     background: var(--paper);
     border: 3px solid var(--stroke);
@@ -361,16 +280,13 @@ body {
 .result-score {
     --text-stroke-color: var(--pink);
     color: #fff;
+    margin: 0 0 18px;
     font-family: "Arial Black", Impact, sans-serif;
     font-size: 72px;
     line-height: 1;
     text-shadow: var(--text-outline);
 }
-.result-breakdown { margin: 4px 0 15px; color: #bb8ba0; font-size: 12px; }
-.result-best { display: grid; grid-template-columns: 1fr auto; gap: 6px 18px; margin: 0 16px 17px; text-align: left; font-size: 12px; }
-.result-best b { color: #e0608a; font-size: 15px; }
 .result-actions { display: flex; gap: 8px; margin-top: 10px; }
-.sync-status { margin: 10px 0 0; color: #bb8ba0; font-size: 11px; }
 
 .dialog {
     position: relative;
@@ -417,20 +333,14 @@ body {
 @keyframes score-pop { 0% { transform: scale(.78); } 100% { transform: scale(1); } }
 
 @media (max-height: 700px) {
-    .title-block { top: 62px; }
-    .title-block h1 { font-size: 43px; }
     .menu-controls { padding: 11px; }
     .character-choice { height: 56px; }
     .character-choice img { width: 44px; height: 44px; }
-    .stats-line { margin: 9px 0; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
 }
 
 /* 桌面大屏：画布变宽后适度放大关键排版 */
 @media (min-width: 900px) {
-    .title-block h1 { font-size: 64px; }
-    .eyebrow { font-size: 13px; }
-    .selected-copy p { font-size: 12px; }
     .score-number { font-size: 62px; }
     .result-score { font-size: 84px; }
     .character-choice { height: 72px; }
@@ -439,13 +349,10 @@ body {
 
 /* 横屏矮窗口（手机横过来、分屏）：进一步压缩纵向占用 */
 @media (max-height: 520px) {
-    .title-block { top: 44px; }
-    .title-block h1 { font-size: 34px; }
     .menu-controls { padding: 8px; }
     .character-choice { height: 48px; }
     .character-choice img { width: 36px; height: 36px; }
     .primary-button, .secondary-button, .save-button { min-height: 38px; }
-    .stats-line { margin: 6px 0; }
 }
 
 @media (max-width: 480px) {

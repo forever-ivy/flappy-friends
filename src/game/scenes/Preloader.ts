@@ -39,6 +39,7 @@ export class Preloader extends Scene
         this.load.image('obstacle', GAME_ASSETS.obstacle);
         this.load.image('obstacle-top', GAME_ASSETS.obstacleTop);
         this.load.image('reward', GAME_ASSETS.reward);
+        this.load.image('reward-mirror', GAME_ASSETS.rewardMirror);
         CHARACTERS.forEach((character) => this.load.image(character.textureKey, character.image));
     }
 

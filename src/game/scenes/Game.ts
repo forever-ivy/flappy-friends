@@ -226,7 +226,9 @@ export class Game extends Scene {
         if (shouldSpawnReward(this.random())) {
             const safeOffset = Math.min(42, gap / 2 - 30);
             const rewardY = center + (this.random() * 2 - 1) * safeOffset;
-            const reward = this.physics.add.image(x + 4, rewardY, 'reward').setDepth(7);
+            // 叉子与镜子两种奖励贴图交替出现（仅视觉差异，碰撞与计分一致）
+            const rewardTexture = this.pairs.length % 2 === 0 ? 'reward' : 'reward-mirror';
+            const reward = this.physics.add.image(x + 4, rewardY, rewardTexture).setDepth(7);
             reward.body!.allowGravity = false;
             reward.setData('collected', false);
             this.rewards.add(reward);

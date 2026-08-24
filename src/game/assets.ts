@@ -11,8 +11,8 @@ export interface CharacterDefinition {
 export const CHARACTERS: readonly CharacterDefinition[] = [
     { id: 'nova', name: 'Nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', color: '#5b7ca8', collisionRadius: 14 },
     { id: 'moss', name: 'Moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', color: '#8fb7e8', collisionRadius: 14 },
-    { id: 'sol', name: 'Sol', tagline: '张开手臂去飞', textureKey: 'character-sol', image: 'game/character-sol.png', color: '#6f9dd6', collisionRadius: 14 },
-    { id: 'violet', name: 'Violet', tagline: '稳稳飘过花海', textureKey: 'character-violet', image: 'game/character-violet.png', color: '#41597d', collisionRadius: 14 },
+    { id: 'sol', name: 'Sol', tagline: '张开手臂去飞', textureKey: 'character-sol', image: 'game/character-sol.png', color: '#4f9e72', collisionRadius: 14 },
+    { id: 'violet', name: 'Violet', tagline: '稳稳飘过花海', textureKey: 'character-violet', image: 'game/character-violet.png', color: '#7a5aa8', collisionRadius: 14 },
 ];
 
 export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];
@@ -31,6 +31,8 @@ export const GAME_ASSETS = {
     obstacle: 'game/obstacle.png',
     obstacleTop: 'game/obstacle-top.png',
     reward: 'game/reward.png',
+    // 副奖励贴图（蝴蝶结镜子），与主奖励（蝴蝶结叉子）在生成时交替出现，玩法与计分完全一致
+    rewardMirror: 'game/reward-mirror.png',
 } as const;
 
 // 音效清单：当前用 WebAudio 合成，替换真实音频文件时只需改这里与 sfx.ts 的实现

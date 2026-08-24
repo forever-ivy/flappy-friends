@@ -1,5 +1,10 @@
 import { Scene } from 'phaser';
-import { CHARACTERS, GAME_ASSETS } from '../assets';
+import {
+    CHARACTERS, GAME_ASSETS,
+    OBSTACLE_VARIANT_COUNT, ObstacleVariant,
+    getObstacleVariantTextureKey, getObstacleVariantTopTextureKey,
+    getObstacleVariantTexturePath, getObstacleVariantTopTexturePath,
+} from '../assets';
 import { syncStageVars } from '../stageSync';
 
 export class Preloader extends Scene
@@ -36,8 +41,17 @@ export class Preloader extends Scene
         this.load.image('background-sky', GAME_ASSETS.sky);
         this.load.image('background-city', GAME_ASSETS.city);
         this.load.image('background-street', GAME_ASSETS.street);
+
+        // 障碍柱多贴图变体：底柱 obstacle-{i} / 顶柱 obstacle-top-{i}
+        // 仍加载旧 key（i=0），用于保持本地预览/兼容性。
         this.load.image('obstacle', GAME_ASSETS.obstacle);
         this.load.image('obstacle-top', GAME_ASSETS.obstacleTop);
+        for (let i = 0; i < OBSTACLE_VARIANT_COUNT; i += 1) {
+            const v = i as ObstacleVariant;
+            this.load.image(getObstacleVariantTextureKey(v), getObstacleVariantTexturePath(v));
+            this.load.image(getObstacleVariantTopTextureKey(v), getObstacleVariantTopTexturePath(v));
+        }
+
         this.load.image('reward', GAME_ASSETS.reward);
         this.load.image('reward-mirror', GAME_ASSETS.rewardMirror);
         CHARACTERS.forEach((character) => this.load.image(character.textureKey, character.image));

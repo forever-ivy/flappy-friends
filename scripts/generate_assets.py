@@ -10,11 +10,13 @@
   IMG_5248.PNG  2048x2048  蝴蝶结叉子 -> reward.png（主奖励）
   IMG_5245.PNG  2048x2048  蝴蝶结镜子 -> reward-mirror.png（副奖励）
   IMG_5250.PNG  1080x1920  樱花树秋千场景 -> 三层视差背景的调色与花瓣裁切来源
-障碍柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（无新源图，按 HD 奇比风格重绘柱体）。
+障碍柱身文字取自 pictures/ 下的三张障碍源图（IMG_3452.PNG / IMG_3453(1).PNG / IMG_3454.PNG），
+分别生成多套柱体贴图变体（底柱 obstacle-* / 顶柱 obstacle-top-*）。
 
 产物（逻辑 1x 尺寸，与画布渲染分辨率一致，物理参数零改动）：
   character-{nova,moss,sol,violet}.png  72x72   透明背景，头朝右
-  obstacle.png / obstacle-top.png       76x480  底柱 / 顶柱（文字均正向可读）
+  obstacle.png / obstacle-top.png       76x480  底柱 / 顶柱（兼容别名，等价于 i=0）
+  obstacle-{i}.png / obstacle-top-{i}.png  76x480  底柱 / 顶柱（i=0..2）
   reward.png / reward-mirror.png        48x48   蝴蝶结叉子 / 蝴蝶结镜子
   background-sky.png                    960x640 静态天空层
   background-city.png                   720x640 中景视差层（无缝平铺）
@@ -24,6 +26,7 @@ from __future__ import annotations
 
 import math
 import os
+import sys
 from collections import deque
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
@@ -222,11 +225,23 @@ def build_pillar(text: Image.Image, mouth: str, ss: int = 6) -> Image.Image:
 
 
 def build_obstacles() -> None:
-    text_a = extract_text(os.path.join(RES, 'barrier.jpg'))    # 世界上另一个我
-    text_b = extract_text(os.path.join(RES, 'barrier2.jpg'))   # 你在哭鼻子吗
-    build_pillar(text_a, mouth='top').save(os.path.join(OUT, 'obstacle.png'))
-    build_pillar(text_b, mouth='bottom').save(os.path.join(OUT, 'obstacle-top.png'))
-    print('obstacles ok')
+    sources = [
+        'IMG_3452.PNG',
+        'IMG_3453(1).PNG',
+        'IMG_3454.PNG',
+    ]
+
+    for i, src in enumerate(sources):
+        text = extract_text(os.path.join(PIC, src))
+        build_pillar(text, mouth='top').save(os.path.join(OUT, f'obstacle-{i}.png'))
+        build_pillar(text, mouth='bottom').save(os.path.join(OUT, f'obstacle-top-{i}.png'))
+
+        # 兼容旧 key：i=0 作为 obstacle.png / obstacle-top.png
+        if i == 0:
+            build_pillar(text, mouth='top').save(os.path.join(OUT, 'obstacle.png'))
+            build_pillar(text, mouth='bottom').save(os.path.join(OUT, 'obstacle-top.png'))
+
+    print('obstacles ok (variants 0..2)')
 
 
 # ---------------------------------------------------------------- 背景公共
@@ -494,8 +509,8 @@ def build_preview() -> None:
     sky = Image.open(os.path.join(OUT, 'background-sky.png')).convert('RGBA')
     city = Image.open(os.path.join(OUT, 'background-city.png')).convert('RGBA')
     street = Image.open(os.path.join(OUT, 'background-street.png')).convert('RGBA')
-    ob = Image.open(os.path.join(OUT, 'obstacle.png')).convert('RGBA')
-    ot = Image.open(os.path.join(OUT, 'obstacle-top.png')).convert('RGBA')
+    ob = Image.open(os.path.join(OUT, 'obstacle-0.png')).convert('RGBA')
+    ot = Image.open(os.path.join(OUT, 'obstacle-top-0.png')).convert('RGBA')
     reward = Image.open(os.path.join(OUT, 'reward.png')).convert('RGBA')
     mirror = Image.open(os.path.join(OUT, 'reward-mirror.png')).convert('RGBA')
     char = Image.open(os.path.join(OUT, 'character-nova.png')).convert('RGBA')
@@ -516,6 +531,10 @@ def build_preview() -> None:
 
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
+    if '--obstacles-only' in sys.argv:
+        build_obstacles()
+        return
+
     build_characters()
     build_rewards()
     build_obstacles()

@@ -30,20 +30,21 @@
 
 ## 角色（4 个）
 
-文件：`character-{id}.png`，`id ∈ nova | moss | sol | violet`。菜单头像复用同一文件，因此**必须透明背景**。
+文件：局内精灵 `character-{id}.png`（216×216 高清位图）+ 菜单头像 `portrait-{id}.png`（256×256），`id ∈ nova | moss | sol | violet`。两套文件独立交付（菜单绝不复用局内小图拉大），均**必须透明背景**且朝向一致。UI 卡片不显示角色名，仅靠衣装颜色区分。
 
-来源映射（`pictures/`，2048×2048 高清透明底）：nova = `IMG_5246.PNG`（藏青条纹衫男孩，HD 原色）；moss = `IMG_5247.PNG`（浅蓝番茄衫男孩，HD 原色）；sol = IMG_5247 的青绿衣装色相变体；violet = IMG_5246 的蓝紫衣装色相变体（变体仅旋转蓝色系衣装色相，肤色 / 头发不变，由 `scripts/generate_assets.py` 派生）。源图朝左，已水平翻转为头朝右。
+来源映射（`pictures/`，2048×2048 高清透明底）：nova = `IMG_5246.PNG`（藏青条纹衫男孩，HD 原色）；moss = `IMG_5247.PNG`（浅蓝番茄衫男孩，HD 原色）；sol = IMG_5247 的青绿衣装色相变体；violet = IMG_5246 的蓝紫衣装色相变体（变体仅旋转蓝色系衣装色相，肤色 / 头发不变，由 `scripts/generate_assets.py` 派生）。生成时按 alpha bbox 智能裁切本体（不整张缩放）；源图朝左，已水平镜像为头朝右。
 
 | 项 | 规格 |
 | --- | --- |
-| 画布 | 72×72 |
-| 透明边距 | 四周 ≥ 6px（碰撞圆之外留白，避免视觉贴边） |
-| 锚点 | 文件中心（36, 36）；Phaser 默认 0.5 origin，物理圆心即贴图中心 |
-| 碰撞盒 | 圆形，半径 14（由清单 `collisionRadius` 定义，改半径只动清单） |
-| 朝向 | 头朝右飞行姿态 |
-| 失败表现 | 当前用 tint 变红实现（代码内置）；若提供失败帧请用 72×72 单帧命名 `character-{id}-fail.png`，加进清单后由代码接入 |
+| 精灵画布 | 216×216 位图；Phaser 按实际像素加载，`setDisplaySize` 缩到逻辑 72×72 |
+| 头像画布 | 256×256 位图；仅供 DOM/CSS 菜单与排行榜使用 |
+| 透明边距 | 精灵四周 ≥ 18px（逻辑 6px，碰撞圆之外留白，避免视觉贴边） |
+| 锚点 | 文件中心；Phaser 默认 0.5 origin，物理圆心即贴图中心 |
+| 碰撞盒 | 圆形，逻辑半径 14（由清单 `collisionRadius` 定义，改半径只动清单；缩放换算在 Game 场景内完成） |
+| 朝向 | 头朝右飞行姿态（菜单头像与局内精灵同一朝向） |
+| 失败表现 | 当前用 tint 变红实现（代码内置）；若提供失败帧请用 216×216 单帧命名 `character-{id}-fail.png`，加进清单后由代码接入 |
 
-**动画帧排列（未来升级路径）**：如需飞行动画，制作横向序列帧 `character-{id}-fly.png`，帧尺寸 72×72，4–6 帧从左到右为一个完整扑翼循环，首帧保持与静态帧一致。届时只需在清单中登记帧数，加载与动画创建代码已预留 `textureKey` 命名规则。
+**动画帧排列（未来升级路径）**：如需飞行动画，制作横向序列帧 `character-{id}-fly.png`，帧尺寸 216×216，4–6 帧从左到右为一个完整扑翼循环，首帧保持与静态帧一致。届时只需在清单中登记帧数，加载与动画创建代码已预留 `textureKey` 命名规则。
 
 ## 背景（三层视差）
 
@@ -104,7 +105,7 @@
 ## 替换流程
 
 1. 新文件与旧文件**同名同逻辑尺寸**，直接覆盖 `public/assets/game/` 下对应文件；或
-2. 新文件名不同时，改 `src/game/assets.ts` 清单里的路径与尺寸参数（新角色需同步登记 `id/name/tagline/color/collisionRadius`）。
+2. 新文件名不同时，改 `src/game/assets.ts` 清单里的路径与尺寸参数（新角色需同步登记 `id/tagline/image/portrait/collisionRadius`）。
 3. 从 `pictures/` 高清源素材重新生成全套资产：`pip install pillow && python3 scripts/generate_assets.py`。
 4. `npm run dev` 本地确认，替换后跑 `npm test`（碰撞盒与清单一致性由清单单测覆盖）。
 

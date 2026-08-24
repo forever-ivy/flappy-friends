@@ -145,13 +145,11 @@ function App() {
 
                     <div className="menu-controls">
                         <div className="selected-copy">
-                            <div>
-                                <span>当前角色</span>
-                                <strong style={{ color: selected.color }}>{selected.name}</strong>
-                            </div>
+                            <span>当前角色</span>
                             <p>{selected.tagline}</p>
                         </div>
 
+                        {/* 卡片不显示角色名，仅靠高清头像的衣装颜色区分；头像用 256² portrait，不复用局内精灵 */}
                         <div className="character-rail" role="list" aria-label="选择角色">
                             {CHARACTERS.map((character) => (
                                 <button
@@ -159,10 +157,9 @@ function App() {
                                     className={`character-choice ${character.id === selected.id ? 'selected' : ''}`}
                                     onClick={() => chooseCharacter(character.id)}
                                     aria-pressed={character.id === selected.id}
-                                    title={`选择 ${character.name}`}
+                                    title={character.tagline}
                                 >
-                                    <img src={`/assets/${character.image}`} alt="" />
-                                    <span>{character.name}</span>
+                                    <img src={`/assets/${character.portrait}`} alt="" />
                                 </button>
                             ))}
                         </div>
@@ -311,7 +308,7 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
                         return (
                             <div className="leaderboard-row" key={entry.playerId}>
                                 <b className="rank">{entry.rank}</b>
-                                <img src={`/assets/${character.image}`} alt="" />
+                                <img src={`/assets/${character.portrait}`} alt="" />
                                 <span>{entry.username}</span>
                                 <strong>{entry.score}</strong>
                             </div>

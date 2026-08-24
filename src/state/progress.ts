@@ -22,7 +22,7 @@ export function loadProgress(storage: Pick<Storage, 'getItem'> | undefined = glo
         if (!value) return { ...DEFAULT_PROGRESS };
         const parsed = JSON.parse(value) as Partial<Progress>;
         return {
-            // 旧存档可能保存已下架的角色 id（sol / violet），统一回退到诺娃
+            // 旧存档可能保存已不存在的角色 id，统一回退到默认角色
             selectedCharacter: getCharacter(typeof parsed.selectedCharacter === 'string' ? parsed.selectedCharacter : DEFAULT_PROGRESS.selectedCharacter).id,
             bestScore: Number.isFinite(parsed.bestScore) ? Math.max(0, parsed.bestScore!) : 0,
             totalScore: Number.isFinite(parsed.totalScore) ? Math.max(0, parsed.totalScore!) : 0,

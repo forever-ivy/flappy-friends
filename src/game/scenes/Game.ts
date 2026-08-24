@@ -5,7 +5,7 @@ import {
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import { CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant } from '../assets';
+import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant } from '../assets';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
 import { EventBus } from '../EventBus';
@@ -203,9 +203,13 @@ export class Game extends Scene {
 
     private applyCharacterBody(characterId: string) {
         const character = getCharacter(characterId);
+        // 高清位图（216²）缩放到逻辑 72² 显示；碰撞圆在贴图坐标系定义，
+        // Arcade Body 会随缩放同步收缩，世界坐标下半径仍是 collisionRadius（14），物理零改动
         this.player.setTexture(character.textureKey);
-        const offset = CHARACTER_TEXTURE_SIZE / 2 - character.collisionRadius;
-        this.player.setCircle(character.collisionRadius, offset, offset);
+        this.player.setDisplaySize(CHARACTER_TEXTURE_SIZE, CHARACTER_TEXTURE_SIZE);
+        const textureRadius = character.collisionRadius * (CHARACTER_SPRITE_SIZE / CHARACTER_TEXTURE_SIZE);
+        const offset = CHARACTER_SPRITE_SIZE / 2 - textureRadius;
+        this.player.setCircle(textureRadius, offset, offset);
     }
 
     private startRun = (payload: { characterId: string; seed?: number }) => {
@@ -265,7 +269,8 @@ export class Game extends Scene {
         if (this.phase !== 'playing') return;
         playSfx('flap');
         this.player.setVelocityY(-330);
-        this.tweens.add({ targets: this.player, scaleX: 1.1, scaleY: 0.9, duration: 80, yoyo: true });
+        // 高清位图经 setDisplaySize 后基准 scale ≠ 1，挤压动画必须按当前 scale 相对缩放
+        this.tweens.add({ targets: this.player, scaleX: this.player.scaleX * 1.1, scaleY: this.player.scaleY * 0.9, duration: 80, yoyo: true });
     }
 
     private spawnPair(x = this.scale.gameSize.width + SPAWN_OFFSCREEN_X) {

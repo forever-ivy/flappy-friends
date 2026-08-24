@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
+import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -41,24 +41,32 @@ describe('game assets manifest', () => {
         expect(pngSize(GAME_ASSETS.sparkle)).toEqual({ width: 24, height: 24 });
     });
 
-    it('ships every character texture at 72x72 with a collision circle inside it', () => {
+    it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical 72)', () => {
         CHARACTERS.forEach((character) => {
-            expect(pngSize(character.image)).toEqual({ width: 72, height: 72 });
+            expect(pngSize(character.image)).toEqual({ width: CHARACTER_SPRITE_SIZE, height: CHARACTER_SPRITE_SIZE });
             expect(character.collisionRadius).toBeGreaterThan(0);
-            expect(character.collisionRadius * 2).toBeLessThanOrEqual(72);
+            // 碰撞半径在逻辑 72 坐标系里定义，必须落在显示尺寸内
+            expect(character.collisionRadius * 2).toBeLessThanOrEqual(CHARACTER_TEXTURE_SIZE);
+        });
+    });
+
+    it('ships a dedicated 256x256 menu portrait per character (never the in-game sprite)', () => {
+        CHARACTERS.forEach((character) => {
+            expect(pngSize(character.portrait)).toEqual({ width: 256, height: 256 });
+            expect(character.portrait).not.toBe(character.image);
         });
     });
 });
 
 describe('character roster', () => {
-    it('keeps exactly the two HD characters: nova and moss', () => {
-        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
+    it('keeps all four HD characters: nova, moss, sol and violet', () => {
+        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss', 'sol', 'violet']);
     });
 
-    it('falls back to nova for retired ids from old saves or the backend', () => {
-        expect(getCharacter('sol').id).toBe('nova');
-        expect(getCharacter('violet').id).toBe('nova');
-        expect(getCharacter('unknown').id).toBe('nova');
+    it('resolves every roster id and falls back to nova for unknown ids', () => {
         expect(getCharacter('moss').id).toBe('moss');
+        expect(getCharacter('sol').id).toBe('sol');
+        expect(getCharacter('violet').id).toBe('violet');
+        expect(getCharacter('unknown').id).toBe('nova');
     });
 });

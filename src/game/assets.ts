@@ -1,23 +1,27 @@
 export interface CharacterDefinition {
     id: string;
-    name: string;
     tagline: string;
     textureKey: string;
     image: string;
-    color: string;
+    portrait: string;
     collisionRadius: number;
 }
 
-// 只保留两位高清原色角色：诺娃（藏青条纹衫）与莫斯（浅蓝番茄衫）。
-// 旧存档/后端仍可能出现已下架的 sol / violet，getCharacter 会优雅回退到诺娃。
+// 四位角色均由 pictures/ 的 2048² HD 源派生（alpha bbox 智能裁切 + 水平镜像为朝右）：
+// nova 藏青条纹衫 / moss 浅蓝番茄衫为 HD 原色，sol 青绿衣装 / violet 蓝紫衣装为色相变体。
+// UI 不显示角色名，卡片仅靠衣装颜色区分；image 为局内精灵（216²），portrait 为菜单头像（256²）。
 export const CHARACTERS: readonly CharacterDefinition[] = [
-    { id: 'nova', name: '诺娃', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', color: '#5b7ca8', collisionRadius: 14 },
-    { id: 'moss', name: '莫斯', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', color: '#8fb7e8', collisionRadius: 14 },
+    { id: 'nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', portrait: 'game/portrait-nova.png', collisionRadius: 14 },
+    { id: 'moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', portrait: 'game/portrait-moss.png', collisionRadius: 14 },
+    { id: 'sol', tagline: '青绿番茄衫，元气满格', textureKey: 'character-sol', image: 'game/character-sol.png', portrait: 'game/portrait-sol.png', collisionRadius: 14 },
+    { id: 'violet', tagline: '蓝紫条纹衫，夜色漫游', textureKey: 'character-violet', image: 'game/character-violet.png', portrait: 'game/portrait-violet.png', collisionRadius: 14 },
 ];
 
 export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];
 
-// 角色贴图在 Preloader 中的逻辑加载尺寸（正方形），碰撞圆以贴图中心为圆心
+// 局内精灵位图实际像素（Preloader 按此原生尺寸加载，保证高清）
+export const CHARACTER_SPRITE_SIZE = 216;
+// 角色在画布上的逻辑显示尺寸（Game 里 setDisplaySize 缩放），碰撞半径按此坐标系定义
 export const CHARACTER_TEXTURE_SIZE = 72;
 
 // 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切

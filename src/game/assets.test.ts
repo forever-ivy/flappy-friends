@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
+import { CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -52,7 +52,7 @@ describe('game assets manifest', () => {
 
     it('ships a dedicated 256x256 menu portrait per character (never the in-game sprite)', () => {
         CHARACTERS.forEach((character) => {
-            expect(pngSize(character.portrait)).toEqual({ width: 256, height: 256 });
+            expect(pngSize(character.portrait)).toEqual({ width: CHARACTER_PORTRAIT_SIZE, height: CHARACTER_PORTRAIT_SIZE });
             expect(character.portrait).not.toBe(character.image);
         });
     });

@@ -136,12 +136,9 @@ def build_characters() -> None:
     # 水平镜像为头朝右（源图朝左；菜单头像与局内精灵同一朝向）、等比缩放。
     navy = Image.open(os.path.join(PIC, 'IMG_5246.PNG')).convert('RGBA')
     blue = Image.open(os.path.join(PIC, 'IMG_5247.PNG')).convert('RGBA')
-    navy = navy.crop(alpha_bbox(navy)).transpose(Image.FLIP_LEFT_RIGHT)
-    blue = blue.crop(alpha_bbox(blue)).transpose(Image.FLIP_LEFT_RIGHT)
-
     mapping = {
-        'nova': navy,  # IMG_5246 藏青条纹衫（HD 原色）
-        'moss': blue,  # IMG_5247 浅蓝番茄衫（HD 原色）
+        'nova': navy.transpose(Image.FLIP_LEFT_RIGHT),  # IMG_5246 藏青条纹衫（HD 原色）
+        'moss': blue.transpose(Image.FLIP_LEFT_RIGHT),  # IMG_5247 浅蓝番茄衫（HD 原色）
     }
     for cid, art in mapping.items():
         # 局内精灵：216×216 高清位图（缩放全部在 2048 源上一次完成，无二次损失）

@@ -21,8 +21,12 @@ export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find
 
 // 局内精灵位图实际像素（Preloader 按此原生尺寸加载，保证高清）
 export const CHARACTER_SPRITE_SIZE = 216;
+export const CHARACTER_BITMAP_SIZE = CHARACTER_SPRITE_SIZE;
 // 角色在画布上的逻辑显示尺寸（Game 里 setDisplaySize 缩放），碰撞半径按此坐标系定义
 export const CHARACTER_TEXTURE_SIZE = 72;
+
+// 菜单头像位图边长（正方形），独立于局内精灵
+export const CHARACTER_PORTRAIT_SIZE = 256;
 
 // 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切
 export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;

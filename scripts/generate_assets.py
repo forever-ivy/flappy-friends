@@ -5,18 +5,22 @@
 依赖：Pillow（pip install pillow）
 
 高清源（pictures/，透明底 PNG）：
-  IMG_5246.PNG  2048x2048  藏青条纹衫男孩飞行姿态 -> nova（violet 为其紫色变体）
-  IMG_5247.PNG  2048x2048  浅蓝番茄衫男孩飞行姿态 -> moss（sol 为其青绿变体）
-  IMG_5248.PNG  2048x2048  蝴蝶结叉子 -> reward.png（主奖励）
-  IMG_5245.PNG  2048x2048  蝴蝶结镜子 -> reward-mirror.png（副奖励）
-  IMG_5250.PNG  1080x1920  樱花树秋千场景 -> 三层视差背景的调色与花瓣裁切来源
-障碍柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（无新源图，按 HD 奇比风格重绘柱体）。
+  IMG_5246.PNG      2048x2048  藏青条纹衫男孩飞行姿态 -> nova（violet 为其紫色变体）
+  IMG_5247.PNG      2048x2048  浅蓝番茄衫男孩飞行姿态 -> moss（sol 为其青绿变体）
+  IMG_5248.PNG      2048x2048  蝴蝶结叉子 -> reward.png（主奖励）
+  IMG_5245.PNG      2048x2048  蝴蝶结镜子 -> reward-mirror.png（副奖励）
+  IMG_5250.PNG      1080x1920  樱花树秋千场景 -> 三层视差背景的调色与花瓣裁切来源
+  IMG_3452.PNG       746x2172  标语柱「一起命中十环」-> 障碍变体文字源
+  IMG_3453(1).PNG   1100x3140  标语柱「做你想做的」  -> 障碍变体文字源
+  IMG_3454.PNG      1094x3160  标语柱「一起等雨停」  -> 障碍变体文字源
+经典柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（按 HD 奇比风格重绘柱体）。
 
 产物（逻辑 1x 尺寸，与画布渲染分辨率一致，物理参数零改动）：
   character-{nova,moss,sol,violet}.png  72x72   透明背景，头朝右
-  obstacle.png / obstacle-top.png       76x480  底柱 / 顶柱（文字均正向可读）
+  obstacle[-{wish,rain,aim}][-top].png  76x480  四套少女梦幻粉彩障碍变体（底柱 / 顶柱，文字均正向可读）
   reward.png / reward-mirror.png        48x48   蝴蝶结叉子 / 蝴蝶结镜子
-  background-sky.png                    960x640 静态天空层
+  fx-sparkle.png                        24x24   四角星光（白色基底，游戏内随机着粉彩色）
+  background-sky.png                    960x640 静态天空层（梦幻粉紫渐变 + 光斑 + 星光）
   background-city.png                   720x640 中景视差层（无缝平铺）
   background-street.png                 720x180 街面层（无缝平铺，24/9/111/36 四段结构）
 """
@@ -66,6 +70,18 @@ FENCE = (255, 250, 252)
 FENCE_OUTLINE = (211, 124, 131)
 SEAT = (216, 180, 166)
 ROPE = (196, 116, 112)
+
+# ---- 障碍变体粉彩配色（少女梦幻主题：樱花粉 / 薰衣草 / 晴空蓝 / 蜜桃橘） ----
+PILLAR_PALETTES = {
+    'sakura': dict(body=(255, 188, 222), deep=(250, 158, 205), hi=(255, 214, 235),
+                   outline=(153, 77, 77), ink=(153, 77, 77), blossom=(255, 176, 202)),
+    'lavender': dict(body=(223, 202, 255), deep=(199, 168, 246), hi=(238, 226, 255),
+                     outline=(122, 84, 150), ink=(122, 84, 150), blossom=(238, 198, 255)),
+    'skyblue': dict(body=(187, 221, 255), deep=(151, 196, 250), hi=(221, 239, 255),
+                    outline=(84, 116, 168), ink=(84, 116, 168), blossom=(206, 228, 255)),
+    'peach': dict(body=(255, 216, 191), deep=(250, 187, 152), hi=(255, 234, 220),
+                  outline=(178, 104, 66), ink=(178, 104, 66), blossom=(255, 200, 178)),
+}
 
 
 # ---------------------------------------------------------------- 工具
@@ -158,7 +174,7 @@ def build_rewards() -> None:
 # ---------------------------------------------------------------- 障碍
 
 def extract_text(path: str) -> Image.Image:
-    """从对联柱源图提取中间的书法文字（RGBA 字形）。"""
+    """从对联柱源图（resource/*.jpg）提取中间的书法文字（L 模式 alpha 蒙版）。"""
     img = Image.open(path).convert('RGB')
     w, h = img.size
     region = img.crop((int(w * 0.28), int(h * 0.20), int(w * 0.78), int(h * 0.82)))
@@ -175,15 +191,42 @@ def extract_text(path: str) -> Image.Image:
             gpx[x, y] = a
     box = glyph.getbbox()
     assert box is not None
-    glyph = glyph.crop(box)
-    out = Image.new('RGBA', glyph.size, (*BARRIER_OUTLINE, 0))
-    out.putalpha(glyph)
-    return out
+    return glyph.crop(box)
 
 
-def build_pillar(text: Image.Image, mouth: str, ss: int = 6) -> Image.Image:
-    """绘制 76x480 对联柱（HD 奇比风格：粉底、红棕描边、圆角横匾）。
-    mouth='top' 用于底柱（管口朝上），'bottom' 用于顶柱。"""
+def extract_text_hd(path: str) -> Image.Image:
+    """从 pictures/ 高清标语柱（RGBA 透明底，上下带横匾）提取柱身书法文字（L 模式 alpha 蒙版）。
+    横匾行的不透明宽度明显大于柱身行，用逐行占比自动定位柱身区间。"""
+    img = Image.open(path).convert('RGBA')
+    w, h = img.size
+    solid = img.getchannel('A').point(lambda v: 255 if v > 128 else 0)
+    # BOX 缩到 1 列后每行像素值 = 该行不透明占比
+    rowfill = solid.resize((1, h), Image.BOX)
+    fills = [rowfill.getpixel((0, y)) for y in range(h)]
+    peak = max(fills)
+    cap_rows = [y for y, v in enumerate(fills) if v > peak * 0.86]
+    mid = h // 2
+    top_cap_end = max(y for y in cap_rows if y < mid)
+    bottom_cap_start = min(y for y in cap_rows if y > mid)
+    # 柱身横向范围取中线行，再向内收缩 12% 跳过描边与阴影条
+    row_box = solid.crop((0, mid, w, mid + 1)).getbbox()
+    assert row_box is not None
+    x0, x1 = row_box[0], row_box[2]
+    inset = round((x1 - x0) * 0.12)
+    pad = round(h * 0.015)
+    region = img.crop((x0 + inset, top_cap_end + pad, x1 - inset, bottom_cap_start - pad))
+    # 合成到白底后按亮度取字形（粉底亮度 ~216，字色亮度 ~87）
+    base = Image.new('RGB', region.size, (255, 255, 255))
+    base.paste(region, mask=region.getchannel('A'))
+    glyph = base.convert('L').point(lambda v: max(0, min(255, (190 - v) * 4)))
+    box = glyph.getbbox()
+    assert box is not None
+    return glyph.crop(box)
+
+
+def build_pillar(mask: Image.Image, mouth: str, palette: dict, ss: int = 6) -> Image.Image:
+    """绘制 76x480 对联柱（HD 奇比风格：粉彩底、深色描边、圆角横匾）。
+    mouth='top' 用于底柱（管口朝上），'bottom' 用于顶柱；palette 见 PILLAR_PALETTES。"""
     W, H = 76 * ss, 480 * ss
     img = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -194,39 +237,56 @@ def build_pillar(text: Image.Image, mouth: str, ss: int = 6) -> Image.Image:
     sx0 = (W - shaft_w) // 2
     # 统一按 mouth='top' 画，最后按需翻转（文字单独按正向贴）
     d.rounded_rectangle([sx0, cap_h - ss, sx0 + shaft_w, H + ow * 2], radius=5 * ss,
-                        fill=BARRIER_PINK, outline=BARRIER_OUTLINE, width=ow)
+                        fill=palette['body'], outline=palette['outline'], width=ow)
     # 右侧阴影条与左侧高光条（HD 素材的柔和体积感）
-    d.rectangle([sx0 + shaft_w - ow - 6 * ss, cap_h + 2 * ss, sx0 + shaft_w - ow, H], fill=BARRIER_PINK_DEEP)
-    d.rectangle([sx0 + ow, cap_h + 2 * ss, sx0 + ow + 3 * ss, H], fill=(255, 214, 235))
+    d.rectangle([sx0 + shaft_w - ow - 6 * ss, cap_h + 2 * ss, sx0 + shaft_w - ow, H], fill=palette['deep'])
+    d.rectangle([sx0 + ow, cap_h + 2 * ss, sx0 + ow + 3 * ss, H], fill=palette['hi'])
     # 管口横匾
     d.rounded_rectangle([ow // 2, ow // 2, W - ow // 2, cap_h], radius=7 * ss,
-                        fill=BARRIER_PINK, outline=BARRIER_OUTLINE, width=ow)
-    d.rectangle([ow, cap_h - 4 * ss, W - ow, cap_h - ow], fill=BARRIER_PINK_DEEP)
+                        fill=palette['body'], outline=palette['outline'], width=ow)
+    d.rectangle([ow, cap_h - 4 * ss, W - ow, cap_h - ow], fill=palette['deep'])
 
     if mouth == 'bottom':
         img = img.transpose(Image.FLIP_TOP_BOTTOM)
 
-    # 文字：竖排自上而下，靠近管口一端，正向可读
+    # 文字：竖排自上而下，靠近管口一端，正向可读；字色随配色使用同系深色
     tw = 40 * ss
-    th = round(text.height * tw / text.width)
-    glyphs = text.resize((tw, th), Image.LANCZOS)
+    th = round(mask.height * tw / mask.width)
+    glyphs = Image.new('RGBA', (tw, th), (*palette['ink'], 0))
+    glyphs.putalpha(mask.resize((tw, th), Image.LANCZOS))
     tx = (W - tw) // 2
     ty = cap_h + 14 * ss if mouth == 'top' else H - cap_h - 14 * ss - th
     img.paste(glyphs, (tx, ty), glyphs)
 
     # 文字外侧点缀一朵樱花
     fy = ty + th + 18 * ss if mouth == 'top' else ty - 18 * ss
-    draw_blossom(ImageDraw.Draw(img), W // 2, fy, 8 * ss, ow=2 * ss)
+    draw_blossom(ImageDraw.Draw(img), W // 2, fy, 8 * ss,
+                 fill=palette['blossom'], outline=palette['outline'], ow=2 * ss)
 
     return img.resize((76, 480), Image.LANCZOS)
 
 
 def build_obstacles() -> None:
-    text_a = extract_text(os.path.join(RES, 'barrier.jpg'))    # 世界上另一个我
-    text_b = extract_text(os.path.join(RES, 'barrier2.jpg'))   # 你在哭鼻子吗
-    build_pillar(text_a, mouth='top').save(os.path.join(OUT, 'obstacle.png'))
-    build_pillar(text_b, mouth='bottom').save(os.path.join(OUT, 'obstacle-top.png'))
-    print('obstacles ok')
+    """四套障碍变体（与 src/game/assets.ts 的 OBSTACLE_VARIANTS 一一对应）：
+    classic 樱花粉、wish 薰衣草、rain 晴空蓝、aim 蜜桃橘；同一对内底柱 / 顶柱文字不同。"""
+    text_me = extract_text(os.path.join(RES, 'barrier.jpg'))           # 世界上另一个我
+    text_cry = extract_text(os.path.join(RES, 'barrier2.jpg'))         # 你在哭鼻子吗
+    text_aim = extract_text_hd(os.path.join(PIC, 'IMG_3452.PNG'))      # 一起命中十环
+    text_wish = extract_text_hd(os.path.join(PIC, 'IMG_3453(1).PNG'))  # 做你想做的
+    text_rain = extract_text_hd(os.path.join(PIC, 'IMG_3454.PNG'))     # 一起等雨停
+
+    variants = [
+        # (文件后缀, 底柱文字, 顶柱文字, 配色)
+        ('', text_me, text_cry, 'sakura'),        # classic：世界上另一个我 / 你在哭鼻子吗
+        ('-wish', text_wish, text_aim, 'lavender'),  # wish：做你想做的 / 一起命中十环
+        ('-rain', text_rain, text_cry, 'skyblue'),   # rain：一起等雨停 / 你在哭鼻子吗
+        ('-aim', text_aim, text_me, 'peach'),        # aim：一起命中十环 / 世界上另一个我
+    ]
+    for suffix, bottom_text, top_text, palette_name in variants:
+        palette = PILLAR_PALETTES[palette_name]
+        build_pillar(bottom_text, mouth='top', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}.png'))
+        build_pillar(top_text, mouth='bottom', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}-top.png'))
+        print('obstacle variant', suffix or '-classic', palette_name, 'ok')
 
 
 # ---------------------------------------------------------------- 背景公共
@@ -294,9 +354,18 @@ def draw_blossom(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float,
 
 # ---------------------------------------------------------------- 天空层
 
+def draw_star(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill) -> None:
+    """四角星光（细长凹菱形，少女梦幻感的标志性点缀）。"""
+    q = r * 0.24
+    d.polygon([(cx, cy - r), (cx + q, cy - q), (cx + r, cy), (cx + q, cy + q),
+               (cx, cy + r), (cx - q, cy + q), (cx - r, cy), (cx - q, cy - q)], fill=fill)
+
+
 def build_sky(ss: int = 2) -> None:
+    # 梦幻渐变：天顶蓝 -> 薰衣草 -> 樱粉地平线（少女梦幻主题的基调层）
     W, H = 960 * ss, 640 * ss
-    img = vertical_gradient(W, H, [(0.0, SKY_TOP), (0.62, (203, 234, 255)), (1.0, SKY_LOW)]).convert('RGBA')
+    img = vertical_gradient(W, H, [(0.0, (176, 209, 252)), (0.45, (205, 228, 255)),
+                                   (0.72, (232, 223, 250)), (1.0, (252, 226, 241))]).convert('RGBA')
     layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     for cx, cy, s, a in ((150, 96, 42, 165), (405, 170, 30, 130), (700, 80, 50, 170),
@@ -305,6 +374,23 @@ def build_sky(ss: int = 2) -> None:
         draw_cloud(d, cx * ss, cy * ss, s * ss, a)
     layer = layer.filter(ImageFilter.GaussianBlur(3 * ss))
     img.alpha_composite(layer)
+    # 梦幻光斑（bokeh）：粉 / 紫 / 白软焦圆，重度模糊后叠加
+    bokeh = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(bokeh)
+    for cx, cy, r, color, a in ((90, 190, 30, (255, 214, 236), 88), (340, 250, 22, (224, 208, 255), 96),
+                                (520, 130, 34, (255, 255, 255), 72), (760, 250, 26, (255, 214, 236), 84),
+                                (910, 120, 20, (224, 208, 255), 92), (200, 420, 24, (255, 224, 240), 78),
+                                (640, 400, 30, (228, 214, 255), 72), (450, 480, 20, (255, 255, 255), 64)):
+        bd.ellipse([cx * ss - r * ss, cy * ss - r * ss, cx * ss + r * ss, cy * ss + r * ss], fill=(*color, a))
+    img.alpha_composite(bokeh.filter(ImageFilter.GaussianBlur(7 * ss)))
+    # 静态星光：小四角星散布高处（与游戏内漂浮星光呼应）
+    stars = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(stars)
+    for cx, cy, r, a in ((70, 90, 7, 190), (250, 200, 5, 150), (430, 60, 8, 200), (560, 280, 5, 140),
+                         (660, 160, 6, 175), (820, 70, 7, 190), (930, 300, 5, 150), (150, 330, 5, 135),
+                         (360, 380, 6, 150), (720, 460, 5, 130), (880, 500, 6, 145), (40, 520, 5, 125)):
+        draw_star(sd, cx * ss, cy * ss, r * ss, (255, 252, 244, a))
+    img.alpha_composite(stars.filter(ImageFilter.GaussianBlur(round(0.4 * ss))))
     # 飘落的花瓣：直接取自 IMG_5250 的 HD 裁切
     petals = hd_petals()
     spots = ((120, 150, 15, 24), (300, 90, 12, 200), (480, 210, 14, 320), (628, 120, 12, 90),
@@ -314,6 +400,23 @@ def build_sky(ss: int = 2) -> None:
         paste_petal(img, petals[i % len(petals)], x * ss, y * ss, s * ss, ang)
     img.convert('RGB').resize((960, 640), Image.LANCZOS).save(os.path.join(OUT, 'background-sky.png'))
     print('sky ok')
+
+
+# ---------------------------------------------------------------- 星光贴图
+
+def build_fx(ss: int = 8) -> None:
+    """fx-sparkle.png：24x24 四角星光。白色基底 + 柔光晕，游戏内用 tint 着粉彩色。"""
+    S = 24 * ss
+    img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    glow = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse([S * 0.22, S * 0.22, S * 0.78, S * 0.78], fill=(255, 244, 250, 150))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(2.2 * ss)))
+    d = ImageDraw.Draw(img)
+    draw_star(d, S / 2, S / 2, S * 0.46, (255, 255, 255, 235))
+    draw_star(d, S / 2, S / 2, S * 0.2, (255, 255, 255, 255))
+    img.resize((24, 24), Image.LANCZOS).save(os.path.join(OUT, 'fx-sparkle.png'))
+    print('fx ok')
 
 
 # ---------------------------------------------------------------- 中景层
@@ -490,26 +593,31 @@ def build_street(ss: int = 2) -> None:
 # ---------------------------------------------------------------- 预览
 
 def build_preview() -> None:
-    """拼一张 360×640 的模拟游戏画面用于快速目检。"""
+    """拼一张 960×640 的模拟游戏画面（四套障碍变体并排）用于快速目检。"""
     sky = Image.open(os.path.join(OUT, 'background-sky.png')).convert('RGBA')
     city = Image.open(os.path.join(OUT, 'background-city.png')).convert('RGBA')
     street = Image.open(os.path.join(OUT, 'background-street.png')).convert('RGBA')
-    ob = Image.open(os.path.join(OUT, 'obstacle.png')).convert('RGBA')
-    ot = Image.open(os.path.join(OUT, 'obstacle-top.png')).convert('RGBA')
     reward = Image.open(os.path.join(OUT, 'reward.png')).convert('RGBA')
-    mirror = Image.open(os.path.join(OUT, 'reward-mirror.png')).convert('RGBA')
     char = Image.open(os.path.join(OUT, 'character-nova.png')).convert('RGBA')
+    sparkle = Image.open(os.path.join(OUT, 'fx-sparkle.png')).convert('RGBA')
 
-    frame = Image.new('RGBA', (360, 640))
-    frame.paste(sky.crop((300, 0, 660, 640)))
-    frame.alpha_composite(city.crop((100, 0, 460, 640)))
-    frame.alpha_composite(street.crop((0, 0, 360, 165)), (0, 475))
-    gap, center, x = 175, 300, 250
-    frame.alpha_composite(ot, (x - 38, center - gap // 2 - 480))
-    frame.alpha_composite(ob, (x - 38, center + gap // 2))
-    frame.alpha_composite(reward, (x - 24 + 4, center - 24))
-    frame.alpha_composite(mirror, (30, 120))
-    frame.alpha_composite(char, (88 - 36, 300 - 36))
+    frame = Image.new('RGBA', (960, 640))
+    frame.paste(sky)
+    frame.alpha_composite(city.crop((0, 0, 720, 640)))
+    frame.alpha_composite(city.crop((0, 0, 240, 640)), (720, 0))
+    frame.alpha_composite(street.crop((0, 0, 720, 165)), (0, 475))
+    frame.alpha_composite(street.crop((0, 0, 240, 165)), (720, 475))
+    for sx, sy in ((60, 120), (170, 340), (330, 80), (520, 420), (700, 180), (900, 360)):
+        frame.alpha_composite(sparkle, (sx, sy))
+    gaps = ((240, 260, ''), (430, 330, '-wish'), (620, 240, '-rain'), (830, 350, '-aim'))
+    for x, center, suffix in gaps:
+        ob = Image.open(os.path.join(OUT, f'obstacle{suffix}.png')).convert('RGBA')
+        ot = Image.open(os.path.join(OUT, f'obstacle{suffix}-top.png')).convert('RGBA')
+        gap = 175
+        frame.alpha_composite(ot, (x - 38, center - gap // 2 - 480))
+        frame.alpha_composite(ob, (x - 38, center + gap // 2))
+    frame.alpha_composite(reward, (430 - 24, 330 - 24))
+    frame.alpha_composite(char, (110 - 36, 300 - 36))
     frame.convert('RGB').save('/tmp/preview-game.png')
     print('preview ok -> /tmp/preview-game.png')
 
@@ -519,6 +627,7 @@ def main() -> None:
     build_characters()
     build_rewards()
     build_obstacles()
+    build_fx()
     build_sky()
     build_city()
     build_street()

@@ -28,3 +28,4 @@ yarn-error.log*
 # 预下载的 PocketBase 构建缓存
 docker/pocketbase
 .playwright-cli/
+__pycache__/

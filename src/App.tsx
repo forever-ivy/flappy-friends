@@ -283,7 +283,13 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
     useEffect(() => {
         setData(null);
         setError(false);
-        void getLeaderboard(type).then(setData).catch(() => setError(true));
+        // 渲染层守卫：后端缺失/返回异常载荷时显示不可用状态，而不是整棵组件树崩溃
+        void getLeaderboard(type)
+            .then((response) => {
+                if (!response || !Array.isArray(response.entries)) throw new Error('bad leaderboard payload');
+                setData(response);
+            })
+            .catch(() => setError(true));
     }, [type]);
 
     return (

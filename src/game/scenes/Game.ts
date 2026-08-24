@@ -43,6 +43,7 @@ export class Game extends Scene {
     private random = createSeededRandom(Date.now());
     private sparkles: Phaser.GameObjects.Image[] = [];
     private lastVariantIndex = -1;
+    private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
     private resizeHandler = () => {
         this.maybeApplyGameWidth();
@@ -213,6 +214,7 @@ export class Game extends Scene {
         this.phase = 'countdown';
         this.selectedCharacter = payload.characterId;
         this.random = createSeededRandom(payload.seed ?? Date.now());
+        this.lastGapSkewSign = 0;
         this.pipeCount = 0;
         this.rewardCount = 0;
         this.lastVariantIndex = -1;
@@ -270,16 +272,35 @@ export class Game extends Scene {
         const { gap } = getDifficulty(this.currentScore());
         const topLimit = 108 + gap / 2;
         const bottomLimit = GAME_HEIGHT - 86 - gap / 2 - 108;
-        const center = topLimit + this.random() * (bottomLimit - topLimit);
+        // 不规则缺口：保持 gap 不变，但让 top/bottom 相对中心的偏移不再严格对称。
+        const skewMax = Math.min(45, Math.floor(gap / 3));
+        let gapSkew = (this.random() * 2 - 1) * skewMax;
+        if (this.lastGapSkewSign !== 0 && this.random() < 0.45) {
+            gapSkew = this.lastGapSkewSign * Math.abs(gapSkew);
+        }
+        this.lastGapSkewSign = gapSkew === 0 ? 0 : gapSkew > 0 ? 1 : -1;
+
+        const centerBase = topLimit + this.random() * (bottomLimit - topLimit);
+        const center = Phaser.Math.Clamp(centerBase, topLimit + gapSkew, bottomLimit + gapSkew);
         const obstacleHeight = 480;
         const variant = this.pickObstacleVariant();
-        const top = this.createObstacle(x, center - gap / 2 - obstacleHeight / 2, variant.topKey);
-        const bottom = this.createObstacle(x, center + gap / 2 + obstacleHeight / 2, variant.bottomKey);
+        const topY = center - gap / 2 - gapSkew - obstacleHeight / 2;
+        const bottomY = center + gap / 2 - gapSkew + obstacleHeight / 2;
+
+        const top = this.createObstacle(x, topY, variant.topKey);
+        const bottom = this.createObstacle(x, bottomY, variant.bottomKey);
         const pair: ObstaclePair = { top, bottom, scored: false };
+
+        // 轻微粉彩粒子/光晕（色调跟随变体配色）：只增强视觉，不改碰撞与计分。
+        const topEdgeY = topY + obstacleHeight / 2;
+        const bottomEdgeY = bottomY - obstacleHeight / 2;
+        this.spawnObstacleGlow(x, topEdgeY, true, variant);
+        this.spawnObstacleGlow(x, bottomEdgeY, false, variant);
 
         if (shouldSpawnReward(this.random())) {
             const safeOffset = Math.min(42, gap / 2 - 30);
-            const rewardY = center + (this.random() * 2 - 1) * safeOffset;
+            // 奖励需要落在“缺口中线”附近；中线随 gapSkew 一起偏移。
+            const rewardY = (center - gapSkew) + (this.random() * 2 - 1) * safeOffset;
             // 叉子与镜子两种奖励贴图交替出现（仅视觉差异，碰撞与计分一致）
             const rewardTexture = this.pairs.length % 2 === 0 ? 'reward' : 'reward-mirror';
             const reward = this.physics.add.image(x + 4, rewardY, rewardTexture).setDepth(7);
@@ -310,6 +331,46 @@ export class Game extends Scene {
         obstacle.body!.setSize(58, 470).setOffset(9, 5);
         this.obstacles.add(obstacle);
         return obstacle;
+    }
+
+    private spawnObstacleGlow(x: number, y: number, flip: boolean, variant: ObstacleVariant) {
+        // 光晕色跟随变体粉彩配色（樱花粉 / 薰衣草 / 晴空蓝 / 蜜桃橘）
+        const glowTints: Record<string, number> = { classic: 0xffb3e1, wish: 0xd9c8ff, rain: 0xbcd9ff, aim: 0xffd0b3 };
+        const c0 = glowTints[variant.id] ?? 0xffb3e1;
+        const c1 = 0xffffff;
+        const dir = flip ? -1 : 1;
+
+        // 外圈“光晕”
+        const glow = this.add.circle(x + 3, y, 18, c0).setAlpha(0.14).setDepth(5);
+        this.tweens.add({
+            targets: glow,
+            alpha: 0,
+            scale: 1.15,
+            duration: 520,
+            onComplete: () => glow.destroy(),
+        });
+
+        // 小闪点（沿缺口边缘轻微发散）
+        const count = 6;
+        for (let i = 0; i < count; i += 1) {
+            const t = i / count;
+            const angle = (Math.PI * 2 * t) + (dir > 0 ? 0.2 : -0.2);
+            const dot = this.add.circle(
+                x + Math.cos(angle) * 10,
+                y + Math.sin(angle) * 10,
+                3,
+                c1,
+            ).setAlpha(0.55).setDepth(6);
+            this.tweens.add({
+                targets: dot,
+                x: x + Math.cos(angle) * (22 + this.random() * 22),
+                y: y + Math.sin(angle) * (16 + this.random() * 18),
+                alpha: 0,
+                scale: 0.1,
+                duration: 520 + this.random() * 220,
+                onComplete: () => dot.destroy(),
+            });
+        }
     }
 
     private collectReward(reward: Phaser.Physics.Arcade.Image) {

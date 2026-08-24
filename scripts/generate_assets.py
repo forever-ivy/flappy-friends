@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import math
 import os
+import sys
 from collections import deque
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
@@ -624,6 +625,10 @@ def build_preview() -> None:
 
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
+    if '--obstacles-only' in sys.argv:
+        build_obstacles()
+        return
+
     build_characters()
     build_rewards()
     build_obstacles()

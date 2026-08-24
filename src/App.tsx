@@ -139,7 +139,7 @@ function App() {
             {screen === 'menu' && (
                 <section className="menu-layer" aria-label="开始游戏">
                     <div className="title-block">
-                        <p className="eyebrow">穿过城市天际线</p>
+                        <p className="eyebrow">穿过樱花花海</p>
                         <h1>SKYLINE<br />HOP</h1>
                     </div>
 

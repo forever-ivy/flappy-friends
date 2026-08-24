@@ -197,7 +197,7 @@ export class Game extends Scene {
     private showCountdown(text: string, scale = 1) {
         this.countdownText?.destroy();
         this.countdownText = this.add.text(this.scale.gameSize.width / 2, COUNTDOWN_TEXT_Y, text, {
-            fontFamily: 'Arial Black', fontSize: 66, color: '#f7f1df', stroke: '#142436', strokeThickness: 8,
+            fontFamily: 'Arial Black', fontSize: 66, color: '#fff6f9', stroke: '#d97a99', strokeThickness: 8,
         }).setOrigin(0.5).setDepth(30).setScale(scale);
     }
 
@@ -237,8 +237,9 @@ export class Game extends Scene {
     }
 
     private createObstacle(x: number, y: number, flip: boolean): Phaser.Physics.Arcade.Image {
-        const obstacle = this.physics.add.image(x, y, 'obstacle').setDepth(6);
-        obstacle.setFlipY(flip).setImmovable(true);
+        // 顶柱与底柱是两张独立贴图（柱身竖排文字不能翻转），碰撞体参数完全一致
+        const obstacle = this.physics.add.image(x, y, flip ? 'obstacle-top' : 'obstacle').setDepth(6);
+        obstacle.setImmovable(true);
         obstacle.body!.allowGravity = false;
         obstacle.body!.setSize(58, 470).setOffset(9, 5);
         this.obstacles.add(obstacle);
@@ -260,7 +261,7 @@ export class Game extends Scene {
     private spawnSpark(x: number, y: number) {
         for (let index = 0; index < 8; index += 1) {
             const angle = (Math.PI * 2 * index) / 8;
-            const dot = this.add.circle(x, y, 3, index % 2 ? 0xffc857 : 0xff5a73).setDepth(20);
+            const dot = this.add.circle(x, y, 3, index % 2 ? 0xffd3e3 : 0xf27fa5).setDepth(20);
             this.tweens.add({
                 targets: dot, x: x + Math.cos(angle) * 34, y: y + Math.sin(angle) * 34,
                 alpha: 0, scale: 0.2, duration: 420, onComplete: () => dot.destroy(),
@@ -273,7 +274,7 @@ export class Game extends Scene {
         this.phase = 'over';
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
-        this.player.setVelocity(0, 0).setTint(0xffd3d8);
+        this.player.setVelocity(0, 0).setTint(0xff97a6);
         this.pairs.forEach((pair) => {
             pair.top.setVelocityX(0);
             pair.bottom.setVelocityX(0);

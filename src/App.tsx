@@ -112,8 +112,8 @@ function App() {
 
             <header className="topbar">
                 <div className="brand-lockup">
-                    <span className="brand-mark" aria-hidden="true">S</span>
-                    <span>SKYLINE HOP</span>
+                    <span className="brand-mark" aria-hidden="true">跳</span>
+                    <span>天际跳跳</span>
                 </div>
                 {screen !== 'playing' && (
                     <nav className="top-actions" aria-label="账户与排名">
@@ -140,7 +140,7 @@ function App() {
                 <section className="menu-layer" aria-label="开始游戏">
                     <div className="title-block">
                         <p className="eyebrow">穿过樱花花海</p>
-                        <h1>SKYLINE<br />HOP</h1>
+                        <h1>天际<br />跳跳</h1>
                     </div>
 
                     <div className="menu-controls">
@@ -192,7 +192,7 @@ function App() {
             {screen === 'gameover' && lastRun && (
                 <section className="result-layer" aria-label="本局结果">
                     <div className="result-sheet">
-                        <p className="eyebrow">GAME OVER</p>
+                        <p className="eyebrow">游戏结束</p>
                         <div className="result-score">{lastRun.totalScore}</div>
                         <p className="result-breakdown">穿越 {lastRun.pipeCount} · 奖励 {lastRun.rewardCount} × 5</p>
                         <div className="result-best">

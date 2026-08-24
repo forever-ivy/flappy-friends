@@ -1,4 +1,5 @@
 import { RunResult } from '../domain/game';
+import { getCharacter } from '../game/assets';
 
 const STORAGE_KEY = 'skyline-hop-progress-v1';
 
@@ -21,7 +22,8 @@ export function loadProgress(storage: Pick<Storage, 'getItem'> | undefined = glo
         if (!value) return { ...DEFAULT_PROGRESS };
         const parsed = JSON.parse(value) as Partial<Progress>;
         return {
-            selectedCharacter: typeof parsed.selectedCharacter === 'string' ? parsed.selectedCharacter : DEFAULT_PROGRESS.selectedCharacter,
+            // 旧存档可能保存已下架的角色 id（sol / violet），统一回退到诺娃
+            selectedCharacter: getCharacter(typeof parsed.selectedCharacter === 'string' ? parsed.selectedCharacter : DEFAULT_PROGRESS.selectedCharacter).id,
             bestScore: Number.isFinite(parsed.bestScore) ? Math.max(0, parsed.bestScore!) : 0,
             totalScore: Number.isFinite(parsed.totalScore) ? Math.max(0, parsed.totalScore!) : 0,
             gamesPlayed: Number.isFinite(parsed.gamesPlayed) ? Math.max(0, parsed.gamesPlayed!) : 0,

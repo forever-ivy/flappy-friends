@@ -202,7 +202,9 @@ body {
     color: #fff6f9;
     font-family: "Arial Black", Impact, sans-serif;
     font-size: 50px;
-    line-height: .92;
+    /* 中文字形占满 em 框，行高略放宽避免两行笔画相叠 */
+    line-height: 1.06;
+    font-weight: 900;
     text-shadow: var(--text-outline);
 }
 
@@ -232,7 +234,8 @@ body {
 
 .character-rail {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* 只有诺娃与莫斯两位角色，两列并排更饱满 */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
 }
 
@@ -251,7 +254,7 @@ body {
 .character-choice:hover { transform: translateY(-2px); }
 .character-choice.selected { color: var(--ink-strong); background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px); }
 .character-choice img { display: block; width: 50px; height: 50px; margin: 0 auto; object-fit: contain; }
-.character-choice span { display: block; overflow: hidden; font-size: 10px; font-weight: 900; text-overflow: ellipsis; }
+.character-choice span { display: block; overflow: hidden; font-size: 12px; font-weight: 900; text-overflow: ellipsis; }
 
 .stats-line {
     display: grid;

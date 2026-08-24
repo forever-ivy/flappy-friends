@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from './assets';
+import { CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -47,5 +47,18 @@ describe('game assets manifest', () => {
             expect(character.collisionRadius).toBeGreaterThan(0);
             expect(character.collisionRadius * 2).toBeLessThanOrEqual(72);
         });
+    });
+});
+
+describe('character roster', () => {
+    it('keeps exactly the two HD characters: nova and moss', () => {
+        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
+    });
+
+    it('falls back to nova for retired ids from old saves or the backend', () => {
+        expect(getCharacter('sol').id).toBe('nova');
+        expect(getCharacter('violet').id).toBe('nova');
+        expect(getCharacter('unknown').id).toBe('nova');
+        expect(getCharacter('moss').id).toBe('moss');
     });
 });

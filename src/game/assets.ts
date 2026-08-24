@@ -8,11 +8,11 @@ export interface CharacterDefinition {
     collisionRadius: number;
 }
 
+// 只保留两位高清原色角色：诺娃（藏青条纹衫）与莫斯（浅蓝番茄衫）。
+// 旧存档/后端仍可能出现已下架的 sol / violet，getCharacter 会优雅回退到诺娃。
 export const CHARACTERS: readonly CharacterDefinition[] = [
-    { id: 'nova', name: 'Nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', color: '#5b7ca8', collisionRadius: 14 },
-    { id: 'moss', name: 'Moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', color: '#8fb7e8', collisionRadius: 14 },
-    { id: 'sol', name: 'Sol', tagline: '张开手臂去飞', textureKey: 'character-sol', image: 'game/character-sol.png', color: '#4f9e72', collisionRadius: 14 },
-    { id: 'violet', name: 'Violet', tagline: '稳稳飘过花海', textureKey: 'character-violet', image: 'game/character-violet.png', color: '#7a5aa8', collisionRadius: 14 },
+    { id: 'nova', name: '诺娃', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', color: '#5b7ca8', collisionRadius: 14 },
+    { id: 'moss', name: '莫斯', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', color: '#8fb7e8', collisionRadius: 14 },
 ];
 
 export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];

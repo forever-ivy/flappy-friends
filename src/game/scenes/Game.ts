@@ -225,7 +225,7 @@ export class Game extends Scene {
         this.emitScore();
 
         this.showCountdown('3');
-        const sequence = ['3', '2', '1', 'GO'];
+        const sequence = ['3', '2', '1', '开始'];
         let index = 0;
         this.time.addEvent({
             delay: 620,

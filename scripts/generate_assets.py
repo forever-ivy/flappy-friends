@@ -5,8 +5,8 @@
 依赖：Pillow（pip install pillow）
 
 高清源（pictures/，透明底 PNG）：
-  IMG_5246.PNG      2048x2048  藏青条纹衫男孩飞行姿态（朝左）-> nova（violet 为其蓝紫变体）
-  IMG_5247.PNG      2048x2048  浅蓝番茄衫男孩飞行姿态（朝左）-> moss（sol 为其青绿变体）
+  IMG_5246.PNG      2048x2048  藏青条纹衫男孩飞行姿态（朝左）-> nova（HD 原色，不做任何改色）
+  IMG_5247.PNG      2048x2048  浅蓝番茄衫男孩飞行姿态（朝左）-> moss（HD 原色，不做任何改色）
   IMG_5248.PNG      2048x2048  蝴蝶结叉子 -> reward.png（主奖励）
   IMG_5245.PNG      2048x2048  蝴蝶结镜子 -> reward-mirror.png（副奖励）
   IMG_5250.PNG      1080x1920  樱花树秋千场景 -> 三层视差背景的调色与花瓣裁切来源
@@ -16,8 +16,8 @@
 经典柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（按 HD 奇比风格重绘柱体）。
 
 产物（背景/障碍/奖励为逻辑 1x 尺寸；角色为高清位图，物理参数零改动）：
-  character-{nova,moss,sol,violet}.png  216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，头朝右
-  portrait-{nova,moss,sol,violet}.png   256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，头朝右
+  character-{nova,moss}.png             216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，头朝右
+  portrait-{nova,moss}.png              256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，头朝右
   obstacle[-{wish,rain,aim}][-top].png  76x480  四套少女梦幻粉彩障碍变体（底柱 / 顶柱，文字均正向可读）
   reward.png / reward-mirror.png        48x48   蝴蝶结叉子 / 蝴蝶结镜子
   fx-sparkle.png                        24x24   四角星光（白色基底，游戏内随机着粉彩色）
@@ -107,24 +107,6 @@ def fit_square(img: Image.Image, canvas: int, content: int) -> Image.Image:
     return out
 
 
-def shift_blue_hue(img: Image.Image, delta: int) -> Image.Image:
-    """把画面中蓝色系（衣服 / 牛仔裤）的色相整体旋转 delta（HSV 的 0-255 标度），
-    肤色 / 头发 / 腮红等低饱和或暖色像素不受影响。用于从两张 HD 角色图派生清晰变体。"""
-    rgba = img.convert('RGBA')
-    alpha = rgba.getchannel('A')
-    hsv = rgba.convert('RGB').convert('HSV')
-    h, s, v = hsv.split()
-    # 蓝色系：hue 130-200（青蓝到蓝紫），且饱和度足够（排除灰发与白色高光）
-    in_range = h.point(lambda x: 255 if 130 <= x <= 200 else 0)
-    saturated = s.point(lambda x: 255 if x >= 24 else 0)
-    mask = ImageChops.multiply(in_range, saturated)
-    shifted = h.point(lambda x: (x + delta) % 256)
-    h2 = Image.composite(shifted, h, mask)
-    out = Image.merge('HSV', (h2, s, v)).convert('RGB').convert('RGBA')
-    out.putalpha(alpha)
-    return out
-
-
 def extract_pink(img: Image.Image) -> Image.Image:
     """从场景裁片中分离粉色花瓣（背景为天空蓝或草绿：R 通道均不占优）。"""
     rgb = img.convert('RGB')
@@ -149,18 +131,17 @@ CHARACTER_PORTRAIT_CONTENT = 232
 
 
 def build_characters() -> None:
-    # 智能裁切：按 alpha bbox 取本体（不整张 2048 缩放导致本体过小）；
-    # 源图朝左，统一水平镜像为头朝右（菜单头像与局内精灵同一朝向）
+    # 两位角色一一对应两张 HD 原素材，禁止任何改色/滤镜/重绘。
+    # 处理仅限：按 alpha bbox 裁切本体（不整张 2048 缩放导致本体过小）、
+    # 水平镜像为头朝右（源图朝左；菜单头像与局内精灵同一朝向）、等比缩放。
     navy = Image.open(os.path.join(PIC, 'IMG_5246.PNG')).convert('RGBA')
     blue = Image.open(os.path.join(PIC, 'IMG_5247.PNG')).convert('RGBA')
     navy = navy.crop(alpha_bbox(navy)).transpose(Image.FLIP_LEFT_RIGHT)
     blue = blue.crop(alpha_bbox(blue)).transpose(Image.FLIP_LEFT_RIGHT)
 
     mapping = {
-        'nova': navy,                        # 藏青条纹衫（HD 原色）
-        'moss': blue,                        # 浅蓝番茄衫（HD 原色）
-        'sol': shift_blue_hue(blue, -52),    # 浅蓝 -> 青绿衣装变体
-        'violet': shift_blue_hue(navy, 38),  # 藏青 -> 蓝紫衣装变体
+        'nova': navy,  # IMG_5246 藏青条纹衫（HD 原色）
+        'moss': blue,  # IMG_5247 浅蓝番茄衫（HD 原色）
     }
     for cid, art in mapping.items():
         # 局内精灵：216×216 高清位图（缩放全部在 2048 源上一次完成，无二次损失）

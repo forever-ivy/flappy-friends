@@ -7,16 +7,16 @@ export interface CharacterDefinition {
     collisionRadius: number;
 }
 
-// 四位角色均由 pictures/ 的 2048² HD 源派生（alpha bbox 智能裁切 + 水平镜像为朝右）：
-// nova 藏青条纹衫 / moss 浅蓝番茄衫为 HD 原色，sol 青绿衣装 / violet 蓝紫衣装为色相变体。
-// UI 不显示角色名，卡片仅靠衣装颜色区分；image 为局内精灵（216²），portrait 为菜单头像（256²）。
+// 仅两位角色，均为 pictures/ 2048² HD 原素材的原色（无任何改色/滤镜/重绘）：
+// nova = IMG_5246.PNG（藏青条纹衫），moss = IMG_5247.PNG（浅蓝番茄衫）。
+// 处理仅限：alpha bbox 裁切本体 + 水平镜像为朝右 + 等比缩放。
+// UI 不显示角色名，卡片仅靠头像区分；image 为局内精灵（216²），portrait 为菜单头像（256²）。
 export const CHARACTERS: readonly CharacterDefinition[] = [
     { id: 'nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova.png', portrait: 'game/portrait-nova.png', collisionRadius: 14 },
     { id: 'moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss.png', portrait: 'game/portrait-moss.png', collisionRadius: 14 },
-    { id: 'sol', tagline: '青绿番茄衫，元气满格', textureKey: 'character-sol', image: 'game/character-sol.png', portrait: 'game/portrait-sol.png', collisionRadius: 14 },
-    { id: 'violet', tagline: '蓝紫条纹衫，夜色漫游', textureKey: 'character-violet', image: 'game/character-violet.png', portrait: 'game/portrait-violet.png', collisionRadius: 14 },
 ];
 
+// 旧存档/后端可能出现已下架的 sol / violet 等 id，统一回退到第一位角色，不报错
 export const getCharacter = (id: string): CharacterDefinition => CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];
 
 // 局内精灵位图实际像素（Preloader 按此原生尺寸加载，保证高清）

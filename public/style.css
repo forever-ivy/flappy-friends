@@ -233,14 +233,14 @@ body {
 
 .character-rail {
     display: grid;
-    /* 四位角色一行并排；卡片上只有高清头像（256² portrait），无名字文本 */
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 7px;
+    /* 两位角色一行并排；卡片上只有高清头像（256² portrait），无名字文本 */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
 }
 
 .character-choice {
     min-width: 0;
-    height: 64px;
+    height: 72px;
     padding: 4px 2px;
     background: var(--pink-pale);
     border: 2px solid var(--line);

@@ -59,14 +59,14 @@ describe('game assets manifest', () => {
 });
 
 describe('character roster', () => {
-    it('keeps all four HD characters: nova, moss, sol and violet', () => {
-        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss', 'sol', 'violet']);
+    it('keeps exactly the two original-art characters: nova and moss', () => {
+        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
     });
 
-    it('resolves every roster id and falls back to nova for unknown ids', () => {
+    it('falls back to nova for retired ids (sol / violet) from old saves or the backend', () => {
         expect(getCharacter('moss').id).toBe('moss');
-        expect(getCharacter('sol').id).toBe('sol');
-        expect(getCharacter('violet').id).toBe('violet');
+        expect(getCharacter('sol').id).toBe('nova');
+        expect(getCharacter('violet').id).toBe('nova');
         expect(getCharacter('unknown').id).toBe('nova');
     });
 });

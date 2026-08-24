@@ -4,6 +4,8 @@
 // 因此共享代码放在本模块，由回调内部 require(`${__hooks}/shared.js`) 加载
 // （__hooks 是 PocketBase 注入的 pb_hooks 绝对路径全局）。
 
+// 游戏内现役角色仅 nova / moss；sol / violet 为已下架的历史 id，
+// 仍保留在白名单里以兼容旧存档与旧客户端（前端渲染时统一回退到 nova）。
 var CHARACTER_IDS = ["nova", "moss", "sol", "violet"];
 var USERNAME_PATTERN = /^[A-Za-z0-9_\-\u4E00-\u9FFF]{3,16}$/;
 

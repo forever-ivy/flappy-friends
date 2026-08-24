@@ -113,6 +113,7 @@ async function main() {
     const unauthed = await api('/api/game/runs', { method: 'POST', body: { runs: [run(`nope-${STAMP}`, 'nova', 1, 0)] } });
     check('未登录不能提交成绩', unauthed.status === 400 || unauthed.status === 401, unauthed.json);
 
+    // 'sol' 为已下架的历史角色 id：后端须继续接受（旧客户端/旧存档兼容），前端渲染时回退到 nova
     const firstSubmit = await api('/api/game/runs', {
         method: 'POST', token: adaToken,
         body: { runs: [run(`ada-a-${STAMP}`, 'nova', 10, 0), run(`ada-b-${STAMP}`, 'sol', 16, 4)] },
@@ -189,6 +190,7 @@ async function main() {
     check('玩家不能读取他人档案', otherPlayer.status === 404, otherPlayer.json);
 
     // ---- 角色档案接口 ----
+    // 历史 id（sol）仍可写入档案：保证旧客户端不因角色下架而报错
     const profileUpdate = await api('/api/game/profile', { method: 'POST', token: boToken, body: { characterId: 'sol' } });
     check('角色选择同步到服务端', profileUpdate.status === 200 && profileUpdate.json?.characterId === 'sol', profileUpdate.json);
     const badCharacter = await api('/api/game/profile', { method: 'POST', token: boToken, body: { characterId: 'hacker' } });

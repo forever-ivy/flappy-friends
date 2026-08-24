@@ -379,13 +379,13 @@ def draw_tree(img: Image.Image, cx: int, cy: int, r: int, ground: int, ss: int,
             fx, fy = spots[i % len(spots)]
             draw_blossom(d, x + fx * r, cy + fy * r, max(4 * ss, r // 7), ow=2 * ss)
         if with_swing:
-            # 秋千挂在树冠下方、街面层上缘之上，保证可见
-            sy = min(cy + round(r * 1.55), 468 * ss)
+            # 秋千挂在树冠下方、街面层上缘之上，保证绳与座椅都清晰可见
+            sy = min(cy + round(r * 1.5), 460 * ss)
             for k in (-1, 1):
-                d.line([x + k * r * 0.46, cy + r * 0.72, x + k * r * 0.38, sy - 6 * ss],
-                       fill=(192, 114, 104), width=2 * ss)
-            d.rounded_rectangle([x - r * 0.5, sy - 7 * ss, x + r * 0.44, sy], radius=2 * ss,
-                                fill=(228, 158, 138), outline=TRUNK_OUTLINE, width=2 * ss)
+                d.line([x + k * r * 0.5, cy + r * 0.66, x + k * r * 0.42, sy - 10 * ss],
+                       fill=(176, 96, 92), width=3 * ss)
+            d.rounded_rectangle([x - r * 0.56, sy - 11 * ss, x + r * 0.5, sy], radius=3 * ss,
+                                fill=(244, 196, 158), outline=TRUNK_OUTLINE, width=2 * ss)
 
 
 def draw_bush(img: Image.Image, cx: int, cy: int, s: int, ss: int, W: int) -> None:

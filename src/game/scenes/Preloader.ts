@@ -1,5 +1,7 @@
 import { Scene } from 'phaser';
 import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
+import { GAME_HEIGHT } from '../../domain/game';
+import { getRenderScale } from '../renderScale';
 import { syncStageVars } from '../stageSync';
 
 export class Preloader extends Scene
@@ -11,10 +13,15 @@ export class Preloader extends Scene
 
     init ()
     {
+        // canvas 后备像素 = 逻辑尺寸 × renderScale，相机按同倍率 zoom 还原逻辑坐标系
+        const renderScale = getRenderScale();
+        const logicalWidth = this.scale.gameSize.width / renderScale;
+        this.cameras.main.setZoom(renderScale).centerOn(logicalWidth / 2, GAME_HEIGHT / 2);
+
         // 画布宽度随视口自适应（360–960），加载界面按当前宽度居中
-        const centerX = this.scale.gameSize.width / 2;
+        const centerX = logicalWidth / 2;
         this.cameras.main.setBackgroundColor('#fdeef4');
-        this.add.text(centerX, 286, '天际跳跳', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c' }).setOrigin(0.5);
+        this.add.text(centerX, 286, '天际跳跳', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c', resolution: renderScale }).setOrigin(0.5);
         this.add.rectangle(centerX, 330, 184, 8, 0xf3cdda);
         const bar = this.add.rectangle(centerX - 92, 330, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
 

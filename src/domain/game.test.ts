@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-    calculateScore, computeGameWidth, computePlayerX, createSeededRandom,
+    calculateScore, computeGameWidth, computePlayerX, computeRenderScale, createSeededRandom,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds,
-    KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, PLAYER_BASE_X, PLAYER_MAX_X,
+    KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, PLAYER_BASE_X, PLAYER_MAX_X,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from './game';
 
@@ -70,6 +70,26 @@ describe('adaptive game width', () => {
         expect(computePlayerX(960)).toBe(235);
         expect(computePlayerX(200)).toBe(PLAYER_BASE_X);
         expect(computePlayerX(4000)).toBe(PLAYER_MAX_X);
+    });
+
+    it('scales the canvas backing store for high-DPR screens and large windows', () => {
+        // 高 DPR 手机：iPhone（dpr 3, 844css）需要 844*3/640≈3.96 → clamp 到 3
+        expect(computeRenderScale(3, 844)).toBe(MAX_RENDER_SCALE);
+        // Retina 笔记本：dpr 2, 800css → ceil(2.5) = 3
+        expect(computeRenderScale(2, 800)).toBe(3);
+        // 桌面 1080p（dpr 1）：640 逻辑高被 CSS 拉伸到 ~950px → 需要 2x
+        expect(computeRenderScale(1, 950)).toBe(2);
+        // 小窗口 dpr 1：显示高不超过逻辑高，无需超采样
+        expect(computeRenderScale(1, 640)).toBe(1);
+        expect(computeRenderScale(1, 480)).toBe(1);
+    });
+
+    it('guards render scale against degenerate inputs', () => {
+        expect(computeRenderScale(Number.NaN, 900)).toBe(2);
+        expect(computeRenderScale(0, 900)).toBe(2);
+        expect(computeRenderScale(2, Number.NaN)).toBe(2);
+        expect(computeRenderScale(2, 0)).toBe(2);
+        expect(computeRenderScale(10, 3000)).toBe(MAX_RENDER_SCALE);
     });
 
     it('reproduces the legacy hardcoded geometry at the 360 design width', () => {

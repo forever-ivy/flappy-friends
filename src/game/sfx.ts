@@ -1,4 +1,4 @@
-import { SFX_CUES, SfxCueName } from './assets';
+import { SFX_CUES, SFX_MASTER_VOLUME, SfxCueName } from './assets';
 
 const MUTE_KEY = 'skyline-hop-muted-v1';
 
@@ -38,7 +38,7 @@ export function playSfx(cueName: SfxCueName) {
         osc.type = cue.wave;
         osc.frequency.setValueAtTime(sweep.from, start);
         osc.frequency.exponentialRampToValueAtTime(Math.max(30, sweep.to), start + sweep.duration);
-        gain.gain.setValueAtTime(cue.gain, start);
+        gain.gain.setValueAtTime(cue.gain * SFX_MASTER_VOLUME, start);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + sweep.duration);
         osc.connect(gain).connect(ctx.destination);
         osc.start(start);
@@ -50,6 +50,16 @@ export function isSfxMuted(): boolean {
     return muted;
 }
 
+// 静音开关是全局音频开关（音效 + 背景音乐共用一个持久化状态与一个 UI 按钮）；
+// bgm.ts 通过订阅在开关变化时暂停/恢复背景音乐
+type MuteListener = (muted: boolean) => void;
+const muteListeners = new Set<MuteListener>();
+
+export function onMuteChange(listener: MuteListener): () => void {
+    muteListeners.add(listener);
+    return () => { muteListeners.delete(listener); };
+}
+
 export function setSfxMuted(value: boolean) {
     muted = value;
     try {
@@ -57,4 +67,5 @@ export function setSfxMuted(value: boolean) {
     } catch {
         // 无 localStorage（隐身模式等）时只影响本次会话
     }
+    muteListeners.forEach((listener) => listener(value));
 }

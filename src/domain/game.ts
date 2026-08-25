@@ -16,10 +16,36 @@ export const PLAYER_MAX_X = 240;
 export const REWARD_POINTS = 5;
 export const REWARD_CHANCE = 0.35;
 
+// Canvas 渲染倍率：打断「canvas 逻辑 72px → CSS/浏览器位图放大」的糊化链条。
+// canvas 后备像素 = 逻辑尺寸 × 倍率（相机 setZoom 同倍率，逻辑坐标不变），
+// 倍率 = 画布实际显示所需的设备像素高 / 逻辑高（640）向上取整，clamp 到 [1, 3]。
+// 同时覆盖两类放大源：高 DPR 屏（dpr≥2）与桌面大窗口（640 逻辑高被 CSS 拉伸到 ~1000px）。
+export const MAX_RENDER_SCALE = 3;
+
+export function computeRenderScale(devicePixelRatio: number, viewportHeight: number): number {
+    const dpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    const cssHeight = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : GAME_HEIGHT;
+    const devicePixelHeight = cssHeight * dpr;
+    return Math.min(MAX_RENDER_SCALE, Math.max(1, Math.ceil(devicePixelHeight / GAME_HEIGHT)));
+}
+
 export function computeGameWidth(viewportWidth: number, viewportHeight: number): number {
     if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
         || viewportWidth <= 0 || viewportHeight <= 0) return GAME_WIDTH;
     return Math.max(GAME_WIDTH, Math.min(MAX_GAME_WIDTH, Math.round((viewportWidth / viewportHeight) * GAME_HEIGHT)));
+}
+
+// 竖屏消除上下 letterbox：视口窄于 9:16 时画布逻辑高度向“天空方向”出血扩展（玩法区仍是底部对齐的
+// width×640，物理/难度/碰撞零改动），使 canvas 铺满视口、角色冲顶时头顶不再被画布上缘裁切。
+// 上限 800（20:9 手机恰好铺满）：出血 ≤160 时顶部障碍贴图（至少延伸到 y≈-189）仍盖满可视区，
+// 柱子不会在半空“断头”；更极端的细长视口由 CSS 同色系梦幻背景兜底。
+export const MAX_STAGE_HEIGHT = 800;
+
+export function computeStageHeight(viewportWidth: number, viewportHeight: number): number {
+    if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
+        || viewportWidth <= 0 || viewportHeight <= 0) return GAME_HEIGHT;
+    const width = computeGameWidth(viewportWidth, viewportHeight);
+    return Math.max(GAME_HEIGHT, Math.min(MAX_STAGE_HEIGHT, Math.round((viewportHeight / viewportWidth) * width)));
 }
 
 export function computePlayerX(width: number): number {

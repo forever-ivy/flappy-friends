@@ -5,8 +5,8 @@
 依赖：Pillow（pip install pillow）
 
 高清源（pictures/，透明底 PNG）：
-  IMG_5246.PNG      2048x2048  藏青条纹衫男孩飞行姿态 -> nova（violet 为其紫色变体）
-  IMG_5247.PNG      2048x2048  浅蓝番茄衫男孩飞行姿态 -> moss（sol 为其青绿变体）
+  IMG_5246.PNG      2048x2048  藏青条纹衫男孩飞行姿态（朝左）-> nova（HD 原色，不做任何改色）
+  IMG_5247.PNG      2048x2048  浅蓝番茄衫男孩飞行姿态（朝左）-> moss（HD 原色，不做任何改色）
   IMG_5248.PNG      2048x2048  蝴蝶结叉子 -> reward.png（主奖励）
   IMG_5245.PNG      2048x2048  蝴蝶结镜子 -> reward-mirror.png（副奖励）
   IMG_5250.PNG      1080x1920  樱花树秋千场景 -> 三层视差背景的调色与花瓣裁切来源
@@ -15,10 +15,11 @@
   IMG_3454.PNG      1094x3160  标语柱「一起等雨停」  -> 障碍变体文字源
 经典柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（按 HD 奇比风格重绘柱体）。
 
-产物（逻辑 1x 尺寸，与画布渲染分辨率一致，物理参数零改动）：
-  character-{nova,moss,sol,violet}.png  72x72   透明背景，头朝右
+产物（背景/障碍为逻辑 1x 尺寸；角色/奖励为高清位图，物理参数零改动）：
+  character-{nova,moss}-hand-right.png  216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，伸手朝右
+  portrait-{nova,moss}-hand-right.png   256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，伸手朝右
   obstacle[-{wish,rain,aim}][-top].png  76x480  四套少女梦幻粉彩障碍变体（底柱 / 顶柱，文字均正向可读）
-  reward.png / reward-mirror.png        48x48   蝴蝶结叉子 / 蝴蝶结镜子
+  reward.png / reward-mirror.png        144x144 蝴蝶结叉子 / 蝴蝶结镜子（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清）
   fx-sparkle.png                        24x24   四角星光（白色基底，游戏内随机着粉彩色）
   background-sky.png                    960x640 静态天空层（梦幻粉紫渐变 + 光斑 + 星光）
   background-city.png                   720x640 中景视差层（无缝平铺）
@@ -106,24 +107,6 @@ def fit_square(img: Image.Image, canvas: int, content: int) -> Image.Image:
     return out
 
 
-def shift_blue_hue(img: Image.Image, delta: int) -> Image.Image:
-    """把画面中蓝色系（衣服 / 牛仔裤）的色相整体旋转 delta（HSV 的 0-255 标度），
-    肤色 / 头发 / 腮红等低饱和或暖色像素不受影响。用于从两张 HD 角色图派生清晰变体。"""
-    rgba = img.convert('RGBA')
-    alpha = rgba.getchannel('A')
-    hsv = rgba.convert('RGB').convert('HSV')
-    h, s, v = hsv.split()
-    # 蓝色系：hue 130-200（青蓝到蓝紫），且饱和度足够（排除灰发与白色高光）
-    in_range = h.point(lambda x: 255 if 130 <= x <= 200 else 0)
-    saturated = s.point(lambda x: 255 if x >= 24 else 0)
-    mask = ImageChops.multiply(in_range, saturated)
-    shifted = h.point(lambda x: (x + delta) % 256)
-    h2 = Image.composite(shifted, h, mask)
-    out = Image.merge('HSV', (h2, s, v)).convert('RGB').convert('RGBA')
-    out.putalpha(alpha)
-    return out
-
-
 def extract_pink(img: Image.Image) -> Image.Image:
     """从场景裁片中分离粉色花瓣（背景为天空蓝或草绿：R 通道均不占优）。"""
     rgb = img.convert('RGB')
@@ -139,37 +122,52 @@ def extract_pink(img: Image.Image) -> Image.Image:
 
 # ---------------------------------------------------------------- 角色
 
+# 局内精灵位图 216×216（Phaser 里 setDisplaySize 缩到逻辑 72，即 3x 高清）；
+# 菜单头像单独出 256×256（CSS 用 portrait-*.png，绝不复用局内小图拉大）。
+CHARACTER_SPRITE_PX = 216
+CHARACTER_SPRITE_CONTENT = 180  # 四周 ≥18px（逻辑 6px）透明边距，与旧 72/60 等比
+CHARACTER_PORTRAIT_PX = 256
+CHARACTER_PORTRAIT_CONTENT = 232
+
+
 def build_characters() -> None:
-    # 智能裁切：按 alpha bbox 取本体（不整张缩放），源图朝左，翻转为规范要求的头朝右
+    # 两位角色一一对应两张 HD 原素材，禁止任何改色/滤镜/重绘。
+    # 处理仅限：按 alpha bbox 裁切本体（不整张 2048 缩放导致本体过小）、
+    # 保持用户确认的伸手朝右方向；菜单头像与局内精灵同一朝向。
     navy = Image.open(os.path.join(PIC, 'IMG_5246.PNG')).convert('RGBA')
     blue = Image.open(os.path.join(PIC, 'IMG_5247.PNG')).convert('RGBA')
-    navy = navy.crop(alpha_bbox(navy)).transpose(Image.FLIP_LEFT_RIGHT)
-    blue = blue.crop(alpha_bbox(blue)).transpose(Image.FLIP_LEFT_RIGHT)
-
     mapping = {
-        'nova': navy,                        # 藏青条纹衫（HD 原色）
-        'moss': blue,                        # 浅蓝番茄衫（HD 原色）
-        'sol': shift_blue_hue(blue, -52),    # 浅蓝 -> 青绿变体
-        'violet': shift_blue_hue(navy, 38),  # 藏青 -> 蓝紫变体
+        'nova': navy,  # IMG_5246 藏青条纹衫（HD 原色，伸手朝右）
+        'moss': blue,  # IMG_5247 浅蓝番茄衫（HD 原色，伸手朝右）
     }
     for cid, art in mapping.items():
-        sprite = fit_square(art, 72, 60)  # 四周 ≥6px 透明边距
-        sprite.save(os.path.join(OUT, f'character-{cid}.png'))
-        print('character', cid, 'ok')
+        # 局内精灵：216×216 高清位图（缩放全部在 2048 源上一次完成，无二次损失）
+        fit_square(art, CHARACTER_SPRITE_PX, CHARACTER_SPRITE_CONTENT).save(
+            os.path.join(OUT, f'character-{cid}-hand-right.png'))
+        # 菜单头像：256×256，独立于局内精灵，供 DOM <img> 直接使用
+        fit_square(art, CHARACTER_PORTRAIT_PX, CHARACTER_PORTRAIT_CONTENT).save(
+            os.path.join(OUT, f'portrait-{cid}-hand-right.png'))
+        print('character', cid, 'ok (sprite 216 + portrait 256)')
 
 
 # ---------------------------------------------------------------- 奖励
 
+# 奖励位图 144×144（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清，匹配 renderScale 上限 3）；
+# 内容区 126 与旧 48/42 等比，透明边距不变，游戏内视觉大小与碰撞完全一致。
+REWARD_SPRITE_PX = 144
+REWARD_SPRITE_CONTENT = 126
+
+
 def build_rewards() -> None:
-    # 主奖励：蝴蝶结叉子（HD 透明底，摆正后适配 48x48）
+    # 主奖励：蝴蝶结叉子（HD 透明底，2048 源上摆正后一次缩放到 144，无二次损失）
     fork = Image.open(os.path.join(PIC, 'IMG_5248.PNG')).convert('RGBA')
     fork = fork.crop(alpha_bbox(fork)).rotate(-9, expand=True, resample=Image.BICUBIC)
-    fit_square(fork, 48, 42).save(os.path.join(OUT, 'reward.png'))
+    fit_square(fork, REWARD_SPRITE_PX, REWARD_SPRITE_CONTENT).save(os.path.join(OUT, 'reward.png'))
     # 副奖励：蝴蝶结镜子（源图斜置约 45°，转正为镜面朝上）
     mirror = Image.open(os.path.join(PIC, 'IMG_5245.PNG')).convert('RGBA')
     mirror = mirror.crop(alpha_bbox(mirror)).rotate(48, expand=True, resample=Image.BICUBIC)
-    fit_square(mirror, 48, 42).save(os.path.join(OUT, 'reward-mirror.png'))
-    print('rewards ok')
+    fit_square(mirror, REWARD_SPRITE_PX, REWARD_SPRITE_CONTENT).save(os.path.join(OUT, 'reward-mirror.png'))
+    print('rewards ok (144x144, displayed at logical 48)')
 
 
 # ---------------------------------------------------------------- 障碍
@@ -598,8 +596,10 @@ def build_preview() -> None:
     sky = Image.open(os.path.join(OUT, 'background-sky.png')).convert('RGBA')
     city = Image.open(os.path.join(OUT, 'background-city.png')).convert('RGBA')
     street = Image.open(os.path.join(OUT, 'background-street.png')).convert('RGBA')
-    reward = Image.open(os.path.join(OUT, 'reward.png')).convert('RGBA')
-    char = Image.open(os.path.join(OUT, 'character-nova.png')).convert('RGBA')
+    # 奖励位图为 144 高清，预览按游戏内逻辑尺寸 48 显示
+    reward = Image.open(os.path.join(OUT, 'reward.png')).convert('RGBA').resize((48, 48), Image.LANCZOS)
+    # 角色位图为 216 高清，预览按游戏内逻辑尺寸 72 显示
+    char = Image.open(os.path.join(OUT, 'character-nova-hand-right.png')).convert('RGBA').resize((72, 72), Image.LANCZOS)
     sparkle = Image.open(os.path.join(OUT, 'fx-sparkle.png')).convert('RGBA')
 
     frame = Image.new('RGBA', (960, 640))
@@ -627,6 +627,9 @@ def main() -> None:
     os.makedirs(OUT, exist_ok=True)
     if '--obstacles-only' in sys.argv:
         build_obstacles()
+        return
+    if '--rewards-only' in sys.argv:
+        build_rewards()
         return
 
     build_characters()

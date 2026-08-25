@@ -1,5 +1,7 @@
 import { Scene } from 'phaser';
 import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
+import { GAME_HEIGHT } from '../../domain/game';
+import { getRenderScale } from '../renderScale';
 import { syncStageVars } from '../stageSync';
 
 export class Preloader extends Scene
@@ -11,12 +13,19 @@ export class Preloader extends Scene
 
     init ()
     {
-        // 画布宽度随视口自适应（360–960），加载界面按当前宽度居中
-        const centerX = this.scale.gameSize.width / 2;
+        // canvas 后备像素 = 逻辑尺寸 × renderScale，相机按同倍率 zoom 还原逻辑坐标系；
+        // 取景与 Game 场景一致：可视区底部对齐世界 y=640（竖屏出血加在天空一侧）
+        const renderScale = getRenderScale();
+        const logicalWidth = this.scale.gameSize.width / renderScale;
+        const logicalHeight = this.scale.gameSize.height / renderScale;
+        const centerX = logicalWidth / 2;
+        const centerY = GAME_HEIGHT - logicalHeight / 2;
+        this.cameras.main.setZoom(renderScale).centerOn(centerX, centerY);
+
+        // 画布尺寸随视口自适应（宽 360–960 / 高 640–800），进度条放在取景中心
         this.cameras.main.setBackgroundColor('#fdeef4');
-        this.add.text(centerX, 286, '天际跳跳', { fontFamily: 'Arial Black', fontSize: 25, color: '#c05f7c' }).setOrigin(0.5);
-        this.add.rectangle(centerX, 330, 184, 8, 0xf3cdda);
-        const bar = this.add.rectangle(centerX - 92, 330, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
+        this.add.rectangle(centerX, centerY, 184, 8, 0xf3cdda);
+        const bar = this.add.rectangle(centerX - 92, centerY, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
 
         //  Use the 'progress' event emitted by the LoaderPlugin to update the loading bar
         this.load.on('progress', (progress: number) => {
@@ -32,7 +41,10 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
-        // PNG 均按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480 / 奖励 48x48 / 角色 72x72）
+        // 背景/障碍按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480）；
+        // 角色（216x216）与奖励（144x144）为高清位图，按实际像素原生加载（不降采样），
+        // Game 场景用 setDisplaySize 分别缩到逻辑 72 / 48
+        // 背景音乐不在此加载：17MB mp3 由 src/game/bgm.ts 用 HTMLAudioElement 流式播放，不阻塞进度条
         this.load.image('background-sky', GAME_ASSETS.sky);
         this.load.image('background-city', GAME_ASSETS.city);
         this.load.image('background-street', GAME_ASSETS.street);

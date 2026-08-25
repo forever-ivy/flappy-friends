@@ -4,7 +4,7 @@
 
 - 资产清单（唯一被代码引用的入口）：`src/game/assets.ts`
 - 当前素材目录：`public/assets/game/`（樱花奇比主题 PNG，由 `scripts/generate_assets.py` 从 `pictures/` 高清透明底源素材生成；障碍柱身文字取自 `pictures/IMG_345*.PNG` 高清标语柱与 `resource/barrier*.jpg`）
-- 逻辑画布**高度恒 640，宽度按视口宽高比在 360–960 自适应**（Phaser `Scale.FIT` 缩放，超宽屏两侧留边；手机竖屏仍为 360×640）。下表所有尺寸均为逻辑像素；当前 PNG 按 **1× 逻辑尺寸**交付（画布本身按逻辑分辨率渲染再由 CSS 放大，1× 与更高倍率视觉一致）。
+- 逻辑画布**高度恒 640，宽度按视口宽高比在 360–960 自适应**（Phaser `Scale.FIT` 缩放，超宽屏两侧留边；手机竖屏仍为 360×640）。下表所有尺寸均为逻辑像素；canvas 按渲染倍率（1–3×，见 `renderScale.ts`）超采样。背景与障碍 PNG 按 **1× 逻辑尺寸**交付；角色与奖励为**高清位图**（3× 逻辑尺寸），Phaser 原生加载后 `setDisplaySize` 缩到逻辑尺寸，高分屏下不糊。
 
 ## 全局调色板（樱花奇比 + 少女梦幻主题）
 
@@ -89,10 +89,14 @@
 
 | 项 | 规格 |
 | --- | --- |
-| 画布 | 48×48，透明背景（两张一致） |
+| 画布 | 144×144 位图，透明背景（两张一致）；Phaser 按实际像素加载，`setDisplaySize` 缩到逻辑 48×48（3× 高清，匹配 renderScale 上限） |
+| 内容区 | 126×126（四周 ≥9px 透明边距，与旧 48/42 等比），游戏内视觉大小不变 |
 | 锚点 | 中心；生成于间隙中心 ±42px 内（代码计算安全偏移） |
+| 碰撞 | Arcade Body 随缩放同步收缩，世界坐标下仍为 48×48 矩形（物理与计分零改动） |
 | 动态 | 代码内以 2.4s/圈自转 + 拾取时 8 向粒子闪光——素材画正即可，不要自带旋转 |
-| 视觉 | 叉子取自 `pictures/IMG_5248.PNG`，镜子取自 `pictures/IMG_5245.PNG`（均为高清透明底，摆正后适配画布） |
+| 视觉 | 叉子取自 `pictures/IMG_5248.PNG`，镜子取自 `pictures/IMG_5245.PNG`（均为 2048² 高清透明底，摆正后一次缩放到 144，无二次损失） |
+
+尺寸常量在清单登记：`REWARD_BITMAP_SIZE = 144`（位图）与 `REWARD_TEXTURE_SIZE = 48`（逻辑显示），改尺寸只动清单与生成脚本。单独重生成：`python3 scripts/generate_assets.py --rewards-only`。
 
 ## 漂浮星光（少女梦幻氛围）
 
@@ -101,6 +105,18 @@
 ## 音效
 
 当前为 WebAudio 合成（无文件），参数在清单 `SFX_CUES`（`src/game/assets.ts`）：`flap` 上滑短音、`score` 高频哔、`reward` 双音上行、`hit` 下坠噪声。替换为真实音频时只需改 `src/game/sfx.ts` 的实现，游戏代码与清单键名不变。
+
+## 背景音乐（BGM）
+
+文件：`public/assets/bgm.mp3`（约 17MB，已入库，勿重复提交）。清单常量：`BGM_SRC`（路径，相对 `public/`）与 `BGM_VOLUME`（0.3，轻柔偏低贴合梦幻氛围），实现见 `src/game/bgm.ts`：
+
+- **加载**：HTMLAudioElement 流式播放，不走 Phaser Loader（不阻塞资源进度条，不整段解码进内存）。
+- **循环**：`loop = true` 无缝循环；首次播放做 2s 音量淡入。
+- **autoplay 策略**：页面加载后保持静默，首次用户交互（点击 / 触屏 / 按键）后才开始播放；被浏览器拒绝时静默等待下一次交互。
+- **静音联动**：与音效共用同一个持久化静音开关（`isSfxMuted` / 顶栏音量按钮 / localStorage `skyline-hop-muted-v1`），开关变化通过 `sfx.ts` 的 `onMuteChange` 订阅同步暂停/恢复。
+- **前后台**：`visibilitychange` 切后台自动暂停，回前台且未静音时继续。
+
+替换 BGM 只需覆盖 `public/assets/bgm.mp3`，或改清单里的 `BGM_SRC` / `BGM_VOLUME`；播放逻辑不用动。
 
 ## 替换流程
 

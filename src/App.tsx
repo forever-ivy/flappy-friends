@@ -3,6 +3,7 @@ import { CircleUserRound, Home, LogIn, LogOut, Play, RotateCcw, Sparkles, Trophy
 import { PhaserGame } from './PhaserGame';
 import { RunResult } from './domain/game';
 import { CHARACTERS, getCharacter } from './game/assets';
+import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
 import { currentPlayer, getLeaderboard, LeaderboardResponse, onAuthChange, PlayerProfile, register, signIn, signOut, syncRuns, updateCharacter } from './services/api';
@@ -31,6 +32,9 @@ function App() {
     const selected = useMemo(() => getCharacter(progress.selectedCharacter), [progress.selectedCharacter]);
 
     useEffect(() => onAuthChange(setPlayer), []);
+
+    // 背景音乐：首次用户交互后循环播放，与音效共用静音按钮，切后台自动暂停
+    useEffect(() => initBgm(), []);
 
     // 桌面端键盘快捷键：菜单 空格/回车 开始，结算 回车 重开。
     // 忽略按住重复、修饰键、输入框与按钮焦点（避免与原生按钮激活双触发）以及弹窗打开时。

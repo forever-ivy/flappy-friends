@@ -5,7 +5,7 @@ import {
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant } from '../assets';
+import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant, REWARD_TEXTURE_SIZE } from '../assets';
 import { getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
@@ -320,7 +320,9 @@ export class Game extends Scene {
             const rewardY = (center - gapSkew) + (this.random() * 2 - 1) * safeOffset;
             // 叉子与镜子两种奖励贴图交替出现（仅视觉差异，碰撞与计分一致）
             const rewardTexture = this.pairs.length % 2 === 0 ? 'reward' : 'reward-mirror';
-            const reward = this.physics.add.image(x + 4, rewardY, rewardTexture).setDepth(7);
+            // 高清位图（144²）缩到逻辑 48² 显示；Arcade Body 随缩放同步收缩，世界坐标碰撞体仍是 48×48
+            const reward = this.physics.add.image(x + 4, rewardY, rewardTexture).setDepth(7)
+                .setDisplaySize(REWARD_TEXTURE_SIZE, REWARD_TEXTURE_SIZE);
             reward.body!.allowGravity = false;
             reward.setData('collected', false);
             this.rewards.add(reward);

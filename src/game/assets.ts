@@ -28,6 +28,11 @@ export const CHARACTER_TEXTURE_SIZE = 72;
 // 菜单头像位图边长（正方形），独立于局内精灵
 export const CHARACTER_PORTRAIT_SIZE = 256;
 
+// 奖励物位图实际像素（Preloader 按此原生尺寸加载，144 = 逻辑 48 的 3x，匹配 renderScale 上限）
+export const REWARD_BITMAP_SIZE = 144;
+// 奖励物在画布上的逻辑显示尺寸（Game 里 setDisplaySize 缩放），碰撞体随缩放同步收缩，物理零改动
+export const REWARD_TEXTURE_SIZE = 48;
+
 // 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切
 export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;
 
@@ -41,6 +46,12 @@ export const GAME_ASSETS = {
     // 漂浮星光贴图（白色基底，游戏内 tint 成粉彩色），仅氛围装饰不参与碰撞
     sparkle: 'game/fx-sparkle.png',
 } as const;
+
+// 背景音乐（public/assets/bgm.mp3，17MB 流式播放不走 Phaser Loader）；
+// 由 src/game/bgm.ts 用 HTMLAudioElement 循环播放，与音效共用同一个静音开关
+export const BGM_SRC = 'assets/bgm.mp3';
+// 轻柔偏低的音量，贴合少女梦幻氛围（1 为原始响度）
+export const BGM_VOLUME = 0.3;
 
 // 障碍变体清单：每个变体是一对底柱 / 顶柱贴图（柱身竖排文字不同，不能翻转复用），
 // 生成时按种子随机选取且相邻两对不重复；物理体参数全部一致（改这里只影响视觉）

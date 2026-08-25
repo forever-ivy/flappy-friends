@@ -17,14 +17,11 @@
 | 草地绿 | `#b1fa74` |
 | 天空基底（梦幻渐变） | 天顶 `#b0d1fc` → 薰衣草 `#e8dffa` → 地平线樱粉 `#fce2f1` |
 
-障碍柱按变体使用四套粉彩配色（少女梦幻感的核心手段，柱底 / 深影 / 描边与字色同系）：
+五张障碍柱统一使用樱花粉配色，柱底 / 深影 / 描边与字色同系：
 
-| 变体 | 柱底 | 描边 / 字色 |
+| 配色 | 柱底 | 描边 / 字色 |
 | --- | --- | --- |
-| 樱花粉 classic | `#ffbcde` | `#994d4d` |
-| 薰衣草 wish | `#dfcaff` | `#7a5496` |
-| 晴空蓝 rain | `#bbddff` | `#5474a8` |
-| 蜜桃橘 aim | `#ffd8bf` | `#b26842` |
+| 樱花粉 | `#ffbcde` | `#994d4d` |
 
 描边宽度：主体 3–4px。每个对象的描边与主体同色系深色，保证手绘粉彩风格的一致性。
 
@@ -60,16 +57,17 @@
 
 安全区：画面顶部 0–54px 与底部 574–640px 属于 UI/街面区，**中景不要放置关键识别元素**，会被 HUD 或结算面板遮挡。
 
-## 障碍（四套粉彩变体）
+## 障碍（五张樱花粉标语柱）
 
-文件：`obstacle[-{变体}].png`（底柱，管口朝上）与 `obstacle[-{变体}]-top.png`（顶柱，管口朝下）。变体在清单 `OBSTACLE_VARIANTS`（`src/game/assets.ts`）登记；生成时按对局种子随机选取一套，且相邻两对强制不同色（`Game.pickObstacleVariant`，同种子可复现）。
+文件：`obstacle[-{变体}].png`（底柱，管口朝上）与 `obstacle[-{变体}]-top.png`（顶柱，管口朝下）。变体在清单 `OBSTACLE_VARIANTS`（`src/game/assets.ts`）登记；生成时按对局种子随机选取一张标语，且相邻两对不重复（`Game.pickObstacleVariant`，同种子可复现）。
 
-| 变体 id | 文件 | 配色 | 底柱文字 | 顶柱文字 |
-| --- | --- | --- | --- | --- |
-| classic | `obstacle[-top].png` | 樱花粉 | 世界上另一个我 | 你在哭鼻子吗 |
-| wish | `obstacle-wish[-top].png` | 薰衣草 | 做你想做的 | 一起命中十环 |
-| rain | `obstacle-rain[-top].png` | 晴空蓝 | 一起等雨停 | 你在哭鼻子吗 |
-| aim | `obstacle-aim[-top].png` | 蜜桃橘 | 一起命中十环 | 世界上另一个我 |
+| 变体 id | 文件 | 配色 | 底柱 / 顶柱文字 |
+| --- | --- | --- | --- |
+| me | `obstacle[-top].png` | 樱花粉 | 世界上另一个我 |
+| cry | `obstacle-cry[-top].png` | 樱花粉 | 你在哭鼻子吗 |
+| aim | `obstacle-aim[-top].png` | 樱花粉 | 一起命中十环 |
+| wish | `obstacle-wish[-top].png` | 樱花粉 | 做你想做的 |
+| rain | `obstacle-rain[-top].png` | 樱花粉 | 一起等雨停 |
 
 | 项 | 规格 |
 | --- | --- |
@@ -81,7 +79,7 @@
 
 柱身文字来源：「世界上另一个我」取自 `resource/barrier.jpg`、「你在哭鼻子吗」取自 `resource/barrier2.jpg`；「一起命中十环」「做你想做的」「一起等雨停」分别取自 `pictures/IMG_3452.PNG`、`IMG_3453(1).PNG`、`IMG_3454.PNG`（高清透明底标语柱，由 `generate_assets.py` 自动定位柱身并提取字形，字色随变体配色重着色）。均正向可读。76px 宽度中仅中间 58px 参与碰撞，两侧各 9px 可自由设计。
 
-新增变体流程：把新标语柱源图放进 `pictures/`，在 `generate_assets.py` 的 `build_obstacles` 登记（文字对 + 配色），再在 `OBSTACLE_VARIANTS` 清单加一行；玩法代码不用改。
+新增变体流程：把新标语柱源图放进 `pictures/`，在 `generate_assets.py` 的 `build_obstacles` 登记（标语 + 配色），再在 `OBSTACLE_VARIANTS` 清单加一行；玩法代码不用改。
 
 ## 奖励物
 

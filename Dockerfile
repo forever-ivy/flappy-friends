@@ -12,11 +12,12 @@ ARG TARGETARCH
 # 构建全程不需要访问 GitHub；否则构建时在线下载发布包。
 COPY docker ./docker
 RUN apk add --no-cache ca-certificates wget \
-    && if [ -f ./docker/pocketbase ]; then install -m 0755 ./docker/pocketbase ./pocketbase; \
+    && mkdir -p /pb \
+    && if [ -f ./docker/pocketbase ]; then install -m 0755 ./docker/pocketbase /pb/pocketbase; \
     else apk add --no-cache unzip \
     && case "$TARGETARCH" in amd64) PB_ARCH=amd64 ;; arm64) PB_ARCH=arm64 ;; *) echo "Unsupported architecture: $TARGETARCH"; exit 1 ;; esac \
     && wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${PB_ARCH}.zip" -O /tmp/pocketbase.zip \
-    && unzip /tmp/pocketbase.zip -d . \
+    && unzip /tmp/pocketbase.zip -d /pb \
     && rm /tmp/pocketbase.zip; \
     fi
 WORKDIR /pb

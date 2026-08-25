@@ -179,7 +179,7 @@ body {
     margin: 0;
     color: #fff6f9;
     font-family: "Arial Black", Impact, sans-serif;
-    font-size: 46px;
+    font-size: 54px;
     line-height: 1.12;
     letter-spacing: .05em;
     text-shadow: var(--text-outline);
@@ -470,7 +470,7 @@ body {
 
 @media (max-height: 700px) {
     .menu-layer { gap: 16px; }
-    .game-title h1 { font-size: 38px; }
+    .game-title h1 { font-size: 44px; }
     .menu-controls { padding: 11px; }
     .character-choice img { width: 42px; height: 42px; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
@@ -480,7 +480,7 @@ body {
 @media (min-width: 900px) {
     .score-number { font-size: 62px; }
     .result-score { font-size: 84px; }
-    .game-title h1 { font-size: 54px; }
+    .game-title h1 { font-size: 62px; }
     .character-choice img { width: 56px; height: 56px; }
     .character-name { font-size: 13px; }
 }
@@ -489,7 +489,7 @@ body {
 @media (max-height: 520px) {
     .menu-layer { gap: 10px; }
     .game-title { gap: 4px; }
-    .game-title h1 { font-size: 27px; }
+    .game-title h1 { font-size: 30px; }
     .game-title p { font-size: 9px; padding: 2px 10px; }
     .menu-controls { padding: 8px; }
     .character-choice { padding: 4px 2px 3px; gap: 1px; }

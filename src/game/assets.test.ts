@@ -88,10 +88,10 @@ function facingMargin(relativePath: string): number {
 }
 
 describe('obstacle variants manifest', () => {
-    it('ships only the cherry-blossom pink variant (all pillars pink)', () => {
-        expect(OBSTACLE_VARIANTS).toHaveLength(1);
-        expect(OBSTACLE_VARIANTS[0].id).toBe('classic');
-        expect(OBSTACLE_VARIANTS[0].palette).toBe('樱花粉');
+    it('ships all five source slogans in cherry-blossom pink', () => {
+        expect(OBSTACLE_VARIANTS).toHaveLength(5);
+        expect(OBSTACLE_VARIANTS.map((variant) => variant.id)).toEqual(['me', 'cry', 'aim', 'wish', 'rain']);
+        expect(OBSTACLE_VARIANTS.every((variant) => variant.palette === '樱花粉')).toBe(true);
     });
 
     it('has unique ids and texture keys', () => {

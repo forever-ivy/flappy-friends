@@ -5,8 +5,7 @@ import {
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRewardKind, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
-import { computeWingPose, FLUTTER_DURATION_MS, WING_FILL, WING_OUTLINE, WING_SIZE } from '../flutter';
+import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, type ObstacleVariant, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
 import { getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
@@ -50,12 +49,8 @@ export class Game extends Scene {
     private renderScale = getRenderScale();
     // 角色等比基准 scale（setDisplaySize 72/216 后记录）：扑翼挤压动画必须从它出发并回到它
     private playerBaseScale = CHARACTER_TEXTURE_SIZE / CHARACTER_SPRITE_SIZE;
-    // 扑腾小翅膀：两片翅膀是无物理体的装饰图形，姿态由 flutter.phase（0→1）驱动（见 flutter.ts）；
-    // phase 独立于角色 scale/物理，连按时从 0 重播即可，不影响 #15 的等比基准复位
-    private wings: Phaser.GameObjects.Ellipse[] = [];
-    private flutter = { phase: 1 };
-    private flutterTween?: Phaser.Tweens.Tween;
     private lastGapSkewSign = 0;
+    private lastVariantIndex = -1;
     private flapKeyHandler = () => this.flap();
     private resizeHandler = () => {
         this.maybeApplyStageSize();
@@ -77,9 +72,6 @@ export class Game extends Scene {
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
 
         this.player = this.physics.add.sprite(computePlayerX(this.logicalWidth()), 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
-        // 小翅膀画在角色身后（depth 9 < 10），扑腾时从背后展开扇动，收拢时完全隐藏
-        this.wings = [0, 1].map(() => this.add.ellipse(0, 0, WING_SIZE.width, WING_SIZE.height, WING_FILL)
-            .setStrokeStyle(2, WING_OUTLINE).setDepth(9).setVisible(false));
         this.player.setCollideWorldBounds(false);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -160,8 +152,6 @@ export class Game extends Scene {
         this.city.tilePositionX += scrollSpeed * 0.18 * seconds;
         this.street.tilePositionX += scrollSpeed * seconds;
         this.driftSparkles(scrollSpeed, seconds);
-        // 每帧同步扑腾小翅膀（含 phase='over' 时的收尾淡出），角色移动/俯仰时翅膀始终贴着身体
-        this.updateWings();
 
         if (this.phase !== 'playing') return;
         const difficulty = getDifficulty(this.currentScore());
@@ -259,14 +249,12 @@ export class Game extends Scene {
         this.selectedCharacter = payload.characterId;
         this.random = createSeededRandom(payload.seed ?? Date.now());
         this.lastGapSkewSign = 0;
+        this.lastVariantIndex = -1;
         this.pipeCount = 0;
         this.rewardCount = 0;
         // 连同待机浮动与上一局可能残留的挤压 tween 一起清掉，防止旧 tween 覆盖刚复位的基准 scale
         this.idleTween?.stop();
         this.tweens.killTweensOf(this.player);
-        // 上一局残留的扑腾也一并收拢（phase=1 时翅膀完全隐藏）
-        this.flutterTween?.stop();
-        this.flutter.phase = 1;
         this.player.clearTint().setPosition(computePlayerX(this.logicalWidth()), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -326,31 +314,6 @@ export class Game extends Scene {
             duration: 80,
             yoyo: true,
         });
-        // 扑腾与挤压并行：flutter.phase 是独立目标，连按同样先停旧 tween 再从 0 重播，
-        // 姿态是 phase 的纯函数（flutter.ts），不存在可累积的中间状态
-        this.flutterTween?.stop();
-        this.flutter.phase = 0;
-        this.flutterTween = this.tweens.add({ targets: this.flutter, phase: 1, duration: FLUTTER_DURATION_MS });
-    }
-
-    // 按 flutter.phase 合成两片小翅膀的世界坐标：局部姿态随角色当前俯仰角旋转，贴着背部扇动
-    private updateWings() {
-        const t = this.flutter.phase;
-        const active = t > 0 && t < 1;
-        this.wings.forEach((wing, index) => {
-            wing.setVisible(active);
-            if (!active) return;
-            const pose = computeWingPose(t, index as 0 | 1);
-            const cos = Math.cos(this.player.rotation);
-            const sin = Math.sin(this.player.rotation);
-            wing.setPosition(
-                this.player.x + pose.x * cos - pose.y * sin,
-                this.player.y + pose.x * sin + pose.y * cos,
-            );
-            wing.setRotation(this.player.rotation + pose.rotation);
-            wing.setAlpha(pose.alpha);
-            wing.setScale(pose.scale);
-        });
     }
 
     private spawnPair(x = this.logicalWidth() + SPAWN_OFFSCREEN_X) {
@@ -368,8 +331,7 @@ export class Game extends Scene {
         const centerBase = topLimit + this.random() * (bottomLimit - topLimit);
         const center = Phaser.Math.Clamp(centerBase, topLimit + gapSkew, bottomLimit + gapSkew);
         const obstacleHeight = 480;
-        // 障碍统一樱花粉（清单仅剩 classic 一种，见 assets.ts）
-        const variant = OBSTACLE_VARIANTS[0];
+        const variant = this.pickObstacleVariant();
         const topY = center - gap / 2 - gapSkew - obstacleHeight / 2;
         const bottomY = center + gap / 2 - gapSkew + obstacleHeight / 2;
 
@@ -400,6 +362,16 @@ export class Game extends Scene {
             pair.reward = reward;
         }
         this.pairs.push(pair);
+    }
+
+    // 五张标语按对局种子随机轮换；相邻两对不重复，颜色仍统一为樱花粉。
+    private pickObstacleVariant(): ObstacleVariant {
+        let index = Math.floor(this.random() * OBSTACLE_VARIANTS.length) % OBSTACLE_VARIANTS.length;
+        if (OBSTACLE_VARIANTS.length > 1 && index === this.lastVariantIndex) {
+            index = (index + 1) % OBSTACLE_VARIANTS.length;
+        }
+        this.lastVariantIndex = index;
+        return OBSTACLE_VARIANTS[index];
     }
 
     private createObstacle(x: number, y: number, textureKey: string): Phaser.Physics.Arcade.Image {
@@ -480,9 +452,6 @@ export class Game extends Scene {
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
         this.player.setVelocity(0, 0).setTint(0xff97a6);
-        // 定格瞬间立刻收拢翅膀，避免翅膀悬在被定住的角色身后
-        this.flutterTween?.stop();
-        this.flutter.phase = 1;
         this.pairs.forEach((pair) => {
             pair.top.setVelocityX(0);
             pair.bottom.setVelocityX(0);

@@ -13,12 +13,12 @@
   IMG_3452.PNG       746x2172  标语柱「一起命中十环」-> 障碍变体文字源
   IMG_3453(1).PNG   1100x3140  标语柱「做你想做的」  -> 障碍变体文字源
   IMG_3454.PNG      1094x3160  标语柱「一起等雨停」  -> 障碍变体文字源
-经典柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（按 HD 奇比风格重绘柱体）。
+另两张柱身文字取自 resource/barrier.jpg 与 resource/barrier2.jpg（按 HD 奇比风格重绘柱体）。
 
 产物（背景/障碍为逻辑 1x 尺寸；角色/奖励为高清位图，物理参数零改动）：
   character-{nova,moss}-hand-right.png  216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，伸手朝右
   portrait-{nova,moss}-hand-right.png   256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，伸手朝右
-  obstacle[-{wish,rain,aim}][-top].png  76x480  四套少女梦幻粉彩障碍变体（底柱 / 顶柱，文字均正向可读）
+  obstacle[-{cry,aim,wish,rain}][-top].png  76x480  五套樱花粉障碍（底柱 / 顶柱，文字均正向可读）
   reward.png / reward-mirror.png        144x144 蝴蝶结叉子 / 蝴蝶结镜子（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清）
   fx-sparkle.png                        24x24   四角星光（白色基底，游戏内随机着粉彩色）
   background-sky.png                    960x640 静态天空层（梦幻粉紫渐变 + 光斑 + 星光）
@@ -73,7 +73,7 @@ FENCE_OUTLINE = (211, 124, 131)
 SEAT = (216, 180, 166)
 ROPE = (196, 116, 112)
 
-# ---- 障碍变体粉彩配色（少女梦幻主题：樱花粉 / 薰衣草 / 晴空蓝 / 蜜桃橘） ----
+# ---- 障碍配色（当前五张标语统一使用 sakura；其余调色板保留给未来扩展） ----
 PILLAR_PALETTES = {
     'sakura': dict(body=(255, 188, 222), deep=(250, 158, 205), hi=(255, 214, 235),
                    outline=(153, 77, 77), ink=(153, 77, 77), blossom=(255, 176, 202)),
@@ -266,8 +266,7 @@ def build_pillar(mask: Image.Image, mouth: str, palette: dict, ss: int = 6) -> I
 
 
 def build_obstacles() -> None:
-    """四套障碍变体（与 src/game/assets.ts 的 OBSTACLE_VARIANTS 一一对应）：
-    classic 樱花粉、wish 薰衣草、rain 晴空蓝、aim 蜜桃橘；同一对内底柱 / 顶柱文字不同。"""
+    """五张源标语各生成一套樱花粉障碍，与 OBSTACLE_VARIANTS 一一对应。"""
     text_me = extract_text(os.path.join(RES, 'barrier.jpg'))           # 世界上另一个我
     text_cry = extract_text(os.path.join(RES, 'barrier2.jpg'))         # 你在哭鼻子吗
     text_aim = extract_text_hd(os.path.join(PIC, 'IMG_3452.PNG'))      # 一起命中十环
@@ -275,17 +274,18 @@ def build_obstacles() -> None:
     text_rain = extract_text_hd(os.path.join(PIC, 'IMG_3454.PNG'))     # 一起等雨停
 
     variants = [
-        # (文件后缀, 底柱文字, 顶柱文字, 配色)
-        ('', text_me, text_cry, 'sakura'),        # classic：世界上另一个我 / 你在哭鼻子吗
-        ('-wish', text_wish, text_aim, 'lavender'),  # wish：做你想做的 / 一起命中十环
-        ('-rain', text_rain, text_cry, 'skyblue'),   # rain：一起等雨停 / 你在哭鼻子吗
-        ('-aim', text_aim, text_me, 'peach'),        # aim：一起命中十环 / 世界上另一个我
+        # (文件后缀, 标语文字, 配色)；顶柱与底柱使用同一张源图，但分别正向排版。
+        ('', text_me, 'sakura'),
+        ('-cry', text_cry, 'sakura'),
+        ('-aim', text_aim, 'sakura'),
+        ('-wish', text_wish, 'sakura'),
+        ('-rain', text_rain, 'sakura'),
     ]
-    for suffix, bottom_text, top_text, palette_name in variants:
+    for suffix, text, palette_name in variants:
         palette = PILLAR_PALETTES[palette_name]
-        build_pillar(bottom_text, mouth='top', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}.png'))
-        build_pillar(top_text, mouth='bottom', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}-top.png'))
-        print('obstacle variant', suffix or '-classic', palette_name, 'ok')
+        build_pillar(text, mouth='top', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}.png'))
+        build_pillar(text, mouth='bottom', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}-top.png'))
+        print('obstacle variant', suffix or '-me', palette_name, 'ok')
 
 
 # ---------------------------------------------------------------- 背景公共
@@ -592,7 +592,7 @@ def build_street(ss: int = 2) -> None:
 # ---------------------------------------------------------------- 预览
 
 def build_preview() -> None:
-    """拼一张 960×640 的模拟游戏画面（四套障碍变体并排）用于快速目检。"""
+    """拼一张 960×640 的模拟游戏画面（五张标语并排）用于快速目检。"""
     sky = Image.open(os.path.join(OUT, 'background-sky.png')).convert('RGBA')
     city = Image.open(os.path.join(OUT, 'background-city.png')).convert('RGBA')
     street = Image.open(os.path.join(OUT, 'background-street.png')).convert('RGBA')
@@ -610,14 +610,14 @@ def build_preview() -> None:
     frame.alpha_composite(street.crop((0, 0, 240, 165)), (720, 475))
     for sx, sy in ((60, 120), (170, 340), (330, 80), (520, 420), (700, 180), (900, 360)):
         frame.alpha_composite(sparkle, (sx, sy))
-    gaps = ((240, 260, ''), (430, 330, '-wish'), (620, 240, '-rain'), (830, 350, '-aim'))
+    gaps = ((150, 260, ''), (320, 330, '-cry'), (490, 240, '-aim'), (660, 350, '-wish'), (830, 270, '-rain'))
     for x, center, suffix in gaps:
         ob = Image.open(os.path.join(OUT, f'obstacle{suffix}.png')).convert('RGBA')
         ot = Image.open(os.path.join(OUT, f'obstacle{suffix}-top.png')).convert('RGBA')
         gap = 175
         frame.alpha_composite(ot, (x - 38, center - gap // 2 - 480))
         frame.alpha_composite(ob, (x - 38, center + gap // 2))
-    frame.alpha_composite(reward, (430 - 24, 330 - 24))
+    frame.alpha_composite(reward, (490 - 24, 240 - 24))
     frame.alpha_composite(char, (110 - 36, 300 - 36))
     frame.convert('RGB').save('/tmp/preview-game.png')
     print('preview ok -> /tmp/preview-game.png')

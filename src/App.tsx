@@ -183,21 +183,24 @@ function App() {
                         <MenuDanmaku messages={messages} burst={burst} />
                     </div>
 
-                    {/* 游戏名：加大主名 + 环绕装饰（蝴蝶结/小花/小云朵/星星爱心闪光，不用人形
-                        角色贴图）填满上方天空，英文糖果药丸作副线不抢戏 */}
+                    {/* 游戏名：大弧角粉色糖果牌当底板，把中文主名+英文药丸收进一个整体，
+                        不再让文字直接飘在柱子/弹幕上。装饰件只挂在牌子外缘（顶部蝴蝶结
+                        主视觉 + 角落云/花 + 少量闪点），成组且克制；中文每字拆开做轻微
+                        错落旋转，手账贴纸的卡通感 */}
                     <header className="game-title">
                         <div className="title-decor" aria-hidden="true">
-                            <Star className="title-spark s1" size={22} fill="currentColor" />
-                            <Sparkles className="title-spark s2" size={17} />
-                            <Heart className="title-spark s3" size={15} fill="currentColor" />
-                            <Star className="title-spark s4" size={13} fill="currentColor" />
-                            <Sparkles className="title-spark s5" size={14} />
-                            <Heart className="title-spark s6" size={11} fill="currentColor" />
-                            <Flower className="title-spark s7" size={30} />
-                            <Cloud className="title-spark s8" size={34} fill="currentColor" />
-                            <Ribbon className="title-spark s9" size={24} />
+                            <Ribbon className="title-trim ribbon" size={32} />
+                            <Cloud className="title-trim cloud-left" size={32} fill="currentColor" />
+                            <Flower className="title-trim flower-right" size={27} />
+                            <Star className="title-trim star-left" size={16} fill="currentColor" />
+                            <Sparkles className="title-trim spark-right" size={15} />
+                            <Heart className="title-trim heart-bottom" size={13} fill="currentColor" />
                         </div>
-                        <h1>{GAME_TITLE}</h1>
+                        <h1 aria-label={GAME_TITLE}>
+                            {Array.from(GAME_TITLE).map((char, index) => (
+                                <span key={index} aria-hidden="true">{char}</span>
+                            ))}
+                        </h1>
                         <p>{GAME_TITLE_EN}</p>
                     </header>
                     <div className="menu-controls">

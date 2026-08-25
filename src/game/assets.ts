@@ -1,5 +1,12 @@
+// 游戏名（品牌）：主名中文「飞天碗盆」，英文 Flying Wanpen 作副线；
+// index.html 的 <title>/描述与菜单标题共用这一对常量，避免各处文案漂移
+export const GAME_TITLE = '飞天碗盆';
+export const GAME_TITLE_EN = 'Flying Wanpen';
+
 export interface CharacterDefinition {
     id: string;
+    // 展示名：菜单角色卡与无障碍标签使用（左碗碗 / 右盆盆）
+    name: string;
     tagline: string;
     textureKey: string;
     image: string;
@@ -8,12 +15,12 @@ export interface CharacterDefinition {
 }
 
 // 仅两位角色，均为 pictures/ 2048² HD 原素材的原色（无任何改色/滤镜/重绘）：
-// nova = IMG_5246.PNG（藏青条纹衫），moss = IMG_5247.PNG（浅蓝番茄衫）。
+// nova = IMG_5246.PNG（藏青条纹衫）= 碗碗，moss = IMG_5247.PNG（浅蓝番茄衫）= 盆盆。
 // 处理仅限：alpha bbox 裁切本体 + 保持用户确认的伸手朝右方向 + 等比缩放。
-// UI 不显示角色名，卡片仅靠头像区分；image 为局内精灵（216²），portrait 为菜单头像（256²）。
+// 菜单卡片在头像下方显示展示名；image 为局内精灵（216²），portrait 为菜单头像（256²）。
 export const CHARACTERS: readonly CharacterDefinition[] = [
-    { id: 'nova', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova-hand-right.png', portrait: 'game/portrait-nova-hand-right.png', collisionRadius: 14 },
-    { id: 'moss', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss-hand-right.png', portrait: 'game/portrait-moss-hand-right.png', collisionRadius: 14 },
+    { id: 'nova', name: '碗碗', tagline: '叉子在手，说走就走', textureKey: 'character-nova', image: 'game/character-nova-hand-right.png', portrait: 'game/portrait-nova-hand-right.png', collisionRadius: 14 },
+    { id: 'moss', name: '盆盆', tagline: '镜子照亮好心情', textureKey: 'character-moss', image: 'game/character-moss-hand-right.png', portrait: 'game/portrait-moss-hand-right.png', collisionRadius: 14 },
 ];
 
 // 旧存档/后端可能出现已下架的 sol / violet 等 id，统一回退到第一位角色，不报错

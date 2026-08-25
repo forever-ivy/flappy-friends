@@ -156,6 +156,49 @@ body {
     pointer-events: none;
 }
 
+/* 菜单构图：游戏名 + 控件面板作为一列整体垂直居中，任何视口高度下都不重叠 */
+.menu-layer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+}
+
+/* 游戏名：主名白字粉描边（与计分/倒计时同一手绘字风格），英文副线做成糖果药丸贴纸 */
+.game-title {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    text-align: center;
+    pointer-events: none;
+    animation: title-in .6s var(--ease-bounce) both;
+}
+
+.game-title h1 {
+    margin: 0;
+    color: #fff6f9;
+    font-family: "Arial Black", Impact, sans-serif;
+    font-size: 46px;
+    line-height: 1.12;
+    letter-spacing: .05em;
+    text-shadow: var(--text-outline);
+}
+
+.game-title p {
+    margin: 0;
+    padding: 4px 15px;
+    color: var(--pink-strong);
+    background: rgba(255, 247, 251, .88);
+    border: 2px solid var(--stroke);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .28em;
+    text-indent: .28em; /* 抵消末字符 letter-spacing，视觉居中 */
+    text-transform: uppercase;
+}
+
 .result-layer {
     position: absolute;
     inset: 0;
@@ -211,13 +254,8 @@ body {
 .account-active { color: #e0608a; }
 
 .menu-controls {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    right: auto;
-    bottom: auto;
+    position: relative;
     width: min(100% - 28px, 420px);
-    translate: -50% -50%;
     padding: 16px;
     color: var(--ink);
     background: rgba(255, 247, 251, .94);
@@ -248,8 +286,10 @@ body {
 
 .character-choice {
     min-width: 0;
-    height: 72px;
-    padding: 4px 2px;
+    padding: 7px 2px 6px;
+    display: grid;
+    justify-items: center;
+    gap: 3px;
     background: var(--pink-pale);
     border: 2px solid var(--line);
     border-radius: var(--radius-card);
@@ -261,7 +301,11 @@ body {
 /* 选中的角色卡轻微歪头：贴纸随手一贴的俏皮感 */
 .character-choice.selected { background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px) rotate(-2deg) scale(1.04); }
 .character-choice.selected:nth-child(2n) { transform: translateY(-4px) rotate(2deg) scale(1.04); }
-.character-choice img { display: block; width: 52px; height: 52px; margin: 0 auto; object-fit: contain; }
+.character-choice img { display: block; width: 48px; height: 48px; object-fit: contain; }
+
+/* 角色展示名（左碗碗 / 右盆盆）：头像下方小字，清晰但不与主按钮抢视线 */
+.character-name { color: #a2536b; font-size: 12px; font-weight: 900; letter-spacing: .1em; }
+.character-choice.selected .character-name { color: var(--pink-strong); }
 
 /* 按钮统一「糖果药丸贴纸」样式：全圆角 + 同色系描边 + 实底边缘 */
 .primary-button, .secondary-button, .save-button {
@@ -349,6 +393,24 @@ body {
 }
 .result-actions { display: flex; gap: 8px; margin-top: 10px; }
 
+/* 作者水印：右下角小字低对比常驻，不可交互；对局中由 .faded 进一步淡化避免分神 */
+.watermark {
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 30;
+    color: rgba(107, 58, 80, .38);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+    pointer-events: none;
+    user-select: none;
+    transition: opacity .4s ease;
+}
+
+.watermark.faded { opacity: .35; }
+
 .dialog {
     position: relative;
     width: 100%;
@@ -408,9 +470,10 @@ body {
 }
 
 @media (max-height: 700px) {
+    .menu-layer { gap: 16px; }
+    .game-title h1 { font-size: 38px; }
     .menu-controls { padding: 11px; }
-    .character-choice { height: 56px; }
-    .character-choice img { width: 44px; height: 44px; }
+    .character-choice img { width: 42px; height: 42px; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
 }
 
@@ -418,15 +481,21 @@ body {
 @media (min-width: 900px) {
     .score-number { font-size: 62px; }
     .result-score { font-size: 84px; }
-    .character-choice { height: 72px; }
-    .character-choice img { width: 60px; height: 60px; }
+    .game-title h1 { font-size: 54px; }
+    .character-choice img { width: 56px; height: 56px; }
+    .character-name { font-size: 13px; }
 }
 
 /* 横屏矮窗口（手机横过来、分屏）：进一步压缩纵向占用 */
 @media (max-height: 520px) {
+    .menu-layer { gap: 10px; }
+    .game-title { gap: 4px; }
+    .game-title h1 { font-size: 27px; }
+    .game-title p { font-size: 9px; padding: 2px 10px; }
     .menu-controls { padding: 8px; }
-    .character-choice { height: 48px; }
-    .character-choice img { width: 36px; height: 36px; }
+    .character-choice { padding: 4px 2px 3px; gap: 1px; }
+    .character-choice img { width: 30px; height: 30px; }
+    .character-name { font-size: 10px; }
     .primary-button, .secondary-button, .save-button { min-height: 38px; }
 }
 

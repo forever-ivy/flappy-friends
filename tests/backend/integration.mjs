@@ -267,6 +267,8 @@ async function main() {
     const eveBoard = await api('/api/game/leaderboards?type=best', { token: eve.auth.json?.token });
     check('未上榜玩家 me 为空', eveBoard.json?.me === null, eveBoard.json?.me);
     check('匿名访问不返回 me', (await api('/api/game/leaderboards?type=best')).json?.me === null);
+    const slicedBoard = await api('/api/game/leaderboards?type=best&limit=2');
+    check('排行榜 limit 生效', slicedBoard.json?.entries?.length === 2, slicedBoard.json?.entries);
 
     // ---- 弹幕留言板 ----
     console.log('\n[弹幕留言板]');
@@ -325,6 +327,16 @@ async function main() {
     );
     const limitedList = await api('/api/game/messages?limit=2');
     check('limit 参数生效', limitedList.json?.messages?.length === 2, limitedList.json?.messages);
+
+    // 发留言按 IP 限流 12 次/分钟（见 concurrency 迁移）。本套件此前已发 6 次，
+    // 这里连发最多 10 次，应在其中触发 429。注意：60 秒内重复跑本套件会因
+    // 限流窗口未过而误报，请像 CI 一样对全新 PocketBase 进程运行。
+    let limited = null;
+    for (let i = 0; i < 10 && !limited; i += 1) {
+        const result = await api('/api/game/messages', { method: 'POST', body: { text: `刷屏测试 ${STAMP} ${i}` } });
+        if (result.status === 429) limited = result;
+    }
+    check('高频发留言触发限流（429）', limited !== null, limited?.json ?? '10 次内未触发');
 
     console.log(`\n结果：${passed} 通过，${failures.length} 失败`);
     if (failures.length > 0) {

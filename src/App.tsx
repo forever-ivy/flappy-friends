@@ -45,8 +45,14 @@ function App() {
 
     useEffect(() => onAuthChange(setPlayer), []);
 
+    // 每局结束回菜单不重复拉留言（1000 在线时会变成持续读洪峰）：
+    // 至少间隔 60 秒才重新请求，期间弹幕循环用已有列表；自己刚发的留言
+    // 已在发送成功时本地插入，无需回源。
+    const danmakuFetchedAt = useRef(0);
     useEffect(() => {
         if (screen !== 'menu') return;
+        if (Date.now() - danmakuFetchedAt.current < 60000) return;
+        danmakuFetchedAt.current = Date.now();
         void getDanmaku()
             .then((response) => {
                 if (Array.isArray(response?.messages)) setMessages(response.messages);

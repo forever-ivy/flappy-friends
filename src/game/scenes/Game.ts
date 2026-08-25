@@ -342,8 +342,8 @@ export class Game extends Scene {
         // 轻微粉彩粒子/光晕（色调跟随变体配色）：只增强视觉，不改碰撞与计分。
         const topEdgeY = topY + obstacleHeight / 2;
         const bottomEdgeY = bottomY - obstacleHeight / 2;
-        this.spawnObstacleGlow(x, topEdgeY, true, variant);
-        this.spawnObstacleGlow(x, bottomEdgeY, false, variant);
+        this.spawnObstacleGlow(x, topEdgeY, true);
+        this.spawnObstacleGlow(x, bottomEdgeY, false);
 
         if (shouldSpawnReward(this.random())) {
             const safeOffset = Math.min(42, gap / 2 - 30);
@@ -363,7 +363,7 @@ export class Game extends Scene {
         this.pairs.push(pair);
     }
 
-    // 障碍多样性：按种子随机选变体（可复现），且相邻两对强制不同色增强变化感
+    // 障碍贴图：当前仅樱花粉 classic；保留选取函数以便日后扩展
     private pickObstacleVariant(): ObstacleVariant {
         let index = Math.floor(this.random() * OBSTACLE_VARIANTS.length) % OBSTACLE_VARIANTS.length;
         if (OBSTACLE_VARIANTS.length > 1 && index === this.lastVariantIndex) {
@@ -383,10 +383,9 @@ export class Game extends Scene {
         return obstacle;
     }
 
-    private spawnObstacleGlow(x: number, y: number, flip: boolean, variant: ObstacleVariant) {
-        // 光晕色跟随变体粉彩配色（樱花粉 / 薰衣草 / 晴空蓝 / 蜜桃橘）
-        const glowTints: Record<string, number> = { classic: 0xffb3e1, wish: 0xd9c8ff, rain: 0xbcd9ff, aim: 0xffd0b3 };
-        const c0 = glowTints[variant.id] ?? 0xffb3e1;
+    private spawnObstacleGlow(x: number, y: number, flip: boolean) {
+        // 光晕统一樱花粉
+        const c0 = 0xffb3e1;
         const c1 = 0xffffff;
         const dir = flip ? -1 : 1;
 

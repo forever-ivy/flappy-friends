@@ -17,10 +17,12 @@
     --stroke: #f2a9c6;         /* 面板描边 */
     --stroke-soft: #e5b3c8;
     --line: #f0cfdd;           /* 分隔线 */
-    --radius-panel: 20px;      /* 面板 */
-    --radius-card: 13px;       /* 卡片/按钮 */
-    --radius-control: 10px;    /* 输入框/分段控件 */
-    --shadow-panel: 0 12px 30px rgba(166, 92, 118, .16);
+    --radius-panel: 26px;      /* 面板：更圆润的卡通感 */
+    --radius-card: 18px;       /* 卡片 */
+    --radius-control: 14px;    /* 输入框/分段控件 */
+    --shadow-panel: 0 14px 34px rgba(233, 111, 155, .18);
+    /* 弹性缓动：轻微过冲的果冻感，用于面板/弹窗入场与选中反馈 */
+    --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
 
     /* 手绘描边文字：em 随字号缩放，--text-stroke-color 可按元素覆盖 */
     --text-stroke-color: #d97a99;
@@ -158,7 +160,7 @@ body {
     transition: transform .16s ease, background .16s ease;
 }
 
-.icon-button:hover, .dialog-close:hover { transform: translateY(-2px); background: #ffd9e8; }
+.icon-button:hover, .dialog-close:hover { transform: translateY(-2px) rotate(-6deg) scale(1.06); background: #ffd9e8; }
 .account-active { color: #e0608a; }
 
 .menu-controls {
@@ -176,7 +178,17 @@ body {
     border-radius: var(--radius-panel);
     box-shadow: var(--shadow-panel);
     pointer-events: auto;
-    animation: controls-in .55s .08s cubic-bezier(.2, .8, .2, 1) both;
+    animation: controls-in .55s .08s var(--ease-bounce) both;
+}
+
+/* 面板内圈虚线：手账贴纸的「缝线」装饰 */
+.menu-controls::after, .dialog::after, .result-sheet::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 2px dashed rgba(242, 127, 165, .3);
+    border-radius: calc(var(--radius-panel) - 9px);
+    pointer-events: none;
 }
 
 .character-rail {
@@ -195,30 +207,32 @@ body {
     border: 2px solid var(--line);
     border-radius: var(--radius-card);
     cursor: pointer;
-    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    transition: transform .24s var(--ease-bounce), border-color .16s ease, background .16s ease;
 }
 
-.character-choice:hover { transform: translateY(-2px); }
-.character-choice.selected { background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px); }
+.character-choice:hover { transform: translateY(-2px) scale(1.03); }
+/* 选中的角色卡轻微歪头：贴纸随手一贴的俏皮感 */
+.character-choice.selected { background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px) rotate(-2deg) scale(1.04); }
+.character-choice.selected:nth-child(2n) { transform: translateY(-4px) rotate(2deg) scale(1.04); }
 .character-choice img { display: block; width: 52px; height: 52px; margin: 0 auto; object-fit: contain; }
 
-/* 按钮统一「手绘贴纸」样式：同色系描边 + 实底边缘，替代 3D 悬浮阴影与扁平混搭 */
+/* 按钮统一「糖果药丸贴纸」样式：全圆角 + 同色系描边 + 实底边缘 */
 .primary-button, .secondary-button, .save-button {
     min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 9px;
-    border: 2px solid;
-    border-radius: var(--radius-card);
+    border: 2.5px solid;
+    border-radius: 999px;
     font-weight: 900;
     cursor: pointer;
-    transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+    transition: transform .2s var(--ease-bounce), filter .16s ease, box-shadow .16s ease;
 }
 
 .primary-button { width: 100%; color: #5c2440; background: #ffa9c8; border-color: #d3688b; box-shadow: 0 4px 0 #d3688b; }
-.primary-button:hover, .save-button:hover, .secondary-button:hover { transform: translateY(-2px); filter: brightness(1.04); }
-.primary-button:active, .save-button:active, .secondary-button:active { transform: translateY(2px); box-shadow: none; }
+.primary-button:hover, .save-button:hover, .secondary-button:hover { transform: translateY(-2px) scale(1.03); filter: brightness(1.04); }
+.primary-button:active, .save-button:active, .secondary-button:active { transform: translateY(3px) scale(.98); box-shadow: none; }
 .primary-button:disabled { cursor: wait; opacity: .65; }
 .primary-button.compact { width: auto; flex: 1.4; }
 .secondary-button { flex: 1; color: #7a4459; background: var(--pink-pale); border-color: var(--stroke-soft); box-shadow: 0 4px 0 var(--stroke-soft); }
@@ -240,7 +254,7 @@ body {
     font-size: 52px;
     line-height: 1;
     text-shadow: var(--text-outline);
-    animation: score-pop .18s ease both;
+    animation: score-pop .22s ease-out both;
 }
 
 .reward-count {
@@ -274,7 +288,7 @@ body {
     border-radius: var(--radius-panel);
     box-shadow: var(--shadow-panel);
     text-align: center;
-    animation: controls-in .34s cubic-bezier(.2, .8, .2, 1) both;
+    animation: controls-in .38s var(--ease-bounce) both;
 }
 
 .result-score {
@@ -300,13 +314,14 @@ body {
     border: 3px solid var(--stroke);
     border-radius: var(--radius-panel);
     box-shadow: 0 16px 40px rgba(122, 68, 89, .3);
-    animation: dialog-in .22s ease both;
+    animation: dialog-in .28s var(--ease-bounce) both;
 }
 
+.eyebrow { margin: 0 0 4px; color: var(--pink-strong); font-size: 11px; font-weight: 900; letter-spacing: .12em; }
 .dialog h2 { margin: 0 0 16px; font-family: "Arial Black", Impact, sans-serif; font-size: 27px; }
 .dialog-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; }
-.segmented { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; background: var(--pink-pale); border-radius: var(--radius-control); }
-.segmented button { height: 36px; color: var(--muted); background: transparent; border: 0; border-radius: calc(var(--radius-control) - 3px); font-weight: 800; cursor: pointer; }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; background: var(--pink-pale); border-radius: 999px; }
+.segmented button { height: 36px; color: var(--muted); background: transparent; border: 0; border-radius: 999px; font-weight: 800; cursor: pointer; }
 .segmented button.active { color: var(--ink-strong); background: var(--pink-soft); }
 
 .auth-dialog form { display: grid; gap: 12px; margin-top: 16px; }
@@ -328,9 +343,22 @@ body {
 .my-rank { display: flex; justify-content: space-between; margin-top: 10px; padding: 11px 12px; color: var(--ink-strong); background: var(--pink-soft); border-radius: var(--radius-control); font-size: 12px; }
 
 @keyframes title-in { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes controls-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes dialog-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes score-pop { 0% { transform: scale(.78); } 100% { transform: scale(1); } }
+/* 入场都带一点果冻回弹：先轻微过冲再落定，幅度小不影响操作 */
+@keyframes controls-in {
+    0% { opacity: 0; transform: translateY(26px) scale(.95); }
+    65% { opacity: 1; transform: translateY(-4px) scale(1.015); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dialog-in {
+    0% { opacity: 0; transform: scale(.86); }
+    60% { opacity: 1; transform: scale(1.03); }
+    100% { opacity: 1; transform: scale(1); }
+}
+@keyframes score-pop {
+    0% { transform: scale(.6); }
+    60% { transform: scale(1.14); }
+    100% { transform: scale(1); }
+}
 
 @media (max-height: 700px) {
     .menu-controls { padding: 11px; }

@@ -6,7 +6,7 @@ import { CHARACTERS, getCharacter } from './game/assets';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
-import { currentPlayer, getLeaderboard, LeaderboardResponse, onAuthChange, PlayerProfile, register, signIn, signOut, syncRuns, updateCharacter } from './services/api';
+import { currentPlayer, enter, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, signOut, syncRuns, updateCharacter } from './services/api';
 import { loadProgress, Progress, recordRun, removeSyncedRuns, saveProgress, selectCharacter } from './state/progress';
 
 type Screen = 'menu' | 'playing' | 'gameover';
@@ -194,7 +194,6 @@ function App() {
 }
 
 function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; onClose: () => void; onSuccess: (player: PlayerProfile) => void }) {
-    const [mode, setMode] = useState<'login' | 'register'>('login');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [busy, setBusy] = useState(false);
@@ -203,7 +202,8 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
         setError('');
-        if (mode === 'register' && !/^[A-Za-z0-9_\-\u4E00-\u9FFF]{3,16}$/.test(username)) {
+        // 登录即注册：任何提交都可能触发自动建号，因此用户名始终按注册规则校验
+        if (!/^[A-Za-z0-9_\-\u4E00-\u9FFF]{3,16}$/.test(username)) {
             setError('用户名需为 3–16 位中英文、数字、_ 或 -');
             return;
         }
@@ -213,9 +213,9 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
         }
         setBusy(true);
         try {
-            onSuccess(mode === 'register' ? await register(username, password, characterId) : await signIn(username, password));
-        } catch {
-            setError(mode === 'register' ? '注册失败，用户名可能已被使用' : '用户名或密码不正确');
+            onSuccess(await enter(username, password, characterId));
+        } catch (submitError) {
+            setError(submitError instanceof PasswordMismatchError ? '密码不正确，请重试' : '登录失败，请稍后再试');
         } finally {
             setBusy(false);
         }
@@ -226,18 +226,14 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
             <section className="dialog auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
                 <button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={20} /></button>
                 <p className="eyebrow">保存游戏进度</p>
-                <h2 id="auth-title">{mode === 'login' ? '欢迎回来' : '创建账户'}</h2>
-                <div className="segmented" role="tablist">
-                    <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>登录</button>
-                    <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>注册</button>
-                </div>
+                <h2 id="auth-title">登录</h2>
                 <form onSubmit={submit}>
                     <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={16} /></label>
-                    <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} maxLength={72} /></label>
+                    <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={72} /></label>
                     {error && <p className="form-error" role="alert">{error}</p>}
-                    <button className="primary-button" disabled={busy}>{busy ? '请稍候…' : mode === 'login' ? '登录并保存' : '注册并保存'}</button>
+                    <button className="primary-button" disabled={busy}>{busy ? '请稍候…' : '登录'}</button>
                 </form>
-                {mode === 'register' && <p className="auth-note">不收集邮箱，也不提供密码找回。</p>}
+                <p className="auth-note">新用户名首次登录即自动创建账号。不收集邮箱，也不提供密码找回。</p>
             </section>
         </div>
     );

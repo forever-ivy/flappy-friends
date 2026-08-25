@@ -1,5 +1,8 @@
 import PocketBase, { RecordModel } from 'pocketbase';
 import { RunResult } from '../domain/game';
+import { signInOrRegister } from './authFlow';
+
+export { PasswordMismatchError } from './authFlow';
 
 export interface PlayerProfile {
     id: string;
@@ -61,6 +64,15 @@ export async function register(username: string, password: string, characterId: 
 export async function signIn(username: string, password: string): Promise<PlayerProfile> {
     const result = await pb.collection('players').authWithPassword(username, password);
     return toProfile(result.record)!;
+}
+
+// 登录注册合一：先登录，账号不存在则自动注册；账号存在但密码错误时
+// 抛出 PasswordMismatchError（见 authFlow.ts 的完整规则说明）。
+export async function enter(username: string, password: string, characterId: string): Promise<PlayerProfile> {
+    return signInOrRegister(
+        () => signIn(username, password),
+        () => register(username, password, characterId),
+    );
 }
 
 export function signOut() {

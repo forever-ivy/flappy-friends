@@ -7,7 +7,14 @@
 // 游戏内现役角色仅 nova / moss；sol / violet 为已下架的历史 id，
 // 仍保留在白名单里以兼容旧存档与旧客户端（前端渲染时统一回退到 nova）。
 var CHARACTER_IDS = ["nova", "moss", "sol", "violet"];
-var USERNAME_PATTERN = /^[A-Za-z0-9_\-\u4E00-\u9FFF]{3,16}$/;
+
+// 宽松账号规则：唯一的硬规则是用户名不与已有账号重复（由唯一索引保证）。
+// 这里只做最基础检查：无首尾空格、1–24 个字符；中文、空格、符号均可，
+// 不设“安全问题式”的格式要求。
+var USERNAME_MAX = 24;
+function isValidUsername(username) {
+    return username === username.trim() && username.length >= 1 && username.length <= USERNAME_MAX;
+}
 
 function asNonNegativeInt(value, max) {
     const number = Number(value);
@@ -58,7 +65,8 @@ function rankEntries(players, type) {
 
 module.exports = {
     CHARACTER_IDS: CHARACTER_IDS,
-    USERNAME_PATTERN: USERNAME_PATTERN,
+    USERNAME_MAX: USERNAME_MAX,
+    isValidUsername: isValidUsername,
     asNonNegativeInt: asNonNegativeInt,
     profile: profile,
     rankEntries: rankEntries,

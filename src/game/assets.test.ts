@@ -1,5 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { BGM_SRC, BGM_VOLUME, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
 
@@ -9,6 +10,81 @@ const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 function pngSize(relativePath: string): { width: number; height: number } {
     const bytes = readFileSync(join(ASSET_ROOT, relativePath));
     return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+// 最小 PNG 解码（仅支持生成脚本 Pillow 的输出格式：8-bit RGBA、非隔行），
+// 供朝向回归测试读取真实像素，不引入额外依赖
+function pngPixels(relativePath: string): { width: number; height: number; rgba: Uint8Array } {
+    const bytes = readFileSync(join(ASSET_ROOT, relativePath));
+    const width = bytes.readUInt32BE(16);
+    const height = bytes.readUInt32BE(20);
+    const bitDepth = bytes[24];
+    const colorType = bytes[25];
+    const interlace = bytes[28];
+    if (bitDepth !== 8 || colorType !== 6 || interlace !== 0) {
+        throw new Error(`unsupported png layout in ${relativePath}: depth=${bitDepth} color=${colorType} interlace=${interlace}`);
+    }
+    const idat: Buffer[] = [];
+    for (let offset = 8; offset < bytes.length;) {
+        const length = bytes.readUInt32BE(offset);
+        const type = bytes.toString('ascii', offset + 4, offset + 8);
+        if (type === 'IDAT') idat.push(bytes.subarray(offset + 8, offset + 8 + length));
+        offset += 12 + length;
+    }
+    const raw = inflateSync(Buffer.concat(idat));
+    const stride = width * 4;
+    const rgba = new Uint8Array(height * stride);
+    for (let y = 0; y < height; y++) {
+        const filter = raw[y * (stride + 1)];
+        const row = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+        const out = y * stride;
+        for (let x = 0; x < stride; x++) {
+            const left = x >= 4 ? rgba[out + x - 4] : 0;
+            const up = y > 0 ? rgba[out + x - stride] : 0;
+            const upLeft = x >= 4 && y > 0 ? rgba[out + x - stride - 4] : 0;
+            let value = row[x];
+            if (filter === 1) value += left;
+            else if (filter === 2) value += up;
+            else if (filter === 3) value += (left + up) >> 1;
+            else if (filter === 4) {
+                const p = left + up - upLeft;
+                const pa = Math.abs(p - left);
+                const pb = Math.abs(p - up);
+                const pc = Math.abs(p - upLeft);
+                value += pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft;
+            }
+            rgba[out + x] = value & 0xff;
+        }
+    }
+    return { width, height, rgba };
+}
+
+// 朝向度量：肤色像素质心相对头发（深色）像素质心的水平偏移，按宽度归一化。
+// 两位角色均为 3/4 侧脸，脸露在行进方向一侧：朝右时 margin 明显为正，朝左时为负。
+// 当前四张贴图实测 margin ≥ +0.08，其水平镜像（朝左）为 ≤ -0.08。
+function facingMargin(relativePath: string): number {
+    const { width, height, rgba } = pngPixels(relativePath);
+    let skinSum = 0;
+    let skinCount = 0;
+    let hairSum = 0;
+    let hairCount = 0;
+    for (let i = 0; i < width * height; i++) {
+        const r = rgba[i * 4];
+        const g = rgba[i * 4 + 1];
+        const b = rgba[i * 4 + 2];
+        if (rgba[i * 4 + 3] < 200) continue;
+        const x = i % width;
+        if (r > 230 && g > 170 && g < 232 && b > 150 && b < 225 && r > g && g > b) {
+            skinSum += x;
+            skinCount += 1;
+        } else if (Math.max(r, g, b) < 130) {
+            hairSum += x;
+            hairCount += 1;
+        }
+    }
+    expect(skinCount).toBeGreaterThan(100);
+    expect(hairCount).toBeGreaterThan(1000);
+    return (skinSum / skinCount - hairSum / hairCount) / width;
 }
 
 describe('obstacle variants manifest', () => {
@@ -68,6 +144,23 @@ describe('game assets manifest', () => {
         CHARACTERS.forEach((character) => {
             expect(pngSize(character.portrait)).toEqual({ width: CHARACTER_PORTRAIT_SIZE, height: CHARACTER_PORTRAIT_SIZE });
             expect(character.portrait).not.toBe(character.image);
+        });
+    });
+});
+
+describe('character orientation (source art faces left, game art must face right)', () => {
+    // 源图 pictures/IMG_5246.PNG / IMG_5247.PNG 朝左；generate_assets.py 的 build_characters
+    // 用 FLIP_LEFT_RIGHT 水平镜像后输出。此测试直接解码入库 PNG 的像素锁死“朝右”，
+    // 任何人重新生成贴图时若丢掉镜像步骤，这里会立刻失败。阈值 0.03 相对实测 ±0.08 留足余量。
+    it('mirrors every in-game sprite to face right', () => {
+        CHARACTERS.forEach((character) => {
+            expect(facingMargin(character.image)).toBeGreaterThan(0.03);
+        });
+    });
+
+    it('mirrors every menu portrait to face right (same orientation as the sprite)', () => {
+        CHARACTERS.forEach((character) => {
+            expect(facingMargin(character.portrait)).toBeGreaterThan(0.03);
         });
     });
 });

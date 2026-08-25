@@ -6,6 +6,7 @@ import {
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
 import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
+import { computeFootPose, FOOT_FILL, FOOT_OUTLINE, FOOT_SIZE, KICK_DURATION_MS } from '../footKick';
 import { getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
@@ -49,6 +50,11 @@ export class Game extends Scene {
     private renderScale = getRenderScale();
     // 角色等比基准 scale（setDisplaySize 72/216 后记录）：扑翼挤压动画必须从它出发并回到它
     private playerBaseScale = CHARACTER_TEXTURE_SIZE / CHARACTER_SPRITE_SIZE;
+    // 扑翼蹬腿：两只小脚是无物理体的装饰图形，姿态由 kick.phase（0→1）驱动（见 footKick.ts）；
+    // phase 独立于角色 scale/物理，连按时从 0 重播即可，不影响 #15 的等比基准复位
+    private feet: Phaser.GameObjects.Ellipse[] = [];
+    private kick = { phase: 1 };
+    private kickTween?: Phaser.Tweens.Tween;
     private lastVariantIndex = -1;
     private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
@@ -72,6 +78,9 @@ export class Game extends Scene {
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
 
         this.player = this.physics.add.sprite(computePlayerX(this.logicalWidth()), 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
+        // 小脚画在角色身后（depth 9 < 10），蹬腿时从身体下缘探出，收起时完全隐藏
+        this.feet = [0, 1].map(() => this.add.ellipse(0, 0, FOOT_SIZE.width, FOOT_SIZE.height, FOOT_FILL)
+            .setStrokeStyle(2, FOOT_OUTLINE).setDepth(9).setVisible(false));
         this.player.setCollideWorldBounds(false);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -152,6 +161,8 @@ export class Game extends Scene {
         this.city.tilePositionX += scrollSpeed * 0.18 * seconds;
         this.street.tilePositionX += scrollSpeed * seconds;
         this.driftSparkles(scrollSpeed, seconds);
+        // 每帧同步蹬腿小脚（含 phase='over' 时的收尾淡出），角色移动/俯仰时脚始终贴着身体
+        this.updateFeet();
 
         if (this.phase !== 'playing') return;
         const difficulty = getDifficulty(this.currentScore());
@@ -255,6 +266,9 @@ export class Game extends Scene {
         // 连同待机浮动与上一局可能残留的挤压 tween 一起清掉，防止旧 tween 覆盖刚复位的基准 scale
         this.idleTween?.stop();
         this.tweens.killTweensOf(this.player);
+        // 上一局残留的蹬腿也一并收起（phase=1 时小脚完全隐藏）
+        this.kickTween?.stop();
+        this.kick.phase = 1;
         this.player.clearTint().setPosition(computePlayerX(this.logicalWidth()), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -313,6 +327,31 @@ export class Game extends Scene {
             scaleY: this.playerBaseScale * 0.9,
             duration: 80,
             yoyo: true,
+        });
+        // 蹬腿与挤压并行：kick.phase 是独立目标，连按同样先停旧 tween 再从 0 重播，
+        // 姿态是 phase 的纯函数（footKick.ts），不存在可累积的中间状态
+        this.kickTween?.stop();
+        this.kick.phase = 0;
+        this.kickTween = this.tweens.add({ targets: this.kick, phase: 1, duration: KICK_DURATION_MS });
+    }
+
+    // 按 kick.phase 合成两只小脚的世界坐标：局部姿态随角色当前俯仰角旋转，贴着身体下缘
+    private updateFeet() {
+        const t = this.kick.phase;
+        const active = t > 0 && t < 1;
+        this.feet.forEach((foot, index) => {
+            foot.setVisible(active);
+            if (!active) return;
+            const pose = computeFootPose(t, index as 0 | 1);
+            const cos = Math.cos(this.player.rotation);
+            const sin = Math.sin(this.player.rotation);
+            foot.setPosition(
+                this.player.x + pose.x * cos - pose.y * sin,
+                this.player.y + pose.x * sin + pose.y * cos,
+            );
+            foot.setRotation(this.player.rotation + pose.rotation);
+            foot.setAlpha(pose.alpha);
+            foot.setScale(pose.scale);
         });
     }
 
@@ -452,6 +491,9 @@ export class Game extends Scene {
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
         this.player.setVelocity(0, 0).setTint(0xff97a6);
+        // 定格瞬间立刻收脚，避免小脚悬在被定住的角色下方
+        this.kickTween?.stop();
+        this.kick.phase = 1;
         this.pairs.forEach((pair) => {
             pair.top.setVelocityX(0);
             pair.bottom.setVelocityX(0);

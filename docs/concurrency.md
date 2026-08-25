@@ -146,21 +146,18 @@
 
 ### nginx 反代示例
 
-```nginx
-server {
-    listen 80;
-    gzip on;
-    gzip_types application/json application/javascript text/css;
+实机验证过的完整配置见 [`deploy/nginx.flappy-friends.conf`](../deploy/nginx.flappy-friends.conf)
+（含静态边缘缓存、SSE 直通与管理面板收紧示例）。
 
-    location /assets/ {
-        proxy_pass http://127.0.0.1:8090;
-        proxy_cache static_cache;
-        proxy_cache_valid 200 1h;   # 与应用层 Cache-Control 一致
-    }
-    location / {
-        proxy_pass http://127.0.0.1:8090;
-    }
-}
+**反代后必做**：PocketBase 看到的来源地址都会变成 127.0.0.1，按 IP 限流会
+全站共享同一个桶。需让 PocketBase 信任反代注入的 `X-Real-IP`——管理面板
+`/_/` → Settings → Application → Trusted proxy headers 填 `X-Real-IP`，
+或用超管 token 调用：
+
+```bash
+curl -X PATCH http://127.0.0.1:8090/api/settings \
+  -H "Authorization: <superuser token>" -H "Content-Type: application/json" \
+  -d '{"trustedProxy":{"headers":["X-Real-IP"],"useLeftmostIP":false}}'
 ```
 
 ## 水平扩展的边界

@@ -33,6 +33,8 @@ function messagePayload(record) {
         id: record.id,
         text: record.getString("text"),
         author: record.getString("author"),
+        // 服务端预置的垫场假留言标记；前端有足量真留言时不再循环种子
+        seed: record.getBool("seed"),
         createdAt: record.getString("created"),
     };
 }

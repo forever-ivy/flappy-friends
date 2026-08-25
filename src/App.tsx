@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleUserRound, Heart, Home, LogIn, LogOut, MessageCircle, Play, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
+import { CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
 import { RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
@@ -8,7 +8,7 @@ import { EventBus } from './game/EventBus';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
 import { currentPlayer, DanmakuMessage, enter, getDanmaku, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, postDanmaku, signOut, syncRuns, updateCharacter } from './services/api';
 import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
-import { bulletStyle, BulletStyle, DEFAULT_MESSAGES, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage } from './services/danmaku';
+import { buildPool, bulletStyle, BulletStyle, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage } from './services/danmaku';
 import { loadProgress, Progress, recordRun, removeSyncedRuns, saveProgress, selectCharacter } from './state/progress';
 
 type Screen = 'menu' | 'playing' | 'gameover';
@@ -160,18 +160,19 @@ function App() {
                     {/* 弹幕层垫底（z-index 0）：留言从标题后方的天空飘过，不挡任何点击 */}
                     <MenuDanmaku messages={messages} burst={burst} />
 
-                    {/* 游戏名：加大主名 + 环绕装饰（角色头像贴纸/星星/爱心闪光）填满上方天空，
-                        英文糖果药丸作副线不抢戏 */}
+                    {/* 游戏名：加大主名 + 环绕装饰（蝴蝶结/小花/小云朵/星星爱心闪光，不用人形
+                        角色贴图）填满上方天空，英文糖果药丸作副线不抢戏 */}
                     <header className="game-title">
                         <div className="title-decor" aria-hidden="true">
-                            <img className="title-buddy left" src={`/assets/${CHARACTERS[0].portrait}`} alt="" />
-                            <img className="title-buddy right" src={`/assets/${CHARACTERS[1].portrait}`} alt="" />
                             <Star className="title-spark s1" size={22} fill="currentColor" />
                             <Sparkles className="title-spark s2" size={17} />
                             <Heart className="title-spark s3" size={15} fill="currentColor" />
                             <Star className="title-spark s4" size={13} fill="currentColor" />
                             <Sparkles className="title-spark s5" size={14} />
                             <Heart className="title-spark s6" size={11} fill="currentColor" />
+                            <Flower className="title-spark s7" size={30} />
+                            <Cloud className="title-spark s8" size={34} fill="currentColor" />
+                            <Ribbon className="title-spark s9" size={24} />
                         </div>
                         <h1>{GAME_TITLE}</h1>
                         <p>{GAME_TITLE_EN}</p>
@@ -237,7 +238,6 @@ function App() {
             {overlay === 'leaderboard' && <LeaderboardDialog onClose={() => setOverlay('none')} />}
             {overlay === 'note' && (
                 <MessageDialog
-                    playerName={player?.username ?? null}
                     onClose={() => setOverlay('none')}
                     onPosted={(message) => {
                         setMessages((current) => [message, ...current].slice(0, 50));
@@ -254,14 +254,15 @@ function App() {
 }
 
 // 菜单弹幕层：留言在上方天空区（≤35% 舞台高）循环飘过。轨道/速度/字号由
-// bulletStyle 按发射序号确定性给出；空库用 DEFAULT_MESSAGES 兜底不冷场。
+// bulletStyle 按发射序号确定性给出；弹幕池由 buildPool 决定——真实留言全量
+// 优先，不足 6 条才混入服务端种子垫场，离线退回本地欢迎语。
 // 整层 pointer-events:none，只做氛围不挡角色选择与开始按钮；对局中整层不渲染。
 function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null }) {
     const [bullets, setBullets] = useState<{ id: number; text: string; author: string; style: BulletStyle }[]>([]);
     const counter = useRef(0);
     const cursor = useRef(0);
-    const pool = useRef<{ text: string; author: string }[]>([...DEFAULT_MESSAGES]);
-    pool.current = messages.length > 0 ? messages : [...DEFAULT_MESSAGES];
+    const pool = useRef<{ text: string; author: string }[]>([]);
+    pool.current = buildPool(messages);
 
     useEffect(() => {
         const emit = () => {
@@ -306,8 +307,9 @@ function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: D
     );
 }
 
-// 弹幕留言弹窗：一句话 + （游客可选）昵称。登录用户服务端自动署用户名。
-function MessageDialog({ playerName, onClose, onPosted }: { playerName: string | null; onClose: () => void; onPosted: (message: DanmakuMessage) => void }) {
+// 弹幕留言弹窗：一句话 + 可选昵称。留言与账号完全解绑——登录与否都是同一套
+// 表单，署名只看昵称，留空由服务端署「路过的碗」。
+function MessageDialog({ onClose, onPosted }: { onClose: () => void; onPosted: (message: DanmakuMessage) => void }) {
     const [text, setText] = useState('');
     const [nickname, setNickname] = useState('');
     const [busy, setBusy] = useState(false);
@@ -323,7 +325,7 @@ function MessageDialog({ playerName, onClose, onPosted }: { playerName: string |
         }
         setBusy(true);
         try {
-            onPosted(await postDanmaku(normalized, playerName ? undefined : nickname));
+            onPosted(await postDanmaku(normalized, nickname));
         } catch {
             setError('发送失败，请稍后再试');
             setBusy(false);
@@ -338,9 +340,7 @@ function MessageDialog({ playerName, onClose, onPosted }: { playerName: string |
                 <h2 id="note-title">写句留言</h2>
                 <form onSubmit={submit}>
                     <label>留言<input value={text} onChange={(event) => setText(event.target.value)} maxLength={MESSAGE_MAX} placeholder="碗碗加油！" /></label>
-                    {playerName
-                        ? <p className="note-hint">将以「{playerName}」的名义飘过天空</p>
-                        : <label>昵称（可不填）<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={NICKNAME_MAX} placeholder="路过的碗" /></label>}
+                    <label>昵称（可不填）<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={NICKNAME_MAX} placeholder="路过的碗" /></label>
                     {error && <p className="form-error" role="alert">{error}</p>}
                     <button className="primary-button" disabled={busy}>
                         {busy ? '发送中…' : <><Send size={17} /> 发射弹幕</>}

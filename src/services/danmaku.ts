@@ -16,7 +16,8 @@ export function normalizeMessage(raw: string, max = MESSAGE_MAX): string | null 
     return text;
 }
 
-// 空库/离线时的默认欢迎弹幕，保证留言板永远不冷场
+// 拉不到服务器（离线/接口报错）时的兜底欢迎弹幕；正常情况下垫场靠服务端
+// 预置的种子留言（pb_migrations 的 seed），播放策略见 buildPool
 export const DEFAULT_MESSAGES: readonly { text: string; author: string }[] = [
     { text: '欢迎来到飞天碗盆 ♡', author: '一只云' },
     { text: '碗碗加油！', author: '路过的碗' },
@@ -25,6 +26,28 @@ export const DEFAULT_MESSAGES: readonly { text: string; author: string }[] = [
     { text: '小心粉粉的柱子哦', author: '盆盆' },
     { text: '点「留言」写下你的一句话 ✿', author: '一只云' },
 ];
+
+// 真留言达到这个条数后，弹幕池只循环真留言，不再混入服务端种子
+export const REAL_POOL_TARGET = 6;
+
+export interface PoolMessage {
+    text: string;
+    author: string;
+    seed?: boolean;
+}
+
+// 弹幕池策略：真实用户留言永远全量优先；真留言不足 REAL_POOL_TARGET 条时
+// 才用服务端种子补足到目标条数；连种子都没有（离线）就退回本地欢迎语
+export function buildPool(messages: readonly PoolMessage[]): { text: string; author: string }[] {
+    const real = messages.filter((message) => message.seed !== true);
+    if (real.length >= REAL_POOL_TARGET) {
+        return real.map(({ text, author }) => ({ text, author }));
+    }
+    const seeds = messages.filter((message) => message.seed === true);
+    const pool = [...real, ...seeds.slice(0, REAL_POOL_TARGET - real.length)];
+    if (pool.length === 0) return [...DEFAULT_MESSAGES];
+    return pool.map(({ text, author }) => ({ text, author }));
+}
 
 // 弹幕轨道：停留在菜单上方的天空区（相对舞台高度的百分比），
 // 不下探到角色面板与开始按钮，可爱但不挡操作

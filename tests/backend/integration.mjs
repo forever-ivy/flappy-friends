@@ -282,11 +282,22 @@ async function main() {
     const nickPost = await api('/api/game/messages', { method: 'POST', body: { text: `盆盆冲鸭 ${STAMP}`, nickname: ' 云朵 ' } });
     check('游客可署短昵称', nickPost.status === 200 && nickPost.json?.author === '云朵', nickPost.json);
     await pause();
-    const authedPost = await api('/api/game/messages', {
+    // 留言与账号解绑：带 token 发留言也只看请求里的昵称，不署账号用户名
+    const authedNickPost = await api('/api/game/messages', {
         method: 'POST', token: adaToken,
-        body: { text: `登录弹幕 ${STAMP}`, nickname: '不该生效' },
+        body: { text: `登录带昵称 ${STAMP}`, nickname: '隐身猫' },
     });
-    check('登录用户自动署用户名（忽略请求昵称）', authedPost.status === 200 && authedPost.json?.author === `ada_${STAMP}`, authedPost.json);
+    check(
+        '登录用户发留言署自定义昵称而非账号名',
+        authedNickPost.status === 200 && authedNickPost.json?.author === '隐身猫' && authedNickPost.json?.author !== `ada_${STAMP}`,
+        authedNickPost.json,
+    );
+    await pause();
+    const authedAnonPost = await api('/api/game/messages', {
+        method: 'POST', token: adaToken,
+        body: { text: `登录不填昵称 ${STAMP}` },
+    });
+    check('登录用户不填昵称也默认「路过的碗」', authedAnonPost.status === 200 && authedAnonPost.json?.author === '路过的碗', authedAnonPost.json);
 
     const emptyMessage = await api('/api/game/messages', { method: 'POST', body: { text: '    ' } });
     check('拒绝空留言', emptyMessage.status === 400, emptyMessage.json);
@@ -294,12 +305,23 @@ async function main() {
     check('拒绝超过 32 字的留言', longMessage.status === 400, longMessage.json);
 
     const messageList = await api('/api/game/messages?limit=50');
-    const texts = (messageList.json?.messages || []).map((message) => message.text);
-    check('留言列表公开可读且新留言在前', messageList.status === 200 && texts[0] === `登录弹幕 ${STAMP}`, texts.slice(0, 3));
+    const listed = messageList.json?.messages || [];
+    const texts = listed.map((message) => message.text);
+    check('留言列表公开可读且新留言在前', messageList.status === 200 && texts[0] === `登录不填昵称 ${STAMP}`, texts.slice(0, 3));
     check(
-        '列表包含本轮全部三条留言',
-        [`碗碗加油 ${STAMP}`, `盆盆冲鸭 ${STAMP}`, `登录弹幕 ${STAMP}`].every((expected) => texts.includes(expected)),
-        texts.slice(0, 5),
+        '列表包含本轮全部四条留言',
+        [`碗碗加油 ${STAMP}`, `盆盆冲鸭 ${STAMP}`, `登录带昵称 ${STAMP}`, `登录不填昵称 ${STAMP}`].every((expected) => texts.includes(expected)),
+        texts.slice(0, 6),
+    );
+    check(
+        '空库时迁移预置的种子留言存在且带 seed=true 标记',
+        listed.some((message) => message.seed === true),
+        listed.filter((message) => message.seed === true).slice(0, 2),
+    );
+    check(
+        '真实发表的留言 seed=false（前端据此让真留言优先）',
+        listed.filter((message) => message.text.includes(STAMP)).every((message) => message.seed === false),
+        null,
     );
     const limitedList = await api('/api/game/messages?limit=2');
     check('limit 参数生效', limitedList.json?.messages?.length === 2, limitedList.json?.messages);

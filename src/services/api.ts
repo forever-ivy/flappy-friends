@@ -32,11 +32,13 @@ export interface SyncResponse {
     profile: PlayerProfile;
 }
 
-// 弹幕留言板：菜单天空区飘过的玩家短留言（见 services/danmaku.ts 的纯逻辑部分）
+// 弹幕留言板：菜单天空区飘过的玩家短留言（见 services/danmaku.ts 的纯逻辑部分）。
+// seed=true 是服务端预置的垫场假留言；真留言足够多时前端不再循环种子
 export interface DanmakuMessage {
     id: string;
     text: string;
     author: string;
+    seed?: boolean;
     createdAt: string;
 }
 
@@ -107,7 +109,7 @@ export async function getDanmaku(): Promise<DanmakuResponse> {
     return pb.send('/api/game/messages?limit=50', { method: 'GET' });
 }
 
-// 已登录时服务端自动署用户名（nickname 被忽略）；游客昵称留空则署「路过的碗」
+// 留言与账号完全解绑：署名只看这里的可选昵称，留空署「路过的碗」，登录与否不影响
 export async function postDanmaku(text: string, nickname?: string): Promise<DanmakuMessage> {
     return pb.send('/api/game/messages', { method: 'POST', body: { text, nickname } });
 }

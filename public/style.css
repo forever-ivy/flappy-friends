@@ -190,20 +190,9 @@ body {
     text-shadow: var(--text-outline);
 }
 
-/* 标题装饰：碗碗盆盆头像贴纸从标题两肩探出 + 星星爱心闪光环绕，形成可爱标题 */
+/* 标题装饰：蝴蝶结/小花/小云朵 + 星星爱心闪光环绕，形成可爱标题（不用人形角色贴图）。
+   小件 s1–s6 闪烁，大件 s7 小花 / s8 云朵 / s9 蝴蝶结带浮动 */
 .title-decor { position: absolute; inset: 0; pointer-events: none; }
-
-.title-buddy {
-    position: absolute;
-    top: -32px;
-    width: 46px;
-    height: 46px;
-    object-fit: contain;
-    filter: drop-shadow(0 3px 0 rgba(217, 122, 153, .35));
-    animation: buddy-bob 2.8s ease-in-out infinite;
-}
-.title-buddy.left { left: -12px; --tilt: -12deg; }
-.title-buddy.right { right: -12px; --tilt: 12deg; animation-delay: 1.4s; }
 
 .title-spark { position: absolute; animation: spark-twinkle 2s ease-in-out infinite; }
 .title-spark.s1 { top: -42px; left: 17%; color: #ffc95c; }
@@ -213,9 +202,42 @@ body {
 .title-spark.s5 { bottom: -6px; right: 10%; color: #9fd0ff; animation-delay: .3s; }
 .title-spark.s6 { top: 8px; right: -9%; color: #ffb1c9; animation-delay: 1.6s; animation-duration: 1.8s; }
 
-@keyframes buddy-bob {
+/* 左肩小花：粉樱描边花朵，轻轻左右摇曳 */
+.title-spark.s7 {
+    top: -34px;
+    left: -3%;
+    color: #ff8fbf;
+    --tilt: -10deg;
+    animation: decor-bob 3s ease-in-out infinite;
+    filter: drop-shadow(0 2px 0 rgba(217, 122, 153, .3));
+}
+
+/* 右肩小云朵：奶白实心，慢慢上下漂 */
+.title-spark.s8 {
+    top: -32px;
+    right: -4%;
+    color: #fdfcff;
+    --tilt: 6deg;
+    animation: decor-bob 3.6s ease-in-out infinite;
+    animation-delay: 1.2s;
+    filter: drop-shadow(0 2px 0 rgba(140, 170, 220, .4));
+}
+
+/* 顶部正中蝴蝶结：像给标题打了个结 */
+.title-spark.s9 {
+    top: -52px;
+    left: 50%;
+    margin-left: -12px;
+    color: #f27fa5;
+    --tilt: 0deg;
+    animation: decor-bob 2.6s ease-in-out infinite;
+    animation-delay: .6s;
+    filter: drop-shadow(0 2px 0 rgba(217, 122, 153, .3));
+}
+
+@keyframes decor-bob {
     0%, 100% { transform: rotate(var(--tilt, 0deg)) translateY(0); }
-    50% { transform: rotate(var(--tilt, 0deg)) translateY(-7px); }
+    50% { transform: rotate(var(--tilt, 0deg)) translateY(-6px); }
 }
 
 @keyframes spark-twinkle {
@@ -511,7 +533,6 @@ body {
 .auth-dialog input, .note-dialog input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); background: #fff; border: 2px solid var(--stroke-soft); border-radius: var(--radius-control); outline: none; }
 .auth-dialog input:focus, .note-dialog input:focus { border-color: var(--pink); box-shadow: 0 0 0 2px rgba(242, 127, 165, .18); }
 .form-error { margin: 0; color: #d94f6e; font-size: 11px; }
-.note-hint { margin: 0; color: #bb8ba0; font-size: 11px; }
 
 /* 留言入口：角色面板右上沿的小贴纸按钮 */
 .note-button {
@@ -569,7 +590,8 @@ body {
 @media (max-height: 700px) {
     .menu-layer { gap: 16px; padding-bottom: 8px; }
     .game-title h1 { font-size: 58px; }
-    .title-buddy { width: 40px; height: 40px; top: -26px; }
+    .title-spark.s7, .title-spark.s8 { width: 26px; height: 26px; top: -28px; }
+    .title-spark.s9 { width: 20px; height: 20px; top: -46px; margin-left: -10px; }
     .menu-controls { padding: 11px; }
     .character-choice img { width: 42px; height: 42px; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
@@ -580,7 +602,8 @@ body {
     .score-number { font-size: 62px; }
     .result-score { font-size: 84px; }
     .game-title h1 { font-size: 86px; }
-    .title-buddy { width: 56px; height: 56px; top: -38px; }
+    .title-spark.s7, .title-spark.s8 { width: 40px; height: 40px; top: -40px; }
+    .title-spark.s9 { width: 30px; height: 30px; top: -62px; margin-left: -15px; }
     .character-choice img { width: 56px; height: 56px; }
     .character-name { font-size: 13px; }
 }

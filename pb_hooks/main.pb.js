@@ -112,16 +112,14 @@ routerAdd("GET", "/api/game/messages", (e) => {
     return e.json(200, { messages: records.map(shared.messagePayload) });
 });
 
-// 发表留言：登录用户自动署用户名（忽略请求里的昵称）；游客可带短昵称，
-// 留空则署「路过的碗」。正文 1–32 字，除空串/超长外不设其他门槛。
+// 发表留言：与账号完全解绑——署名只来自请求里的可选昵称，留空署「路过的碗」，
+// 是否登录不影响署名，也不要求登录。正文 1–32 字，除空串/超长外不设其他门槛。
 routerAdd("POST", "/api/game/messages", (e) => {
     const shared = require(`${__hooks}/shared.js`);
     const body = e.requestInfo().body;
     const text = shared.normalizeMessage(body.text, shared.MESSAGE_MAX);
     if (!text) throw new BadRequestError("Invalid message");
-    const author = e.auth
-        ? e.auth.getString("username")
-        : (shared.normalizeMessage(body.nickname, shared.USERNAME_MAX) || shared.GUEST_AUTHOR);
+    const author = shared.normalizeMessage(body.nickname, shared.USERNAME_MAX) || shared.GUEST_AUTHOR;
     const record = new Record($app.findCollectionByNameOrId("messages"));
     record.set("text", text);
     record.set("author", author);

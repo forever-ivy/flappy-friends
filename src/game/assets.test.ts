@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS } from './assets';
+import { CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -36,9 +36,15 @@ describe('game assets manifest', () => {
         expect(pngSize(GAME_ASSETS.sky)).toEqual({ width: 960, height: 640 });
         expect(pngSize(GAME_ASSETS.city)).toEqual({ width: 720, height: 640 });
         expect(pngSize(GAME_ASSETS.street)).toEqual({ width: 720, height: 180 });
-        expect(pngSize(GAME_ASSETS.reward)).toEqual({ width: 48, height: 48 });
-        expect(pngSize(GAME_ASSETS.rewardMirror)).toEqual({ width: 48, height: 48 });
         expect(pngSize(GAME_ASSETS.sparkle)).toEqual({ width: 24, height: 24 });
+    });
+
+    it('ships both reward textures as 144x144 HD bitmaps (displayed at logical 48)', () => {
+        expect(pngSize(GAME_ASSETS.reward)).toEqual({ width: REWARD_BITMAP_SIZE, height: REWARD_BITMAP_SIZE });
+        expect(pngSize(GAME_ASSETS.rewardMirror)).toEqual({ width: REWARD_BITMAP_SIZE, height: REWARD_BITMAP_SIZE });
+        // 位图必须是逻辑尺寸的整数倍（当前 3x，匹配 renderScale 上限），缩放才不引入采样畸变
+        expect(REWARD_BITMAP_SIZE % REWARD_TEXTURE_SIZE).toBe(0);
+        expect(REWARD_BITMAP_SIZE / REWARD_TEXTURE_SIZE).toBeGreaterThanOrEqual(2);
     });
 
     it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical 72)', () => {

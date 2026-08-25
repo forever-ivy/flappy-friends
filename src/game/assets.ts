@@ -28,6 +28,11 @@ export const CHARACTER_TEXTURE_SIZE = 72;
 // 菜单头像位图边长（正方形），独立于局内精灵
 export const CHARACTER_PORTRAIT_SIZE = 256;
 
+// 奖励物位图实际像素（Preloader 按此原生尺寸加载，144 = 逻辑 48 的 3x，匹配 renderScale 上限）
+export const REWARD_BITMAP_SIZE = 144;
+// 奖励物在画布上的逻辑显示尺寸（Game 里 setDisplaySize 缩放），碰撞体随缩放同步收缩，物理零改动
+export const REWARD_TEXTURE_SIZE = 48;
+
 // 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切
 export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;
 

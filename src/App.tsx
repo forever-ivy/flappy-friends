@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CircleUserRound, Home, LogIn, LogOut, Play, RotateCcw, Sparkles, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
 import { RunResult } from './domain/game';
-import { CHARACTERS, getCharacter } from './game/assets';
+import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
@@ -136,6 +136,11 @@ function App() {
 
             {screen === 'menu' && (
                 <section className="menu-layer" aria-label="开始游戏">
+                    {/* 游戏名：主名中文大字 + 英文糖果药丸副线，悬于居中面板上方，保持精简构图 */}
+                    <header className="game-title">
+                        <h1>{GAME_TITLE}</h1>
+                        <p>{GAME_TITLE_EN}</p>
+                    </header>
                     <div className="menu-controls">
                         <div className="character-rail" role="list" aria-label="选择角色">
                             {CHARACTERS.map((character) => (
@@ -144,8 +149,10 @@ function App() {
                                     className={`character-choice ${character.id === selected.id ? 'selected' : ''}`}
                                     onClick={() => chooseCharacter(character.id)}
                                     aria-pressed={character.id === selected.id}
+                                    aria-label={`选择${character.name}`}
                                 >
                                     <img src={`/assets/${character.portrait}`} alt="" />
+                                    <span className="character-name">{character.name}</span>
                                 </button>
                             ))}
                         </div>
@@ -189,6 +196,9 @@ function App() {
                 />
             )}
             {overlay === 'leaderboard' && <LeaderboardDialog onClose={() => setOverlay('none')} />}
+
+            {/* 作者水印：右下角低调常驻，对局中进一步淡化以免分散注意力 */}
+            <span className={`watermark ${screen === 'playing' ? 'faded' : ''}`} aria-hidden="true">@一只云</span>
         </main>
     );
 }
@@ -275,7 +285,7 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
                         return (
                             <div className="leaderboard-row" key={entry.playerId}>
                                 <b className="rank">{entry.rank}</b>
-                                <img src={`/assets/${character.portrait}`} alt="" />
+                                <img src={`/assets/${character.portrait}`} alt={character.name} />
                                 <span>{entry.username}</span>
                                 <strong>{entry.score}</strong>
                             </div>

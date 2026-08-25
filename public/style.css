@@ -269,11 +269,6 @@ body {
     pointer-events: none;
 }
 
-/* 天空带矮于一条完整弹幕轨道的可读高度时不再显示弹幕（避免贴着标题挤成一团） */
-@container (max-height: 96px) {
-    .danmaku-bullet { display: none; }
-}
-
 .danmaku-bullet {
     position: absolute;
     left: 100%;
@@ -292,6 +287,12 @@ body {
 }
 
 .danmaku-bullet i { font-style: normal; font-size: .72em; opacity: .6; }
+
+/* 天空带矮于一条完整弹幕轨道的可读高度时不再显示弹幕（避免贴着标题挤成一团）。
+   必须排在 .danmaku-bullet 基础规则之后：同优先级下靠层叠顺序覆盖 display */
+@container (max-height: 96px) {
+    .danmaku-bullet { display: none; }
+}
 
 @keyframes danmaku-drift {
     from { transform: translateX(0); }

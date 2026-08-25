@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-    calculateScore, computeGameWidth, computePlayerX, computeRenderScale, createSeededRandom,
+    calculateScore, computeGameWidth, computePlayerX, computeRenderScale, computeStageHeight, createSeededRandom,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds,
-    KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, PLAYER_BASE_X, PLAYER_MAX_X,
+    KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, MAX_STAGE_HEIGHT, PLAYER_BASE_X, PLAYER_MAX_X,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from './game';
 
@@ -70,6 +70,35 @@ describe('adaptive game width', () => {
         expect(computePlayerX(960)).toBe(235);
         expect(computePlayerX(200)).toBe(PLAYER_BASE_X);
         expect(computePlayerX(4000)).toBe(PLAYER_MAX_X);
+    });
+
+    it('extends the stage upward on tall phone viewports so the canvas fills the screen', () => {
+        // iPhone 14/15 类（390×844）：宽 360，高按视口比例延伸到 779（出血 139 全在天空一侧）
+        expect(computeStageHeight(390, 844)).toBe(779);
+        // 20:9 安卓（360×800）恰好到达上限
+        expect(computeStageHeight(360, 800)).toBe(MAX_STAGE_HEIGHT);
+        expect(MAX_STAGE_HEIGHT).toBe(800);
+    });
+
+    it('keeps the 640 design height when the viewport is 9:16 or wider', () => {
+        expect(computeStageHeight(360, 640)).toBe(GAME_HEIGHT);
+        // 3:4 平板：宽度自适应到 480 后画布正好铺满，无需纵向出血
+        expect(computeStageHeight(768, 1024)).toBe(GAME_HEIGHT);
+        // 桌面宽屏：两侧留白交给 CSS 梦幻背景，高度保持 640
+        expect(computeStageHeight(1920, 1080)).toBe(GAME_HEIGHT);
+        expect(computeStageHeight(1600, 900)).toBe(GAME_HEIGHT);
+    });
+
+    it('caps the sky bleed so obstacle art still covers the visible top edge', () => {
+        expect(computeStageHeight(320, 2000)).toBe(MAX_STAGE_HEIGHT);
+        // 出血上限 160 < 顶部柱子最少向上延伸量（约 189），柱子不会在可视区内“断头”
+        expect(MAX_STAGE_HEIGHT - GAME_HEIGHT).toBeLessThanOrEqual(160);
+    });
+
+    it('guards stage height against degenerate viewport sizes', () => {
+        expect(computeStageHeight(0, 500)).toBe(GAME_HEIGHT);
+        expect(computeStageHeight(500, 0)).toBe(GAME_HEIGHT);
+        expect(computeStageHeight(Number.NaN, 500)).toBe(GAME_HEIGHT);
     });
 
     it('scales the canvas backing store for high-DPR screens and large windows', () => {

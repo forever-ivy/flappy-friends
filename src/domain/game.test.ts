@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-    calculateScore, computeGameWidth, computePlayerX, computeRenderScale, computeStageHeight, createSeededRandom,
+    calculateScore, computeEffectQuality, computeGameWidth, computePlayerX, computeRenderScale, computeRenderScaleCap,
+    computeStageHeight, createRunId, createSeededRandom,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds,
     KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, MAX_STAGE_HEIGHT, PLAYER_BASE_X, PLAYER_MAX_X,
     pickRewardKind, REWARD_MIRROR_CHANCE, shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
@@ -61,6 +62,64 @@ describe('game rules', () => {
         const first = createSeededRandom(42);
         const second = createSeededRandom(42);
         expect([first(), first(), first()]).toEqual([second(), second(), second()]);
+    });
+});
+
+describe('createRunId（结算标识必须在非安全上下文可用）', () => {
+    const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    it('优先使用 crypto.randomUUID（安全上下文）', () => {
+        expect(createRunId({ randomUUID: () => 'from-random-uuid' })).toBe('from-random-uuid');
+    });
+
+    it('http://IP 场景（无 randomUUID、有 getRandomValues）不抛异常且输出 UUIDv4 格式', () => {
+        const cryptoLike = {
+            getRandomValues: <T extends ArrayBufferView>(array: T): T => {
+                new Uint8Array(array.buffer).fill(0xab);
+                return array;
+            },
+        };
+        const id = createRunId(cryptoLike);
+        expect(id).toMatch(UUID_V4);
+    });
+
+    it('完全没有 crypto 时退回 Math.random，仍是 UUIDv4 格式且互不相同', () => {
+        const first = createRunId(undefined);
+        const second = createRunId(undefined);
+        expect(first).toMatch(UUID_V4);
+        expect(second).toMatch(UUID_V4);
+        expect(first).not.toBe(second);
+    });
+});
+
+describe('设备分档（渲染倍率上限 / 特效档位）', () => {
+    it('桌面细指针保持 3x 上限与 full 特效', () => {
+        const desktop = { coarsePointer: false, deviceMemory: 8, hardwareConcurrency: 8 };
+        expect(computeRenderScaleCap(desktop)).toBe(MAX_RENDER_SCALE);
+        expect(computeEffectQuality(desktop)).toBe('full');
+    });
+
+    it('移动端（粗指针）上限收敛到 2x 并走 lite 特效', () => {
+        const phone = { coarsePointer: true, hardwareConcurrency: 6 };
+        expect(computeRenderScaleCap(phone)).toBe(2);
+        expect(computeEffectQuality(phone)).toBe('lite');
+        // iPhone：无 deviceMemory 也按移动端处理
+        expect(computeRenderScaleCap({ coarsePointer: true })).toBe(2);
+    });
+
+    it('明确弱机（≤2GB 内存或 ≤3 核）上限 1x，流畅优先', () => {
+        expect(computeRenderScaleCap({ coarsePointer: true, deviceMemory: 2 })).toBe(1);
+        expect(computeRenderScaleCap({ coarsePointer: false, hardwareConcurrency: 2 })).toBe(1);
+        expect(computeEffectQuality({ coarsePointer: true, deviceMemory: 1 })).toBe('lite');
+    });
+
+    it('渲染倍率遵守传入的上限（DPR3 手机从 3x 收敛到 2x）', () => {
+        expect(computeRenderScale(3, 844, 2)).toBe(2);
+        expect(computeRenderScale(3, 844, 1)).toBe(1);
+        // 上限缺省 / 非法时仍按 MAX_RENDER_SCALE 处理
+        expect(computeRenderScale(3, 844, Number.NaN)).toBe(MAX_RENDER_SCALE);
+        // 上限不影响低需求场景：dpr1 小窗口本来就是 1x
+        expect(computeRenderScale(1, 640, 2)).toBe(1);
     });
 });
 

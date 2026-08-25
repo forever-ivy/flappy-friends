@@ -5,6 +5,7 @@ import { RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
+import { getEffectQuality } from './game/renderScale';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
 import { currentPlayer, DanmakuMessage, enter, getDanmaku, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, postDanmaku, signOut, syncRuns, updateCharacter } from './services/api';
 import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
@@ -93,10 +94,17 @@ function App() {
         };
         const onScore = (next: ScoreState) => setScore(next);
         const onOver = (run: RunResult) => {
-            const next = saveProgress(recordRun(progress, run));
+            const next = recordRun(progress, run);
             setProgress(next);
             setLastRun(run);
             setScreen('gameover');
+            // 持久化放最后并兜底：隐私模式禁写 localStorage / 配额满时只丢存档，
+            // 绝不阻断结算面板展示（死亡必出结算）
+            try {
+                saveProgress(next);
+            } catch {
+                // 忽略：进度同步仍可在登录后走 pendingRuns 内存态
+            }
         };
         EventBus.on('game:ready', onReady);
         EventBus.on('score:changed', onScore);
@@ -276,6 +284,11 @@ function App() {
 // 给出；弹幕池由 buildPool 决定——真实留言全量优先，不足 6 条才混入服务端种子
 // 垫场，离线退回本地欢迎语。
 // 整层 pointer-events:none，只做氛围不挡角色选择与开始按钮；对局中整层不渲染。
+// 弹幕密度按设备档位（加载时定一次）：移动端/弱机 lite 档同屏更少、发射更疏，
+// 减少菜单里持续做 transform 动画的 DOM 数量
+const DANMAKU_MAX_ON_SCREEN = getEffectQuality() === 'lite' ? 6 : 9;
+const DANMAKU_INTERVAL_MS = getEffectQuality() === 'lite' ? 2600 : 1800;
+
 function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null }) {
     const [bullets, setBullets] = useState<{ id: number; text: string; author: string; style: BulletStyle }[]>([]);
     const counter = useRef(0);
@@ -289,11 +302,11 @@ function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: D
             const message = list[cursor.current % list.length];
             cursor.current += 1;
             const id = (counter.current += 1);
-            // 同屏最多 9 条，防止长留言列表下弹幕过密
-            setBullets((current) => (current.length >= 9 ? current : [...current, { id, ...message, style: bulletStyle(id) }]));
+            // 同屏上限防止长留言列表下弹幕过密（lite 档 6 条 / full 档 9 条）
+            setBullets((current) => (current.length >= DANMAKU_MAX_ON_SCREEN ? current : [...current, { id, ...message, style: bulletStyle(id) }]));
         };
         emit();
-        const timer = setInterval(emit, 1800);
+        const timer = setInterval(emit, DANMAKU_INTERVAL_MS);
         return () => clearInterval(timer);
     }, []);
 

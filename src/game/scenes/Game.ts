@@ -1,12 +1,12 @@
 import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
 import {
-    calculateScore, computeGameWidth, computePlayerX, computeStageHeight, createSeededRandom,
+    calculateScore, computeGameWidth, computePlayerX, computeStageHeight, createRunId, createSeededRandom,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRewardKind, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
 import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, type ObstacleVariant, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
-import { getRenderScale } from '../renderScale';
+import { getEffectQuality, getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
 import { EventBus } from '../EventBus';
@@ -22,8 +22,10 @@ interface ObstaclePair {
 
 const COUNTDOWN_TEXT_Y = 264;
 
-// 漂浮星光（少女梦幻氛围）：白色星光贴图 tint 成粉彩色，缓慢向左上飘并闪烁
-const SPARKLE_COUNT = 14;
+// 漂浮星光（少女梦幻氛围）：白色星光贴图 tint 成粉彩色，缓慢向左上飘并闪烁。
+// 移动端/弱机（lite 档）减量到 8 颗并去掉旋转 tween，降低每帧绘制与补间开销。
+const SPARKLE_COUNT_FULL = 14;
+const SPARKLE_COUNT_LITE = 8;
 const SPARKLE_TINTS = [0xffffff, 0xffd3e8, 0xd9c8ff, 0xbcd9ff, 0xfff0c9];
 
 export class Game extends Scene {
@@ -47,6 +49,10 @@ export class Game extends Scene {
     private sparkles: Phaser.GameObjects.Image[] = [];
     // canvas 后备像素 = 逻辑尺寸 × renderScale；相机 setZoom(renderScale) 还原逻辑坐标系
     private renderScale = getRenderScale();
+    // 移动端/弱机走 lite 特效档：星光减量、障碍缺口不放闪点粒子
+    private effectsLite = getEffectQuality() === 'lite';
+    // 当前已下发给柱子/奖励的横向速度：只在难度跳档时批量更新，不再每帧 setVelocityX
+    private appliedSpeed = 0;
     // 角色等比基准 scale（setDisplaySize 72/216 后记录）：扑翼挤压动画必须从它出发并回到它
     private playerBaseScale = CHARACTER_TEXTURE_SIZE / CHARACTER_SPRITE_SIZE;
     private lastGapSkewSign = 0;
@@ -154,32 +160,45 @@ export class Game extends Scene {
         this.driftSparkles(scrollSpeed, seconds);
 
         if (this.phase !== 'playing') return;
-        const difficulty = getDifficulty(this.currentScore());
-        this.pairs.forEach((pair) => {
-            pair.top.setVelocityX(-difficulty.speed);
-            pair.bottom.setVelocityX(-difficulty.speed);
-            if (pair.reward?.active && pair.reward.body) pair.reward.setVelocityX(-difficulty.speed);
+        // 速度只在难度跳档时批量下发（旧实现每帧对全部柱子/奖励 setVelocityX）
+        if (scrollSpeed !== this.appliedSpeed) this.applyScrollSpeed(scrollSpeed);
+
+        // 计分 + 出屏销毁用单次就地压缩遍历完成：热路径零数组/闭包分配
+        let write = 0;
+        for (let read = 0; read < this.pairs.length; read += 1) {
+            const pair = this.pairs[read];
             if (!pair.scored && pair.top.x + pair.top.displayWidth / 2 < this.player.x) {
                 pair.scored = true;
                 this.pipeCount += 1;
                 playSfx('score');
                 this.emitScore();
             }
-        });
+            if (pair.top.x < -70) {
+                pair.top.destroy();
+                pair.bottom.destroy();
+                pair.reward?.destroy();
+            } else {
+                this.pairs[write] = pair;
+                write += 1;
+            }
+        }
+        this.pairs.length = write;
 
         const latest = this.pairs[this.pairs.length - 1];
         if (!latest || latest.top.x < this.logicalWidth() - SPAWN_TRIGGER_FROM_RIGHT) this.spawnPair();
 
-        const removed = this.pairs.filter((pair) => pair.top.x < -70);
-        removed.forEach((pair) => {
-            pair.top.destroy();
-            pair.bottom.destroy();
-            pair.reward?.destroy();
-        });
-        this.pairs = this.pairs.filter((pair) => pair.top.x >= -70);
-
         this.player.setAngle(Phaser.Math.Clamp((this.player.body?.velocity.y ?? 0) * 0.08, -22, 72));
         if (isOutOfBounds(this.player.y)) this.finishRun();
+    }
+
+    // 把当前难度速度一次性下发给场上全部柱子与未收集奖励；新生成的对在 spawnPair 里单独赋速
+    private applyScrollSpeed(speed: number) {
+        this.appliedSpeed = speed;
+        for (const pair of this.pairs) {
+            pair.top.setVelocityX(-speed);
+            pair.bottom.setVelocityX(-speed);
+            if (pair.reward?.active && pair.reward.body) pair.reward.setVelocityX(-speed);
+        }
     }
 
     // 星光只做氛围装饰：用 Math.random 布点与闪烁，不消耗对局的种子随机序列
@@ -187,7 +206,8 @@ export class Game extends Scene {
         const width = this.logicalWidth();
         // 竖屏出血时星光同步铺到扩展出的天空区（topEdge ≤0），保持整屏梦幻氛围
         const topEdge = GAME_HEIGHT - this.logicalHeight();
-        for (let index = 0; index < SPARKLE_COUNT; index += 1) {
+        const count = this.effectsLite ? SPARKLE_COUNT_LITE : SPARKLE_COUNT_FULL;
+        for (let index = 0; index < count; index += 1) {
             const sparkle = this.add.image(Math.random() * width, topEdge + 30 + Math.random() * (510 - topEdge), 'fx-sparkle')
                 .setDepth(4)
                 .setScale(0.45 + Math.random() * 0.65)
@@ -196,7 +216,8 @@ export class Game extends Scene {
             this.tweens.add({
                 targets: sparkle,
                 alpha: { from: 0.12, to: 0.85 },
-                angle: { from: -14, to: 14 },
+                // lite 档只做透明度呼吸，省掉旋转带来的逐帧变换更新
+                ...(this.effectsLite ? {} : { angle: { from: -14, to: 14 } }),
                 duration: 1100 + Math.random() * 1400,
                 delay: Math.random() * 1200,
                 yoyo: true,
@@ -210,7 +231,8 @@ export class Game extends Scene {
     private driftSparkles(scrollSpeed: number, seconds: number) {
         const width = this.logicalWidth();
         const topEdge = GAME_HEIGHT - this.logicalHeight();
-        this.sparkles.forEach((sparkle, index) => {
+        for (let index = 0; index < this.sparkles.length; index += 1) {
+            const sparkle = this.sparkles[index];
             // 视差介于中景（0.18x）与街面（1x）之间，另加缓慢上飘
             sparkle.x -= scrollSpeed * 0.3 * seconds;
             sparkle.y -= (5 + (index % 3) * 3) * seconds;
@@ -222,7 +244,7 @@ export class Game extends Scene {
                 sparkle.y = 570;
                 sparkle.x = Math.random() * width;
             }
-        });
+        }
     }
 
     private selectCharacter(characterId: string) {
@@ -252,6 +274,8 @@ export class Game extends Scene {
         this.lastVariantIndex = -1;
         this.pipeCount = 0;
         this.rewardCount = 0;
+        // 清零已下发速度：开局第一帧会按当前难度重新批量下发
+        this.appliedSpeed = 0;
         // 连同待机浮动与上一局可能残留的挤压 tween 一起清掉，防止旧 tween 覆盖刚复位的基准 scale
         this.idleTween?.stop();
         this.tweens.killTweensOf(this.player);
@@ -317,7 +341,7 @@ export class Game extends Scene {
     }
 
     private spawnPair(x = this.logicalWidth() + SPAWN_OFFSCREEN_X) {
-        const { gap } = getDifficulty(this.currentScore());
+        const { gap, speed } = getDifficulty(this.currentScore());
         const topLimit = 108 + gap / 2;
         const bottomLimit = GAME_HEIGHT - 86 - gap / 2 - 108;
         // 不规则缺口：保持 gap 不变，但让 top/bottom 相对中心的偏移不再严格对称。
@@ -337,6 +361,9 @@ export class Game extends Scene {
 
         const top = this.createObstacle(x, topY, variant.topKey);
         const bottom = this.createObstacle(x, bottomY, variant.bottomKey);
+        // 速度在生成时赋值（update 只在难度跳档时批量更新，不再每帧下发）
+        top.setVelocityX(-speed);
+        bottom.setVelocityX(-speed);
         const pair: ObstaclePair = { top, bottom, scored: false };
 
         // 轻微粉彩粒子/光晕（樱花粉）：只增强视觉，不改碰撞与计分。
@@ -358,6 +385,7 @@ export class Game extends Scene {
             reward.body!.allowGravity = false;
             reward.setData('collected', false);
             this.rewards.add(reward);
+            reward.setVelocityX(-speed);
             this.tweens.add({ targets: reward, angle: 360, duration: 2400, repeat: -1 });
             pair.reward = reward;
         }
@@ -400,8 +428,9 @@ export class Game extends Scene {
             onComplete: () => glow.destroy(),
         });
 
-        // 小闪点（沿缺口边缘轻微发散）
-        const count = 6;
+        // 小闪点（沿缺口边缘轻微发散）：lite 档跳过——每对柱子省 12 个临时
+        // GameObject + tween 的创建/销毁，只保留一圈柔光维持观感
+        const count = this.effectsLite ? 0 : 6;
         for (let i = 0; i < count; i += 1) {
             const t = i / count;
             const angle = (Math.PI * 2 * t) + (dir > 0 ? 0.2 : -0.2);
@@ -452,13 +481,11 @@ export class Game extends Scene {
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
         this.player.setVelocity(0, 0).setTint(0xff97a6);
-        this.pairs.forEach((pair) => {
-            pair.top.setVelocityX(0);
-            pair.bottom.setVelocityX(0);
-            if (pair.reward?.active && pair.reward.body) pair.reward.setVelocityX(0);
-        });
+        this.applyScrollSpeed(0);
+        // createRunId 在非安全上下文（http://IP）下也可用：直接用 crypto.randomUUID 会抛
+        // TypeError，导致 game:over 发不出去、死亡后卡死在对局画面（线上手机端事故根因）
         const result: RunResult = {
-            clientRunId: crypto.randomUUID(), characterId: this.selectedCharacter,
+            clientRunId: createRunId(), characterId: this.selectedCharacter,
             pipeCount: this.pipeCount, rewardCount: this.rewardCount, totalScore: this.currentScore(),
             durationMs: Math.max(0, Date.now() - this.startedAt), createdAt: new Date().toISOString(),
         };

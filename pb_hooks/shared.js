@@ -16,6 +16,27 @@ function isValidUsername(username) {
     return username === username.trim() && username.length >= 1 && username.length <= USERNAME_MAX;
 }
 
+// 弹幕留言板：正文最长 32 字，游客昵称沿用用户名上限（24），留空署名「路过的碗」
+var MESSAGE_MAX = 32;
+var GUEST_AUTHOR = "路过的碗";
+
+// 规范化留言/昵称：去首尾空格、压缩连续空白；非字符串、空串或超长返回 null
+function normalizeMessage(value, max) {
+    if (typeof value !== "string") return null;
+    const text = value.trim().replace(/\s+/g, " ");
+    if (text.length < 1 || text.length > max) return null;
+    return text;
+}
+
+function messagePayload(record) {
+    return {
+        id: record.id,
+        text: record.getString("text"),
+        author: record.getString("author"),
+        createdAt: record.getString("created"),
+    };
+}
+
 function asNonNegativeInt(value, max) {
     const number = Number(value);
     if (!Number.isInteger(number) || number < 0 || number > max) {
@@ -66,7 +87,11 @@ function rankEntries(players, type) {
 module.exports = {
     CHARACTER_IDS: CHARACTER_IDS,
     USERNAME_MAX: USERNAME_MAX,
+    MESSAGE_MAX: MESSAGE_MAX,
+    GUEST_AUTHOR: GUEST_AUTHOR,
     isValidUsername: isValidUsername,
+    normalizeMessage: normalizeMessage,
+    messagePayload: messagePayload,
     asNonNegativeInt: asNonNegativeInt,
     profile: profile,
     rankEntries: rankEntries,

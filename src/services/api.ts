@@ -32,6 +32,18 @@ export interface SyncResponse {
     profile: PlayerProfile;
 }
 
+// 弹幕留言板：菜单天空区飘过的玩家短留言（见 services/danmaku.ts 的纯逻辑部分）
+export interface DanmakuMessage {
+    id: string;
+    text: string;
+    author: string;
+    createdAt: string;
+}
+
+export interface DanmakuResponse {
+    messages: DanmakuMessage[];
+}
+
 export const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL || window.location.origin);
 pb.autoCancellation(false);
 
@@ -89,4 +101,13 @@ export async function getLeaderboard(type: 'best' | 'total'): Promise<Leaderboar
 
 export async function updateCharacter(characterId: string): Promise<PlayerProfile> {
     return pb.send('/api/game/profile', { method: 'POST', body: { characterId } });
+}
+
+export async function getDanmaku(): Promise<DanmakuResponse> {
+    return pb.send('/api/game/messages?limit=50', { method: 'GET' });
+}
+
+// 已登录时服务端自动署用户名（nickname 被忽略）；游客昵称留空则署「路过的碗」
+export async function postDanmaku(text: string, nickname?: string): Promise<DanmakuMessage> {
+    return pb.send('/api/game/messages', { method: 'POST', body: { text, nickname } });
 }

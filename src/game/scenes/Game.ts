@@ -1,11 +1,11 @@
 import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
 import {
-    calculateScore, computeGameWidth, computePlayerX, createSeededRandom,
+    calculateScore, computeGameWidth, computePlayerX, computeStageHeight, createSeededRandom,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant, REWARD_TEXTURE_SIZE } from '../assets';
+import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
 import { getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
@@ -34,6 +34,8 @@ export class Game extends Scene {
     private rewards!: Phaser.Physics.Arcade.Group;
     private pairs: ObstaclePair[] = [];
     private sky!: Phaser.GameObjects.Image;
+    // 竖屏出血区（画布高 >640）用天空顶行同色矩形向上续接，消除顶部 letterbox
+    private skyExtension!: Phaser.GameObjects.Rectangle;
     private city!: Phaser.GameObjects.TileSprite;
     private street!: Phaser.GameObjects.TileSprite;
     private idleTween?: Phaser.Tweens.Tween;
@@ -51,7 +53,7 @@ export class Game extends Scene {
     private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
     private resizeHandler = () => {
-        this.maybeApplyGameWidth();
+        this.maybeApplyStageSize();
         this.layout();
     };
 
@@ -61,6 +63,8 @@ export class Game extends Scene {
 
     create() {
         this.sky = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'background-sky');
+        // 底边锚在世界 y=0（origin 0.5,1），layout 里按出血量拉高，与天空贴图顶行颜色无缝相接
+        this.skyExtension = this.add.rectangle(GAME_WIDTH / 2, 0, GAME_WIDTH, 0, SKY_TOP_COLOR).setOrigin(0.5, 1);
         this.city = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 'background-city');
         this.street = this.add.tileSprite(GAME_WIDTH / 2, 565, GAME_WIDTH, 180, 'background-street').setDepth(2);
         this.createAmbientSparkles();
@@ -81,9 +85,9 @@ export class Game extends Scene {
         EventBus.on('game:start', this.startRun, this);
         EventBus.on('character:selected', this.selectCharacter, this);
 
-        // 视口变化时先校正画布逻辑宽度（360–960），再按新宽度重排版
+        // 视口变化时先校正画布逻辑尺寸（宽 360–960 / 高 640–800），再按新尺寸重排版
         this.scale.on('resize', this.resizeHandler);
-        this.maybeApplyGameWidth();
+        this.maybeApplyStageSize();
         this.layout();
 
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -105,22 +109,31 @@ export class Game extends Scene {
         return this.scale.gameSize.width / this.renderScale;
     }
 
-    // 画布逻辑高度恒 640，宽度跟随视口宽高比；与当前一致时不重复 setGameSize，避免事件回环
-    private maybeApplyGameWidth() {
-        const desired = computeGameWidth(this.scale.parentSize.width, this.scale.parentSize.height);
-        if (desired !== this.logicalWidth()) {
-            this.scale.setGameSize(desired * this.renderScale, GAME_HEIGHT * this.renderScale);
+    // 画布逻辑高度：640 基准，竖屏时含向上出血（640–800，见 computeStageHeight）
+    private logicalHeight() {
+        return this.scale.gameSize.height / this.renderScale;
+    }
+
+    // 画布逻辑宽高随视口比例自适应；与当前一致时不重复 setGameSize，避免事件回环
+    private maybeApplyStageSize() {
+        const desiredWidth = computeGameWidth(this.scale.parentSize.width, this.scale.parentSize.height);
+        const desiredHeight = computeStageHeight(this.scale.parentSize.width, this.scale.parentSize.height);
+        if (desiredWidth !== this.logicalWidth() || desiredHeight !== this.logicalHeight()) {
+            this.scale.setGameSize(desiredWidth * this.renderScale, desiredHeight * this.renderScale);
             this.scale.refresh();
         }
     }
 
-    // 按当前画布宽度重排背景与锚点；可安全重复调用
+    // 按当前画布尺寸重排背景与锚点；可安全重复调用
     private layout() {
         const width = this.logicalWidth();
-        // 相机放大 renderScale 倍并对准逻辑区域中心：世界坐标（物理/难度/碰撞）保持 360–960 × 640 不变
+        const height = this.logicalHeight();
+        // 相机放大 renderScale 倍，可视区底部对齐玩法区（世界 y∈[0,640]），竖屏出血只加在天空一侧：
+        // 世界坐标（物理/难度/碰撞）保持 360–960 × 640 不变
         this.cameras.main.setZoom(this.renderScale);
-        this.cameras.main.centerOn(width / 2, GAME_HEIGHT / 2);
+        this.cameras.main.centerOn(width / 2, GAME_HEIGHT - height / 2);
         this.sky.setPosition(width / 2, GAME_HEIGHT / 2);
+        this.skyExtension.setPosition(width / 2, 0).setSize(width, Math.max(0, height - GAME_HEIGHT));
         this.city.setSize(width, GAME_HEIGHT).setPosition(width / 2, GAME_HEIGHT / 2);
         this.street.setSize(width, 180).setPosition(width / 2, 565);
         if (this.countdownText?.active) this.countdownText.setPosition(width / 2, COUNTDOWN_TEXT_Y);
@@ -172,8 +185,10 @@ export class Game extends Scene {
     // 星光只做氛围装饰：用 Math.random 布点与闪烁，不消耗对局的种子随机序列
     private createAmbientSparkles() {
         const width = this.logicalWidth();
+        // 竖屏出血时星光同步铺到扩展出的天空区（topEdge ≤0），保持整屏梦幻氛围
+        const topEdge = GAME_HEIGHT - this.logicalHeight();
         for (let index = 0; index < SPARKLE_COUNT; index += 1) {
-            const sparkle = this.add.image(Math.random() * width, 30 + Math.random() * 510, 'fx-sparkle')
+            const sparkle = this.add.image(Math.random() * width, topEdge + 30 + Math.random() * (510 - topEdge), 'fx-sparkle')
                 .setDepth(4)
                 .setScale(0.45 + Math.random() * 0.65)
                 .setAlpha(0.15)
@@ -194,15 +209,16 @@ export class Game extends Scene {
 
     private driftSparkles(scrollSpeed: number, seconds: number) {
         const width = this.logicalWidth();
+        const topEdge = GAME_HEIGHT - this.logicalHeight();
         this.sparkles.forEach((sparkle, index) => {
             // 视差介于中景（0.18x）与街面（1x）之间，另加缓慢上飘
             sparkle.x -= scrollSpeed * 0.3 * seconds;
             sparkle.y -= (5 + (index % 3) * 3) * seconds;
             if (sparkle.x < -16) {
                 sparkle.x = width + 16;
-                sparkle.y = 30 + Math.random() * 510;
+                sparkle.y = topEdge + 30 + Math.random() * (510 - topEdge);
             }
-            if (sparkle.y < -16) {
+            if (sparkle.y < topEdge - 16) {
                 sparkle.y = 570;
                 sparkle.x = Math.random() * width;
             }

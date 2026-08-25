@@ -36,6 +36,10 @@ export const REWARD_TEXTURE_SIZE = 48;
 // 天空贴图逻辑尺寸：960 宽以覆盖最大画布宽度，窄屏时左右对称裁切
 export const SKY_TEXTURE_SIZE = { width: 960, height: 640 } as const;
 
+// 天空贴图顶行为整行纯色 #b0d1fc：竖屏出血区（画布高 >640 时）用同色矩形向上无缝续接天空
+export const SKY_TOP_COLOR = 0xb0d1fc;
+export const SKY_TOP_COLOR_CSS = '#b0d1fc';
+
 export const GAME_ASSETS = {
     sky: 'game/background-sky.png',
     city: 'game/background-city.png',

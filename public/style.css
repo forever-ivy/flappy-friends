@@ -1,9 +1,28 @@
 :root {
     color: #6b3a50;
-    background: #f6dee8;
+    background: #b0d1fc;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-synthesis: none;
     letter-spacing: 0;
+
+    /* 画布外留白（letterbox/pillarbox）的梦幻延伸背景：逐段取自 sky/city/street 三层合成后的
+       实际逐行均色（顶部晴空蓝 → 城市粉紫 → 草地嫩绿 → 街面奶油粉），宽屏时画布铺满视口高度，
+       渐变按视口高度百分比与画面纵向色带对齐，两侧留白像同一张画的延伸而不是冷灰蓝硬边 */
+    --stage-backdrop: linear-gradient(
+        180deg,
+        #b0d1fc 0%,
+        #bed9fb 20%,
+        #c5defc 35%,
+        #ddd8ee 42%,
+        #ecd2e3 50%,
+        #ebcbe0 60%,
+        #dfe3c2 66%,
+        #b7f78f 73%,
+        #aef185 82%,
+        #b4ee92 90%,
+        #f7f0ee 95%,
+        #fbefe4 100%
+    );
 
     /* 樱花奇比调色板（对齐 ART_ASSET_SPEC 与 public/assets/game/ 素材描边） */
     --ink: #6b3a50;            /* 正文 */
@@ -50,8 +69,8 @@ button { -webkit-tap-highlight-color: transparent; }
 body {
     display: grid;
     place-items: center;
-    background-color: #f6dee8;
-    background-image: linear-gradient(90deg, #f9e3ec 0 33%, #eef4fb 33% 66%, #fdeef3 66%);
+    background-color: #b0d1fc;
+    background-image: var(--stage-backdrop);
 }
 
 .game-shell {
@@ -62,13 +81,41 @@ body {
     height: 100svh;
     overflow: hidden;
     isolation: isolate;
-    background: #f6dee8;
+    background: var(--stage-backdrop);
+}
+
+/* 桌面超宽屏 pillarbox 时的画布左右羽化过渡：用同一梦幻渐变横向淡出，把画布硬边融进背景。
+   是否启用由 stageSync 依据实际留白写入 --edge-feather（0/1），铺满宽度时自动隐藏 */
+.game-shell::before, .game-shell::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 46px;
+    z-index: 5;
+    background: var(--stage-backdrop);
+    opacity: var(--edge-feather, 0);
+    transition: opacity .3s ease;
+    pointer-events: none;
+}
+
+.game-shell::before {
+    left: calc(50% - var(--stage-width, 100vw) / 2);
+    -webkit-mask-image: linear-gradient(to right, #000, transparent);
+    mask-image: linear-gradient(to right, #000, transparent);
+}
+
+.game-shell::after {
+    right: calc(50% - var(--stage-width, 100vw) / 2);
+    -webkit-mask-image: linear-gradient(to left, #000, transparent);
+    mask-image: linear-gradient(to left, #000, transparent);
 }
 
 #game-container {
     position: absolute;
     inset: 0;
-    background: #bfe3fb;
+    /* 容器保持透明：letterbox 留白显示 .game-shell 的梦幻渐变，而不是一块实色 */
+    background: transparent;
 }
 
 #game-container canvas {
@@ -381,11 +428,6 @@ body {
     .character-choice { height: 48px; }
     .character-choice img { width: 36px; height: 36px; }
     .primary-button, .secondary-button, .save-button { min-height: 38px; }
-}
-
-@media (max-width: 480px) {
-    body { background: #bfe3fb; }
-    .game-shell { background: #bfe3fb; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -35,6 +35,19 @@ export function computeGameWidth(viewportWidth: number, viewportHeight: number):
     return Math.max(GAME_WIDTH, Math.min(MAX_GAME_WIDTH, Math.round((viewportWidth / viewportHeight) * GAME_HEIGHT)));
 }
 
+// 竖屏消除上下 letterbox：视口窄于 9:16 时画布逻辑高度向“天空方向”出血扩展（玩法区仍是底部对齐的
+// width×640，物理/难度/碰撞零改动），使 canvas 铺满视口、角色冲顶时头顶不再被画布上缘裁切。
+// 上限 800（20:9 手机恰好铺满）：出血 ≤160 时顶部障碍贴图（至少延伸到 y≈-189）仍盖满可视区，
+// 柱子不会在半空“断头”；更极端的细长视口由 CSS 同色系梦幻背景兜底。
+export const MAX_STAGE_HEIGHT = 800;
+
+export function computeStageHeight(viewportWidth: number, viewportHeight: number): number {
+    if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
+        || viewportWidth <= 0 || viewportHeight <= 0) return GAME_HEIGHT;
+    const width = computeGameWidth(viewportWidth, viewportHeight);
+    return Math.max(GAME_HEIGHT, Math.min(MAX_STAGE_HEIGHT, Math.round((viewportHeight / viewportWidth) * width)));
+}
+
 export function computePlayerX(width: number): number {
     return Math.min(PLAYER_MAX_X, Math.max(PLAYER_BASE_X, Math.round((width * PLAYER_BASE_X) / GAME_WIDTH)));
 }

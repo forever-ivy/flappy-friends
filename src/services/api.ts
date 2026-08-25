@@ -94,11 +94,25 @@ export function signOut() {
 }
 
 export async function syncRuns(runs: RunResult[]): Promise<SyncResponse> {
-    return pb.send('/api/game/runs', { method: 'POST', body: { runs } });
+    const response: SyncResponse = await pb.send('/api/game/runs', { method: 'POST', body: { runs } });
+    // 新成绩可能改变自己/他人的名次，让本地榜单缓存失效
+    leaderboardCache.clear();
+    return response;
 }
 
+// 排行榜客户端短缓存：30 秒内重复打开弹窗或来回切 best/total 不再打接口，
+// 避免 1000 个客户端把切页点成读洪峰。键包含登录身份（me 因人而异），
+// 提交新成绩时主动清空。
+const LEADERBOARD_CACHE_MS = 30000;
+const leaderboardCache = new Map<string, { expires: number; data: LeaderboardResponse }>();
+
 export async function getLeaderboard(type: 'best' | 'total'): Promise<LeaderboardResponse> {
-    return pb.send(`/api/game/leaderboards?type=${type}&limit=50`, { method: 'GET' });
+    const key = `${type}:${pb.authStore.record?.id ?? 'anon'}`;
+    const hit = leaderboardCache.get(key);
+    if (hit && hit.expires > Date.now()) return hit.data;
+    const data: LeaderboardResponse = await pb.send(`/api/game/leaderboards?type=${type}&limit=50`, { method: 'GET' });
+    leaderboardCache.set(key, { expires: Date.now() + LEADERBOARD_CACHE_MS, data });
+    return data;
 }
 
 export async function updateCharacter(characterId: string): Promise<PlayerProfile> {

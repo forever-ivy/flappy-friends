@@ -31,6 +31,7 @@ routerAdd("POST", "/api/game/runs", (e) => {
 
     const syncedIds = [];
     let resultProfile = null;
+    let newRuns = 0;
     $app.runInTransaction((txApp) => {
         const player = txApp.findRecordById("players", e.auth.id);
         const runsCollection = txApp.findCollectionByNameOrId("runs");
@@ -73,6 +74,7 @@ routerAdd("POST", "/api/game/runs", (e) => {
                 txApp.save(run);
                 totalScore += total;
                 gamesPlayed += 1;
+                newRuns += 1;
                 if (total > bestScore) {
                     bestScore = total;
                     player.set("bestAchievedAt", new Date().toISOString());
@@ -82,12 +84,18 @@ routerAdd("POST", "/api/game/runs", (e) => {
             syncedIds.push(clientRunId);
         }
 
-        player.set("bestScore", bestScore);
-        player.set("totalScore", totalScore);
-        player.set("gamesPlayed", gamesPlayed);
-        txApp.save(player);
+        // 全部是重复提交（客户端重试风暴）时跳过玩家行更新，少一次无效写
+        if (newRuns > 0) {
+            player.set("bestScore", bestScore);
+            player.set("totalScore", totalScore);
+            player.set("gamesPlayed", gamesPlayed);
+            txApp.save(player);
+        }
         resultProfile = shared.profile(player);
     });
+
+    // 有新成绩落库才需要让排行榜缓存失效
+    if (newRuns > 0) shared.invalidateLeaderboards($app);
 
     return e.json(200, { syncedIds, profile: resultProfile });
 }, $apis.requireAuth("players"));
@@ -102,14 +110,17 @@ routerAdd("POST", "/api/game/profile", (e) => {
     return e.json(200, shared.profile(player));
 }, $apis.requireAuth("players"));
 
-// 弹幕留言板：公开读取最近 N 条（默认/上限 50），新留言在前，供菜单弹幕循环
+// 弹幕留言板：公开读取最近 N 条（默认/上限 50），新留言在前，供菜单弹幕循环。
+// 公开热点读：最近 50 条整体缓存 5s（发表时主动失效），limit 取缓存前缀。
 routerAdd("GET", "/api/game/messages", (e) => {
     const shared = require(`${__hooks}/shared.js`);
     const query = e.request.url.query();
     const requestedLimit = Number(query.get("limit") || 50);
     const limit = Math.max(1, Math.min(50, Number.isInteger(requestedLimit) ? requestedLimit : 50));
-    const records = $app.findRecordsByFilter("messages", "id != ''", "-created", limit, 0);
-    return e.json(200, { messages: records.map(shared.messagePayload) });
+    const raw = shared.messagesRaw($app);
+    // 标准客户端调用（limit=50）走零解析热路径，直接返回预序列化响应体
+    if (limit >= 50) return e.blob(200, "application/json", '{"messages":' + raw + '}');
+    return e.json(200, { messages: JSON.parse(raw).slice(0, limit) });
 });
 
 // 发表留言：与账号完全解绑——署名只来自请求里的可选昵称，留空署「路过的碗」，
@@ -124,26 +135,39 @@ routerAdd("POST", "/api/game/messages", (e) => {
     record.set("text", text);
     record.set("author", author);
     $app.save(record);
+    shared.invalidateMessages($app);
     return e.json(200, shared.messagePayload(record));
 });
 
+// 排行榜（高并发版）：索引排序 + LIMIT 50 由 SQLite 完成（见迁移
+// concurrency_indexes 的 idx_players_*_rank），不再全表拉取后 JS 排序；
+// 匿名部分（entries）短缓存 3s，跑分写入时主动失效；个人名次 me 用
+// 「前 50 直查 + 不在榜时一条 COUNT」得出，永不全表扫描。
 routerAdd("GET", "/api/game/leaderboards", (e) => {
     const shared = require(`${__hooks}/shared.js`);
     const query = e.request.url.query();
     const type = query.get("type") === "total" ? "total" : "best";
     const requestedLimit = Number(query.get("limit") || 50);
     const limit = Math.max(1, Math.min(50, Number.isInteger(requestedLimit) ? requestedLimit : 50));
-    const records = $app.findRecordsByFilter("players", "gamesPlayed > 0", "bestScore,totalScore,bestAchievedAt,created", 5000, 0);
-    const players = records.map((record) => ({
-        id: record.id,
-        username: record.getString("username"),
-        characterId: record.getString("characterId") || "nova",
-        bestScore: record.getInt("bestScore"),
-        totalScore: record.getInt("totalScore"),
-        bestAchievedAt: record.getString("bestAchievedAt"),
-        created: record.getString("created"),
-    }));
-    const allEntries = shared.rankEntries(players, type);
-    const me = e.auth ? allEntries.find((entry) => entry.playerId === e.auth.id) || null : null;
-    return e.json(200, { type, entries: allEntries.slice(0, limit), me });
+    const raw = shared.topEntriesRaw($app, type);
+    // 匿名 + 标准 limit（客户端固定 50）走零解析热路径
+    if (!e.auth && limit >= shared.LEADERBOARD_TOP) {
+        return e.blob(200, "application/json", '{"type":"' + type + '","entries":' + raw + ',"me":null}');
+    }
+    const entries = JSON.parse(raw);
+    const me = e.auth ? shared.myRank($app, e.auth.id, type, entries) : null;
+    return e.json(200, { type, entries: entries.slice(0, limit), me });
+});
+
+// 静态资源缓存策略：Vite 带内容哈希的产物按不可变缓存一年；
+// 游戏美术/BGM 等未哈希文件缓存 1 小时后靠 304 重新验证（Go 的静态服务
+// 自带 Last-Modified/If-Modified-Since），避免 1000 个客户端反复全量下载 5MB BGM。
+routerUse((e) => {
+    const path = e.request.url.path;
+    if (/^\/assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(js|css)$/.test(path)) {
+        e.response.header().set("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (path.startsWith("/assets/") || path === "/favicon-duo.png") {
+        e.response.header().set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    }
+    return e.next();
 });

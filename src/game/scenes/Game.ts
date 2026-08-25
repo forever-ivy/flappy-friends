@@ -45,6 +45,8 @@ export class Game extends Scene {
     private sparkles: Phaser.GameObjects.Image[] = [];
     // canvas 后备像素 = 逻辑尺寸 × renderScale；相机 setZoom(renderScale) 还原逻辑坐标系
     private renderScale = getRenderScale();
+    // 角色等比基准 scale（setDisplaySize 72/216 后记录）：扑翼挤压动画必须从它出发并回到它
+    private playerBaseScale = CHARACTER_TEXTURE_SIZE / CHARACTER_SPRITE_SIZE;
     private lastVariantIndex = -1;
     private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
@@ -218,6 +220,7 @@ export class Game extends Scene {
         // Arcade Body 会随缩放同步收缩，世界坐标下半径仍是 collisionRadius（14），物理零改动
         this.player.setTexture(character.textureKey);
         this.player.setDisplaySize(CHARACTER_TEXTURE_SIZE, CHARACTER_TEXTURE_SIZE);
+        this.playerBaseScale = this.player.scaleX;
         const textureRadius = character.collisionRadius * (CHARACTER_SPRITE_SIZE / CHARACTER_TEXTURE_SIZE);
         const offset = CHARACTER_SPRITE_SIZE / 2 - textureRadius;
         this.player.setCircle(textureRadius, offset, offset);
@@ -233,10 +236,12 @@ export class Game extends Scene {
         this.pipeCount = 0;
         this.rewardCount = 0;
         this.lastVariantIndex = -1;
+        // 连同待机浮动与上一局可能残留的挤压 tween 一起清掉，防止旧 tween 覆盖刚复位的基准 scale
+        this.idleTween?.stop();
+        this.tweens.killTweensOf(this.player);
         this.player.clearTint().setPosition(computePlayerX(this.logicalWidth()), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
-        this.idleTween?.stop();
         this.emitScore();
 
         this.showCountdown('3');
@@ -281,8 +286,18 @@ export class Game extends Scene {
         if (this.phase !== 'playing') return;
         playSfx('flap');
         this.player.setVelocityY(-330);
-        // 高清位图经 setDisplaySize 后基准 scale ≠ 1，挤压动画必须按当前 scale 相对缩放
-        this.tweens.add({ targets: this.player, scaleX: this.player.scaleX * 1.1, scaleY: this.player.scaleY * 0.9, duration: 80, yoyo: true });
+        // 连点保护：先终止上一发未结束的挤压 tween 并复位到等比基准 scale，再从基准做挤压。
+        // 若以“挤压中”的当前 scale 为起点，新 tween 的起点与 yoyo 回归点都是已变形的值，
+        // 连按会不断叠乘（scaleX ×1.1、scaleY ×0.9），角色越来越宽扁且不再复原。
+        this.tweens.killTweensOf(this.player);
+        this.player.setScale(this.playerBaseScale);
+        this.tweens.add({
+            targets: this.player,
+            scaleX: this.playerBaseScale * 1.1,
+            scaleY: this.playerBaseScale * 0.9,
+            duration: 80,
+            yoyo: true,
+        });
     }
 
     private spawnPair(x = this.logicalWidth() + SPAWN_OFFSCREEN_X) {

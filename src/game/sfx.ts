@@ -1,4 +1,4 @@
-import { SFX_CUES, SfxCueName } from './assets';
+import { SFX_CUES, SFX_MASTER_VOLUME, SfxCueName } from './assets';
 
 const MUTE_KEY = 'skyline-hop-muted-v1';
 
@@ -38,7 +38,7 @@ export function playSfx(cueName: SfxCueName) {
         osc.type = cue.wave;
         osc.frequency.setValueAtTime(sweep.from, start);
         osc.frequency.exponentialRampToValueAtTime(Math.max(30, sweep.to), start + sweep.duration);
-        gain.gain.setValueAtTime(cue.gain, start);
+        gain.gain.setValueAtTime(cue.gain * SFX_MASTER_VOLUME, start);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + sweep.duration);
         osc.connect(gain).connect(ctx.destination);
         osc.start(start);

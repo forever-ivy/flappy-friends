@@ -16,8 +16,8 @@
 经典柱身文字仍取自 resource/barrier.jpg 与 resource/barrier2.jpg（按 HD 奇比风格重绘柱体）。
 
 产物（背景/障碍为逻辑 1x 尺寸；角色/奖励为高清位图，物理参数零改动）：
-  character-{nova,moss}.png             216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，头朝右
-  portrait-{nova,moss}.png              256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，头朝右
+  character-{nova,moss}-hand-right.png  216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，伸手朝右
+  portrait-{nova,moss}-hand-right.png   256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，伸手朝右
   obstacle[-{wish,rain,aim}][-top].png  76x480  四套少女梦幻粉彩障碍变体（底柱 / 顶柱，文字均正向可读）
   reward.png / reward-mirror.png        144x144 蝴蝶结叉子 / 蝴蝶结镜子（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清）
   fx-sparkle.png                        24x24   四角星光（白色基底，游戏内随机着粉彩色）
@@ -133,20 +133,20 @@ CHARACTER_PORTRAIT_CONTENT = 232
 def build_characters() -> None:
     # 两位角色一一对应两张 HD 原素材，禁止任何改色/滤镜/重绘。
     # 处理仅限：按 alpha bbox 裁切本体（不整张 2048 缩放导致本体过小）、
-    # 水平镜像为头朝右（源图朝左；菜单头像与局内精灵同一朝向）、等比缩放。
+    # 保持用户确认的伸手朝右方向；菜单头像与局内精灵同一朝向。
     navy = Image.open(os.path.join(PIC, 'IMG_5246.PNG')).convert('RGBA')
     blue = Image.open(os.path.join(PIC, 'IMG_5247.PNG')).convert('RGBA')
     mapping = {
-        'nova': navy.transpose(Image.FLIP_LEFT_RIGHT),  # IMG_5246 藏青条纹衫（HD 原色）
-        'moss': blue.transpose(Image.FLIP_LEFT_RIGHT),  # IMG_5247 浅蓝番茄衫（HD 原色）
+        'nova': navy,  # IMG_5246 藏青条纹衫（HD 原色，伸手朝右）
+        'moss': blue,  # IMG_5247 浅蓝番茄衫（HD 原色，伸手朝右）
     }
     for cid, art in mapping.items():
         # 局内精灵：216×216 高清位图（缩放全部在 2048 源上一次完成，无二次损失）
         fit_square(art, CHARACTER_SPRITE_PX, CHARACTER_SPRITE_CONTENT).save(
-            os.path.join(OUT, f'character-{cid}.png'))
+            os.path.join(OUT, f'character-{cid}-hand-right.png'))
         # 菜单头像：256×256，独立于局内精灵，供 DOM <img> 直接使用
         fit_square(art, CHARACTER_PORTRAIT_PX, CHARACTER_PORTRAIT_CONTENT).save(
-            os.path.join(OUT, f'portrait-{cid}.png'))
+            os.path.join(OUT, f'portrait-{cid}-hand-right.png'))
         print('character', cid, 'ok (sprite 216 + portrait 256)')
 
 
@@ -599,7 +599,7 @@ def build_preview() -> None:
     # 奖励位图为 144 高清，预览按游戏内逻辑尺寸 48 显示
     reward = Image.open(os.path.join(OUT, 'reward.png')).convert('RGBA').resize((48, 48), Image.LANCZOS)
     # 角色位图为 216 高清，预览按游戏内逻辑尺寸 72 显示
-    char = Image.open(os.path.join(OUT, 'character-nova.png')).convert('RGBA').resize((72, 72), Image.LANCZOS)
+    char = Image.open(os.path.join(OUT, 'character-nova-hand-right.png')).convert('RGBA').resize((72, 72), Image.LANCZOS)
     sparkle = Image.open(os.path.join(OUT, 'fx-sparkle.png')).convert('RGBA')
 
     frame = Image.new('RGBA', (960, 640))

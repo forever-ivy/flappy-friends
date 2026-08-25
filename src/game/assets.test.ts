@@ -148,19 +148,17 @@ describe('game assets manifest', () => {
     });
 });
 
-describe('character orientation (source art faces left, game art must face right)', () => {
-    // 源图 pictures/IMG_5246.PNG / IMG_5247.PNG 朝左；generate_assets.py 的 build_characters
-    // 用 FLIP_LEFT_RIGHT 水平镜像后输出。此测试直接解码入库 PNG 的像素锁死“朝右”，
-    // 任何人重新生成贴图时若丢掉镜像步骤，这里会立刻失败。阈值 0.03 相对实测 ±0.08 留足余量。
-    it('mirrors every in-game sprite to face right', () => {
+describe('character orientation (user-approved hand direction)', () => {
+    // 直接解码入库 PNG，锁定用户按截图确认的水平朝向，避免再次误翻转。
+    it('keeps every in-game sprite in the approved orientation', () => {
         CHARACTERS.forEach((character) => {
-            expect(facingMargin(character.image)).toBeGreaterThan(0.03);
+            expect(facingMargin(character.image)).toBeLessThan(-0.03);
         });
     });
 
-    it('mirrors every menu portrait to face right (same orientation as the sprite)', () => {
+    it('keeps every menu portrait in the same approved orientation', () => {
         CHARACTERS.forEach((character) => {
-            expect(facingMargin(character.portrait)).toBeGreaterThan(0.03);
+            expect(facingMargin(character.portrait)).toBeLessThan(-0.03);
         });
     });
 });

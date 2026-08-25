@@ -1,17 +1,25 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { CircleUserRound, Home, LogIn, LogOut, Play, RotateCcw, Sparkles, Trophy, Volume2, VolumeX, X } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CircleUserRound, Heart, Home, LogIn, LogOut, MessageCircle, Play, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
 import { RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
-import { currentPlayer, enter, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, signOut, syncRuns, updateCharacter } from './services/api';
+import { currentPlayer, DanmakuMessage, enter, getDanmaku, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, postDanmaku, signOut, syncRuns, updateCharacter } from './services/api';
 import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
+import { bulletStyle, BulletStyle, DEFAULT_MESSAGES, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage } from './services/danmaku';
 import { loadProgress, Progress, recordRun, removeSyncedRuns, saveProgress, selectCharacter } from './state/progress';
 
 type Screen = 'menu' | 'playing' | 'gameover';
-type Overlay = 'none' | 'auth' | 'leaderboard';
+type Overlay = 'none' | 'auth' | 'leaderboard' | 'note';
+
+// 发出去的留言立刻作为一发弹幕飘起来；nonce 区分同文本的多次发送
+interface DanmakuBurst {
+    text: string;
+    author: string;
+    nonce: number;
+}
 
 interface ScoreState {
     total: number;
@@ -30,9 +38,21 @@ function App() {
     const [lastRun, setLastRun] = useState<RunResult | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [muted, setMuted] = useState(() => isSfxMuted());
+    // 弹幕留言板：菜单时拉取最近留言；发送成功后 burst 让新留言立刻飘出
+    const [messages, setMessages] = useState<DanmakuMessage[]>([]);
+    const [burst, setBurst] = useState<DanmakuBurst | null>(null);
     const selected = useMemo(() => getCharacter(progress.selectedCharacter), [progress.selectedCharacter]);
 
     useEffect(() => onAuthChange(setPlayer), []);
+
+    useEffect(() => {
+        if (screen !== 'menu') return;
+        void getDanmaku()
+            .then((response) => {
+                if (Array.isArray(response?.messages)) setMessages(response.messages);
+            })
+            .catch(() => undefined);
+    }, [screen]);
 
     // 背景音乐：首次用户交互后循环播放，与音效共用静音按钮，切后台自动暂停
     useEffect(() => initBgm(), []);
@@ -137,12 +157,30 @@ function App() {
 
             {screen === 'menu' && (
                 <section className="menu-layer" aria-label="开始游戏">
-                    {/* 游戏名：主名中文大字 + 英文糖果药丸副线，悬于居中面板上方，保持精简构图 */}
+                    {/* 弹幕层垫底（z-index 0）：留言从标题后方的天空飘过，不挡任何点击 */}
+                    <MenuDanmaku messages={messages} burst={burst} />
+
+                    {/* 游戏名：加大主名 + 环绕装饰（角色头像贴纸/星星/爱心闪光）填满上方天空，
+                        英文糖果药丸作副线不抢戏 */}
                     <header className="game-title">
+                        <div className="title-decor" aria-hidden="true">
+                            <img className="title-buddy left" src={`/assets/${CHARACTERS[0].portrait}`} alt="" />
+                            <img className="title-buddy right" src={`/assets/${CHARACTERS[1].portrait}`} alt="" />
+                            <Star className="title-spark s1" size={22} fill="currentColor" />
+                            <Sparkles className="title-spark s2" size={17} />
+                            <Heart className="title-spark s3" size={15} fill="currentColor" />
+                            <Star className="title-spark s4" size={13} fill="currentColor" />
+                            <Sparkles className="title-spark s5" size={14} />
+                            <Heart className="title-spark s6" size={11} fill="currentColor" />
+                        </div>
                         <h1>{GAME_TITLE}</h1>
                         <p>{GAME_TITLE_EN}</p>
                     </header>
                     <div className="menu-controls">
+                        {/* 留言入口：面板上沿的小贴纸按钮，发出的留言立刻加入弹幕 */}
+                        <button className="note-button" onClick={() => setOverlay('note')} aria-label="写弹幕留言">
+                            <MessageCircle size={14} /> 留言
+                        </button>
                         <div className="character-rail" role="list" aria-label="选择角色">
                             {CHARACTERS.map((character) => (
                                 <button
@@ -197,10 +235,119 @@ function App() {
                 />
             )}
             {overlay === 'leaderboard' && <LeaderboardDialog onClose={() => setOverlay('none')} />}
+            {overlay === 'note' && (
+                <MessageDialog
+                    playerName={player?.username ?? null}
+                    onClose={() => setOverlay('none')}
+                    onPosted={(message) => {
+                        setMessages((current) => [message, ...current].slice(0, 50));
+                        setBurst({ text: message.text, author: message.author, nonce: Date.now() });
+                        setOverlay('none');
+                    }}
+                />
+            )}
 
             {/* 作者水印：右下角低调常驻，对局中进一步淡化以免分散注意力 */}
             <span className={`watermark ${screen === 'playing' ? 'faded' : ''}`} aria-hidden="true">@一只云</span>
         </main>
+    );
+}
+
+// 菜单弹幕层：留言在上方天空区（≤35% 舞台高）循环飘过。轨道/速度/字号由
+// bulletStyle 按发射序号确定性给出；空库用 DEFAULT_MESSAGES 兜底不冷场。
+// 整层 pointer-events:none，只做氛围不挡角色选择与开始按钮；对局中整层不渲染。
+function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null }) {
+    const [bullets, setBullets] = useState<{ id: number; text: string; author: string; style: BulletStyle }[]>([]);
+    const counter = useRef(0);
+    const cursor = useRef(0);
+    const pool = useRef<{ text: string; author: string }[]>([...DEFAULT_MESSAGES]);
+    pool.current = messages.length > 0 ? messages : [...DEFAULT_MESSAGES];
+
+    useEffect(() => {
+        const emit = () => {
+            const list = pool.current;
+            const message = list[cursor.current % list.length];
+            cursor.current += 1;
+            const id = (counter.current += 1);
+            // 同屏最多 9 条，防止长留言列表下弹幕过密
+            setBullets((current) => (current.length >= 9 ? current : [...current, { id, ...message, style: bulletStyle(id) }]));
+        };
+        emit();
+        const timer = setInterval(emit, 1800);
+        return () => clearInterval(timer);
+    }, []);
+
+    // 刚发出的留言插队立刻飘（不等轮询节奏），给「发出去了」的即时反馈
+    useEffect(() => {
+        if (!burst) return;
+        const id = (counter.current += 1);
+        setBullets((current) => [...current, { id, text: burst.text, author: burst.author, style: bulletStyle(id) }]);
+    }, [burst]);
+
+    return (
+        <div className="danmaku-layer" aria-hidden="true">
+            {bullets.map((bullet) => (
+                <span
+                    key={bullet.id}
+                    className="danmaku-bullet"
+                    style={{
+                        top: `${bullet.style.top}%`,
+                        fontSize: bullet.style.fontSize,
+                        opacity: bullet.style.opacity,
+                        animationDuration: `${bullet.style.duration}s`,
+                    }}
+                    onAnimationEnd={() => setBullets((current) => current.filter((item) => item.id !== bullet.id))}
+                >
+                    {bullet.text}
+                    <i>{bullet.author}</i>
+                </span>
+            ))}
+        </div>
+    );
+}
+
+// 弹幕留言弹窗：一句话 + （游客可选）昵称。登录用户服务端自动署用户名。
+function MessageDialog({ playerName, onClose, onPosted }: { playerName: string | null; onClose: () => void; onPosted: (message: DanmakuMessage) => void }) {
+    const [text, setText] = useState('');
+    const [nickname, setNickname] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+
+    const submit = async (event: FormEvent) => {
+        event.preventDefault();
+        setError('');
+        const normalized = normalizeMessage(text);
+        if (!normalized) {
+            setError(`写一句 1–${MESSAGE_MAX} 字的留言吧`);
+            return;
+        }
+        setBusy(true);
+        try {
+            onPosted(await postDanmaku(normalized, playerName ? undefined : nickname));
+        } catch {
+            setError('发送失败，请稍后再试');
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="dialog-backdrop" role="presentation">
+            <section className="dialog note-dialog" role="dialog" aria-modal="true" aria-labelledby="note-title">
+                <button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={20} /></button>
+                <p className="eyebrow">弹幕留言板</p>
+                <h2 id="note-title">写句留言</h2>
+                <form onSubmit={submit}>
+                    <label>留言<input value={text} onChange={(event) => setText(event.target.value)} maxLength={MESSAGE_MAX} placeholder="碗碗加油！" /></label>
+                    {playerName
+                        ? <p className="note-hint">将以「{playerName}」的名义飘过天空</p>
+                        : <label>昵称（可不填）<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={NICKNAME_MAX} placeholder="路过的碗" /></label>}
+                    {error && <p className="form-error" role="alert">{error}</p>}
+                    <button className="primary-button" disabled={busy}>
+                        {busy ? '发送中…' : <><Send size={17} /> 发射弹幕</>}
+                    </button>
+                </form>
+            </section>
+        </div>
     );
 }
 

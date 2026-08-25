@@ -102,6 +102,33 @@ routerAdd("POST", "/api/game/profile", (e) => {
     return e.json(200, shared.profile(player));
 }, $apis.requireAuth("players"));
 
+// 弹幕留言板：公开读取最近 N 条（默认/上限 50），新留言在前，供菜单弹幕循环
+routerAdd("GET", "/api/game/messages", (e) => {
+    const shared = require(`${__hooks}/shared.js`);
+    const query = e.request.url.query();
+    const requestedLimit = Number(query.get("limit") || 50);
+    const limit = Math.max(1, Math.min(50, Number.isInteger(requestedLimit) ? requestedLimit : 50));
+    const records = $app.findRecordsByFilter("messages", "id != ''", "-created", limit, 0);
+    return e.json(200, { messages: records.map(shared.messagePayload) });
+});
+
+// 发表留言：登录用户自动署用户名（忽略请求里的昵称）；游客可带短昵称，
+// 留空则署「路过的碗」。正文 1–32 字，除空串/超长外不设其他门槛。
+routerAdd("POST", "/api/game/messages", (e) => {
+    const shared = require(`${__hooks}/shared.js`);
+    const body = e.requestInfo().body;
+    const text = shared.normalizeMessage(body.text, shared.MESSAGE_MAX);
+    if (!text) throw new BadRequestError("Invalid message");
+    const author = e.auth
+        ? e.auth.getString("username")
+        : (shared.normalizeMessage(body.nickname, shared.USERNAME_MAX) || shared.GUEST_AUTHOR);
+    const record = new Record($app.findCollectionByNameOrId("messages"));
+    record.set("text", text);
+    record.set("author", author);
+    $app.save(record);
+    return e.json(200, shared.messagePayload(record));
+});
+
 routerAdd("GET", "/api/game/leaderboards", (e) => {
     const shared = require(`${__hooks}/shared.js`);
     const query = e.request.url.query();

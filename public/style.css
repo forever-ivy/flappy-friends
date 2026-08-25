@@ -156,20 +156,25 @@ body {
     pointer-events: none;
 }
 
-/* 菜单构图：游戏名 + 控件面板作为一列整体垂直居中，任何视口高度下都不重叠 */
+/* 菜单构图：游戏名 + 控件面板作为一列整体垂直居中，任何视口高度下都不重叠；
+   标题块加大加高（装饰探出）后吃掉上方天空的空白，底部轻微留白让整列略上浮 */
 .menu-layer {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 22px;
+    gap: clamp(22px, 6svh, 48px);
+    padding-bottom: clamp(0px, 4svh, 40px);
 }
 
-/* 游戏名：主名白字粉描边（与计分/倒计时同一手绘字风格），英文副线做成糖果药丸贴纸 */
+/* 游戏名：主名白字粉描边（与计分/倒计时同一手绘字风格），英文副线做成糖果药丸贴纸；
+   z-index 抬到弹幕层（z 0）之上，留言从标题后方飘过 */
 .game-title {
+    position: relative;
+    z-index: 1;
     display: grid;
     justify-items: center;
-    gap: 8px;
+    gap: 10px;
     text-align: center;
     pointer-events: none;
     animation: title-in .6s var(--ease-bounce) both;
@@ -179,10 +184,77 @@ body {
     margin: 0;
     color: #fff6f9;
     font-family: "Arial Black", Impact, sans-serif;
-    font-size: 54px;
-    line-height: 1.12;
-    letter-spacing: .05em;
+    font-size: 72px;
+    line-height: 1.1;
+    letter-spacing: .04em;
     text-shadow: var(--text-outline);
+}
+
+/* 标题装饰：碗碗盆盆头像贴纸从标题两肩探出 + 星星爱心闪光环绕，形成可爱标题 */
+.title-decor { position: absolute; inset: 0; pointer-events: none; }
+
+.title-buddy {
+    position: absolute;
+    top: -32px;
+    width: 46px;
+    height: 46px;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 0 rgba(217, 122, 153, .35));
+    animation: buddy-bob 2.8s ease-in-out infinite;
+}
+.title-buddy.left { left: -12px; --tilt: -12deg; }
+.title-buddy.right { right: -12px; --tilt: 12deg; animation-delay: 1.4s; }
+
+.title-spark { position: absolute; animation: spark-twinkle 2s ease-in-out infinite; }
+.title-spark.s1 { top: -42px; left: 17%; color: #ffc95c; }
+.title-spark.s2 { top: -30px; right: 10%; color: #ff8fbf; animation-delay: .5s; animation-duration: 1.7s; }
+.title-spark.s3 { bottom: -16px; left: 12%; color: #ff9fb8; animation-delay: .9s; }
+.title-spark.s4 { top: -14px; left: -7%; color: #c7b3ff; animation-delay: 1.2s; animation-duration: 2.4s; }
+.title-spark.s5 { bottom: -6px; right: 10%; color: #9fd0ff; animation-delay: .3s; }
+.title-spark.s6 { top: 8px; right: -9%; color: #ffb1c9; animation-delay: 1.6s; animation-duration: 1.8s; }
+
+@keyframes buddy-bob {
+    0%, 100% { transform: rotate(var(--tilt, 0deg)) translateY(0); }
+    50% { transform: rotate(var(--tilt, 0deg)) translateY(-7px); }
+}
+
+@keyframes spark-twinkle {
+    0%, 100% { opacity: .5; transform: scale(.82) rotate(-8deg); }
+    50% { opacity: 1; transform: scale(1.12) rotate(8deg); }
+}
+
+/* 弹幕留言：在菜单上方天空区（top ≤35%）从右缘飘入、穿出左缘后由 React 移除；
+   整层不可交互，速度/轨道/字号由 services/danmaku.ts 确定性给出 */
+.danmaku-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.danmaku-bullet {
+    position: absolute;
+    left: 100%;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 12px;
+    color: #d9598a;
+    background: rgba(255, 249, 252, .74);
+    border: 2px solid rgba(242, 169, 198, .55);
+    border-radius: 999px;
+    font-weight: 800;
+    white-space: nowrap;
+    animation: danmaku-drift linear forwards;
+    will-change: transform;
+}
+
+.danmaku-bullet i { font-style: normal; font-size: .72em; opacity: .6; }
+
+@keyframes danmaku-drift {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-1 * var(--stage-width, 100vw) - 100%)); }
 }
 
 .game-title p {
@@ -255,6 +327,7 @@ body {
 
 .menu-controls {
     position: relative;
+    z-index: 1;
     width: min(100% - 28px, 420px);
     padding: 16px;
     color: var(--ink);
@@ -433,11 +506,36 @@ body {
 .segmented button { height: 36px; color: var(--muted); background: transparent; border: 0; border-radius: 999px; font-weight: 800; cursor: pointer; }
 .segmented button.active { color: var(--ink-strong); background: var(--pink-soft); }
 
-.auth-dialog form { display: grid; gap: 12px; margin-top: 16px; }
-.auth-dialog label { display: grid; gap: 6px; color: #bb8ba0; font-size: 11px; font-weight: 800; }
-.auth-dialog input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); background: #fff; border: 2px solid var(--stroke-soft); border-radius: var(--radius-control); outline: none; }
-.auth-dialog input:focus { border-color: var(--pink); box-shadow: 0 0 0 2px rgba(242, 127, 165, .18); }
+.auth-dialog form, .note-dialog form { display: grid; gap: 12px; margin-top: 16px; }
+.auth-dialog label, .note-dialog label { display: grid; gap: 6px; color: #bb8ba0; font-size: 11px; font-weight: 800; }
+.auth-dialog input, .note-dialog input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); background: #fff; border: 2px solid var(--stroke-soft); border-radius: var(--radius-control); outline: none; }
+.auth-dialog input:focus, .note-dialog input:focus { border-color: var(--pink); box-shadow: 0 0 0 2px rgba(242, 127, 165, .18); }
 .form-error { margin: 0; color: #d94f6e; font-size: 11px; }
+.note-hint { margin: 0; color: #bb8ba0; font-size: 11px; }
+
+/* 留言入口：角色面板右上沿的小贴纸按钮 */
+.note-button {
+    position: absolute;
+    top: -15px;
+    right: 12px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 13px;
+    color: var(--pink-strong);
+    background: #fff3f9;
+    border: 2px solid var(--stroke);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: 0 3px 0 rgba(198, 112, 122, .3);
+    transform: rotate(3deg);
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform .2s var(--ease-bounce), background .16s ease;
+}
+.note-button:hover { transform: rotate(0deg) translateY(-2px); background: #ffd9e8; }
 
 .leaderboard-dialog { height: min(590px, calc(100% - 24px)); display: flex; flex-direction: column; }
 .leaderboard-list { flex: 1; min-height: 0; margin-top: 12px; overflow-y: auto; scrollbar-width: thin; }
@@ -469,8 +567,9 @@ body {
 }
 
 @media (max-height: 700px) {
-    .menu-layer { gap: 16px; }
-    .game-title h1 { font-size: 44px; }
+    .menu-layer { gap: 16px; padding-bottom: 8px; }
+    .game-title h1 { font-size: 58px; }
+    .title-buddy { width: 40px; height: 40px; top: -26px; }
     .menu-controls { padding: 11px; }
     .character-choice img { width: 42px; height: 42px; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
@@ -480,18 +579,21 @@ body {
 @media (min-width: 900px) {
     .score-number { font-size: 62px; }
     .result-score { font-size: 84px; }
-    .game-title h1 { font-size: 62px; }
+    .game-title h1 { font-size: 86px; }
+    .title-buddy { width: 56px; height: 56px; top: -38px; }
     .character-choice img { width: 56px; height: 56px; }
     .character-name { font-size: 13px; }
 }
 
-/* 横屏矮窗口（手机横过来、分屏）：进一步压缩纵向占用 */
+/* 横屏矮窗口（手机横过来、分屏）：进一步压缩纵向占用，标题装饰让位 */
 @media (max-height: 520px) {
-    .menu-layer { gap: 10px; }
+    .menu-layer { gap: 10px; padding-bottom: 0; }
     .game-title { gap: 4px; }
-    .game-title h1 { font-size: 30px; }
+    .game-title h1 { font-size: 34px; }
     .game-title p { font-size: 9px; padding: 2px 10px; }
+    .title-decor { display: none; }
     .menu-controls { padding: 8px; }
+    .note-button { top: -12px; padding: 4px 10px; font-size: 11px; }
     .character-choice { padding: 4px 2px 3px; gap: 1px; }
     .character-choice img { width: 30px; height: 30px; }
     .character-name { font-size: 10px; }

@@ -268,6 +268,42 @@ async function main() {
     check('未上榜玩家 me 为空', eveBoard.json?.me === null, eveBoard.json?.me);
     check('匿名访问不返回 me', (await api('/api/game/leaderboards?type=best')).json?.me === null);
 
+    // ---- 弹幕留言板 ----
+    console.log('\n[弹幕留言板]');
+    const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
+
+    const anonPost = await api('/api/game/messages', { method: 'POST', body: { text: `  碗碗加油   ${STAMP} ` } });
+    check(
+        '匿名留言成功：默认署名「路过的碗」且空白被规范化',
+        anonPost.status === 200 && anonPost.json?.author === '路过的碗' && anonPost.json?.text === `碗碗加油 ${STAMP}`,
+        anonPost.json,
+    );
+    await pause();
+    const nickPost = await api('/api/game/messages', { method: 'POST', body: { text: `盆盆冲鸭 ${STAMP}`, nickname: ' 云朵 ' } });
+    check('游客可署短昵称', nickPost.status === 200 && nickPost.json?.author === '云朵', nickPost.json);
+    await pause();
+    const authedPost = await api('/api/game/messages', {
+        method: 'POST', token: adaToken,
+        body: { text: `登录弹幕 ${STAMP}`, nickname: '不该生效' },
+    });
+    check('登录用户自动署用户名（忽略请求昵称）', authedPost.status === 200 && authedPost.json?.author === `ada_${STAMP}`, authedPost.json);
+
+    const emptyMessage = await api('/api/game/messages', { method: 'POST', body: { text: '    ' } });
+    check('拒绝空留言', emptyMessage.status === 400, emptyMessage.json);
+    const longMessage = await api('/api/game/messages', { method: 'POST', body: { text: '好'.repeat(33) } });
+    check('拒绝超过 32 字的留言', longMessage.status === 400, longMessage.json);
+
+    const messageList = await api('/api/game/messages?limit=50');
+    const texts = (messageList.json?.messages || []).map((message) => message.text);
+    check('留言列表公开可读且新留言在前', messageList.status === 200 && texts[0] === `登录弹幕 ${STAMP}`, texts.slice(0, 3));
+    check(
+        '列表包含本轮全部三条留言',
+        [`碗碗加油 ${STAMP}`, `盆盆冲鸭 ${STAMP}`, `登录弹幕 ${STAMP}`].every((expected) => texts.includes(expected)),
+        texts.slice(0, 5),
+    );
+    const limitedList = await api('/api/game/messages?limit=2');
+    check('limit 参数生效', limitedList.json?.messages?.length === 2, limitedList.json?.messages);
+
     console.log(`\n结果：${passed} 通过，${failures.length} 失败`);
     if (failures.length > 0) {
         console.error('失败项：', failures);

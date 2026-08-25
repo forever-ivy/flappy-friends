@@ -84,7 +84,13 @@ function App() {
     }, [screen, overlay, progress]);
 
     useEffect(() => {
-        const onReady = () => EventBus.emit('character:selected', progress.selectedCharacter);
+        const onReady = () => {
+            EventBus.emit('character:selected', progress.selectedCharacter);
+            // 首次加载慢时玩家可能在 Phaser 场景就绪前就按了开始：那次 game:start
+            // 没有任何监听者（Game 场景 create 后才注册），会永久卡在「HUD 显示 0
+            // 但对局不开始」。场景就绪时若已处于对局屏，补发一次开始事件。
+            if (screen === 'playing') EventBus.emit('game:start', { characterId: progress.selectedCharacter });
+        };
         const onScore = (next: ScoreState) => setScore(next);
         const onOver = (run: RunResult) => {
             const next = saveProgress(recordRun(progress, run));
@@ -100,7 +106,7 @@ function App() {
             EventBus.off('score:changed', onScore);
             EventBus.off('game:over', onOver);
         };
-    }, [progress]);
+    }, [progress, screen]);
 
     useEffect(() => {
         if (!player || progress.pendingRuns.length === 0 || syncing) return;
@@ -163,8 +169,11 @@ function App() {
 
             {screen === 'menu' && (
                 <section className="menu-layer" aria-label="开始游戏">
-                    {/* 弹幕层垫底（z-index 0）：留言从标题后方的天空飘过，不挡任何点击 */}
-                    <MenuDanmaku messages={messages} burst={burst} />
+                    {/* 天空弹幕带：flex 撑满标题上方的全部空白，弹幕只在这条带内飘，
+                        结构上不可能压到「飞天碗盆」主标题；带太矮（横屏矮窗）时整带隐藏 */}
+                    <div className="menu-sky" aria-hidden="true">
+                        <MenuDanmaku messages={messages} burst={burst} />
+                    </div>
 
                     {/* 游戏名：加大主名 + 环绕装饰（蝴蝶结/小花/小云朵/星星爱心闪光，不用人形
                         角色贴图）填满上方天空，英文糖果药丸作副线不抢戏 */}
@@ -207,6 +216,9 @@ function App() {
                             <Play size={21} fill="currentColor" />
                         </button>
                     </div>
+
+                    {/* 底部配重：与顶部天空带平分剩余空间，保持标题+面板整体居中构图 */}
+                    <div className="menu-sky-spacer" aria-hidden="true" />
                 </section>
             )}
 
@@ -259,9 +271,10 @@ function App() {
     );
 }
 
-// 菜单弹幕层：留言在上方天空区（≤35% 舞台高）循环飘过。轨道/速度/字号由
-// bulletStyle 按发射序号确定性给出；弹幕池由 buildPool 决定——真实留言全量
-// 优先，不足 6 条才混入服务端种子垫场，离线退回本地欢迎语。
+// 菜单弹幕层：留言在「标题上方的天空带」（.menu-sky）内循环飘过，轨道是带高的
+// 百分比，绝不下探到标题与面板。轨道/速度/字号由 bulletStyle 按发射序号确定性
+// 给出；弹幕池由 buildPool 决定——真实留言全量优先，不足 6 条才混入服务端种子
+// 垫场，离线退回本地欢迎语。
 // 整层 pointer-events:none，只做氛围不挡角色选择与开始按钮；对局中整层不渲染。
 function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null }) {
     const [bullets, setBullets] = useState<{ id: number; text: string; author: string; style: BulletStyle }[]>([]);

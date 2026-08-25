@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
 import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
 import { GAME_HEIGHT } from '../../domain/game';
@@ -13,6 +14,13 @@ export class Preloader extends Scene
 
     init ()
     {
+        // 启动即同步画布显示尺寸给 DOM（并跟随加载期的视口变化，如手机地址栏收起）：
+        // 否则覆盖层/画布 CSS 用 9:16 回退值，加载进度条阶段画布两侧会露出背景渐变色条
+        const syncNow = () => syncStageVars(this.scale.displaySize.width, this.scale.displaySize.height);
+        syncNow();
+        this.scale.on('resize', syncNow);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', syncNow));
+
         // canvas 后备像素 = 逻辑尺寸 × renderScale，相机按同倍率 zoom 还原逻辑坐标系；
         // 取景与 Game 场景一致：可视区底部对齐世界 y=640（竖屏出血加在天空一侧）
         const renderScale = getRenderScale();

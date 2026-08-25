@@ -2,11 +2,11 @@ import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
 import {
     calculateScore, computeGameWidth, computePlayerX, computeStageHeight, createSeededRandom,
-    FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, RunResult,
+    FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRewardKind, RunResult,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, ObstacleVariant, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
-import { computeFootPose, FOOT_FILL, FOOT_OUTLINE, FOOT_SIZE, KICK_DURATION_MS } from '../footKick';
+import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
+import { computeWingPose, FLUTTER_DURATION_MS, WING_FILL, WING_OUTLINE, WING_SIZE } from '../flutter';
 import { getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
@@ -50,12 +50,11 @@ export class Game extends Scene {
     private renderScale = getRenderScale();
     // 角色等比基准 scale（setDisplaySize 72/216 后记录）：扑翼挤压动画必须从它出发并回到它
     private playerBaseScale = CHARACTER_TEXTURE_SIZE / CHARACTER_SPRITE_SIZE;
-    // 扑翼蹬腿：两只小脚是无物理体的装饰图形，姿态由 kick.phase（0→1）驱动（见 footKick.ts）；
+    // 扑腾小翅膀：两片翅膀是无物理体的装饰图形，姿态由 flutter.phase（0→1）驱动（见 flutter.ts）；
     // phase 独立于角色 scale/物理，连按时从 0 重播即可，不影响 #15 的等比基准复位
-    private feet: Phaser.GameObjects.Ellipse[] = [];
-    private kick = { phase: 1 };
-    private kickTween?: Phaser.Tweens.Tween;
-    private lastVariantIndex = -1;
+    private wings: Phaser.GameObjects.Ellipse[] = [];
+    private flutter = { phase: 1 };
+    private flutterTween?: Phaser.Tweens.Tween;
     private lastGapSkewSign = 0;
     private flapKeyHandler = () => this.flap();
     private resizeHandler = () => {
@@ -78,9 +77,9 @@ export class Game extends Scene {
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
 
         this.player = this.physics.add.sprite(computePlayerX(this.logicalWidth()), 300, getCharacter(this.selectedCharacter).textureKey).setDepth(10);
-        // 小脚画在角色身后（depth 9 < 10），蹬腿时从身体下缘探出，收起时完全隐藏
-        this.feet = [0, 1].map(() => this.add.ellipse(0, 0, FOOT_SIZE.width, FOOT_SIZE.height, FOOT_FILL)
-            .setStrokeStyle(2, FOOT_OUTLINE).setDepth(9).setVisible(false));
+        // 小翅膀画在角色身后（depth 9 < 10），扑腾时从背后展开扇动，收拢时完全隐藏
+        this.wings = [0, 1].map(() => this.add.ellipse(0, 0, WING_SIZE.width, WING_SIZE.height, WING_FILL)
+            .setStrokeStyle(2, WING_OUTLINE).setDepth(9).setVisible(false));
         this.player.setCollideWorldBounds(false);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -161,8 +160,8 @@ export class Game extends Scene {
         this.city.tilePositionX += scrollSpeed * 0.18 * seconds;
         this.street.tilePositionX += scrollSpeed * seconds;
         this.driftSparkles(scrollSpeed, seconds);
-        // 每帧同步蹬腿小脚（含 phase='over' 时的收尾淡出），角色移动/俯仰时脚始终贴着身体
-        this.updateFeet();
+        // 每帧同步扑腾小翅膀（含 phase='over' 时的收尾淡出），角色移动/俯仰时翅膀始终贴着身体
+        this.updateWings();
 
         if (this.phase !== 'playing') return;
         const difficulty = getDifficulty(this.currentScore());
@@ -262,13 +261,12 @@ export class Game extends Scene {
         this.lastGapSkewSign = 0;
         this.pipeCount = 0;
         this.rewardCount = 0;
-        this.lastVariantIndex = -1;
         // 连同待机浮动与上一局可能残留的挤压 tween 一起清掉，防止旧 tween 覆盖刚复位的基准 scale
         this.idleTween?.stop();
         this.tweens.killTweensOf(this.player);
-        // 上一局残留的蹬腿也一并收起（phase=1 时小脚完全隐藏）
-        this.kickTween?.stop();
-        this.kick.phase = 1;
+        // 上一局残留的扑腾也一并收拢（phase=1 时翅膀完全隐藏）
+        this.flutterTween?.stop();
+        this.flutter.phase = 1;
         this.player.clearTint().setPosition(computePlayerX(this.logicalWidth()), 300).setAngle(0).setVelocity(0, 0);
         this.applyCharacterBody(this.selectedCharacter);
         this.playerBody().setAllowGravity(false);
@@ -328,30 +326,30 @@ export class Game extends Scene {
             duration: 80,
             yoyo: true,
         });
-        // 蹬腿与挤压并行：kick.phase 是独立目标，连按同样先停旧 tween 再从 0 重播，
-        // 姿态是 phase 的纯函数（footKick.ts），不存在可累积的中间状态
-        this.kickTween?.stop();
-        this.kick.phase = 0;
-        this.kickTween = this.tweens.add({ targets: this.kick, phase: 1, duration: KICK_DURATION_MS });
+        // 扑腾与挤压并行：flutter.phase 是独立目标，连按同样先停旧 tween 再从 0 重播，
+        // 姿态是 phase 的纯函数（flutter.ts），不存在可累积的中间状态
+        this.flutterTween?.stop();
+        this.flutter.phase = 0;
+        this.flutterTween = this.tweens.add({ targets: this.flutter, phase: 1, duration: FLUTTER_DURATION_MS });
     }
 
-    // 按 kick.phase 合成两只小脚的世界坐标：局部姿态随角色当前俯仰角旋转，贴着身体下缘
-    private updateFeet() {
-        const t = this.kick.phase;
+    // 按 flutter.phase 合成两片小翅膀的世界坐标：局部姿态随角色当前俯仰角旋转，贴着背部扇动
+    private updateWings() {
+        const t = this.flutter.phase;
         const active = t > 0 && t < 1;
-        this.feet.forEach((foot, index) => {
-            foot.setVisible(active);
+        this.wings.forEach((wing, index) => {
+            wing.setVisible(active);
             if (!active) return;
-            const pose = computeFootPose(t, index as 0 | 1);
+            const pose = computeWingPose(t, index as 0 | 1);
             const cos = Math.cos(this.player.rotation);
             const sin = Math.sin(this.player.rotation);
-            foot.setPosition(
+            wing.setPosition(
                 this.player.x + pose.x * cos - pose.y * sin,
                 this.player.y + pose.x * sin + pose.y * cos,
             );
-            foot.setRotation(this.player.rotation + pose.rotation);
-            foot.setAlpha(pose.alpha);
-            foot.setScale(pose.scale);
+            wing.setRotation(this.player.rotation + pose.rotation);
+            wing.setAlpha(pose.alpha);
+            wing.setScale(pose.scale);
         });
     }
 
@@ -370,7 +368,8 @@ export class Game extends Scene {
         const centerBase = topLimit + this.random() * (bottomLimit - topLimit);
         const center = Phaser.Math.Clamp(centerBase, topLimit + gapSkew, bottomLimit + gapSkew);
         const obstacleHeight = 480;
-        const variant = this.pickObstacleVariant();
+        // 障碍统一樱花粉（清单仅剩 classic 一种，见 assets.ts）
+        const variant = OBSTACLE_VARIANTS[0];
         const topY = center - gap / 2 - gapSkew - obstacleHeight / 2;
         const bottomY = center + gap / 2 - gapSkew + obstacleHeight / 2;
 
@@ -378,18 +377,19 @@ export class Game extends Scene {
         const bottom = this.createObstacle(x, bottomY, variant.bottomKey);
         const pair: ObstaclePair = { top, bottom, scored: false };
 
-        // 轻微粉彩粒子/光晕（色调跟随变体配色）：只增强视觉，不改碰撞与计分。
+        // 轻微粉彩粒子/光晕（樱花粉）：只增强视觉，不改碰撞与计分。
         const topEdgeY = topY + obstacleHeight / 2;
         const bottomEdgeY = bottomY - obstacleHeight / 2;
-        this.spawnObstacleGlow(x, topEdgeY, true, variant);
-        this.spawnObstacleGlow(x, bottomEdgeY, false, variant);
+        this.spawnObstacleGlow(x, topEdgeY, true);
+        this.spawnObstacleGlow(x, bottomEdgeY, false);
 
         if (shouldSpawnReward(this.random())) {
             const safeOffset = Math.min(42, gap / 2 - 30);
             // 奖励需要落在“缺口中线”附近；中线随 gapSkew 一起偏移。
             const rewardY = (center - gapSkew) + (this.random() * 2 - 1) * safeOffset;
-            // 叉子与镜子两种奖励贴图交替出现（仅视觉差异，碰撞与计分一致）
-            const rewardTexture = this.pairs.length % 2 === 0 ? 'reward' : 'reward-mirror';
+            // 两种奖励概率不同：主奖励蝴蝶结叉子 70%，稀有款蝴蝶结镜子 30%
+            // （见 domain/game.ts 的 pickRewardKind；仅贴图差异，碰撞与计分一致）
+            const rewardTexture = pickRewardKind(this.random()) === 'mirror' ? 'reward-mirror' : 'reward';
             // 高清位图（144²）缩到逻辑 48² 显示；Arcade Body 随缩放同步收缩，世界坐标碰撞体仍是 48×48
             const reward = this.physics.add.image(x + 4, rewardY, rewardTexture).setDepth(7)
                 .setDisplaySize(REWARD_TEXTURE_SIZE, REWARD_TEXTURE_SIZE);
@@ -402,16 +402,6 @@ export class Game extends Scene {
         this.pairs.push(pair);
     }
 
-    // 障碍多样性：按种子随机选变体（可复现），且相邻两对强制不同色增强变化感
-    private pickObstacleVariant(): ObstacleVariant {
-        let index = Math.floor(this.random() * OBSTACLE_VARIANTS.length) % OBSTACLE_VARIANTS.length;
-        if (OBSTACLE_VARIANTS.length > 1 && index === this.lastVariantIndex) {
-            index = (index + 1) % OBSTACLE_VARIANTS.length;
-        }
-        this.lastVariantIndex = index;
-        return OBSTACLE_VARIANTS[index];
-    }
-
     private createObstacle(x: number, y: number, textureKey: string): Phaser.Physics.Arcade.Image {
         // 顶柱与底柱是两张独立贴图（柱身竖排文字不能翻转），所有变体碰撞体参数完全一致
         const obstacle = this.physics.add.image(x, y, textureKey).setDepth(6);
@@ -422,10 +412,9 @@ export class Game extends Scene {
         return obstacle;
     }
 
-    private spawnObstacleGlow(x: number, y: number, flip: boolean, variant: ObstacleVariant) {
-        // 光晕色跟随变体粉彩配色（樱花粉 / 薰衣草 / 晴空蓝 / 蜜桃橘）
-        const glowTints: Record<string, number> = { classic: 0xffb3e1, wish: 0xd9c8ff, rain: 0xbcd9ff, aim: 0xffd0b3 };
-        const c0 = glowTints[variant.id] ?? 0xffb3e1;
+    private spawnObstacleGlow(x: number, y: number, flip: boolean) {
+        // 光晕固定樱花粉，与统一的粉色柱身呼应
+        const c0 = 0xffb3e1;
         const c1 = 0xffffff;
         const dir = flip ? -1 : 1;
 
@@ -491,9 +480,9 @@ export class Game extends Scene {
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
         this.player.setVelocity(0, 0).setTint(0xff97a6);
-        // 定格瞬间立刻收脚，避免小脚悬在被定住的角色下方
-        this.kickTween?.stop();
-        this.kick.phase = 1;
+        // 定格瞬间立刻收拢翅膀，避免翅膀悬在被定住的角色身后
+        this.flutterTween?.stop();
+        this.flutter.phase = 1;
         this.pairs.forEach((pair) => {
             pair.top.setVelocityX(0);
             pair.bottom.setVelocityX(0);

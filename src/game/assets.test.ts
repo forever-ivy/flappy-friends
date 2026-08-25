@@ -88,8 +88,10 @@ function facingMargin(relativePath: string): number {
 }
 
 describe('obstacle variants manifest', () => {
-    it('provides at least four pastel variants', () => {
-        expect(OBSTACLE_VARIANTS.length).toBeGreaterThanOrEqual(4);
+    it('ships only the cherry-blossom pink variant (all pillars pink)', () => {
+        expect(OBSTACLE_VARIANTS).toHaveLength(1);
+        expect(OBSTACLE_VARIANTS[0].id).toBe('classic');
+        expect(OBSTACLE_VARIANTS[0].palette).toBe('樱花粉');
     });
 
     it('has unique ids and texture keys', () => {
@@ -124,11 +126,22 @@ describe('game assets manifest', () => {
     });
 
     it('ships the background music at the committed public path with a soft volume', () => {
-        // BGM_SRC 相对 public/ 根（与 Phaser setPath('assets') 同层级），文件已入库不可缺失
-        expect(statSync(join(ASSET_ROOT, '..', BGM_SRC)).size).toBeGreaterThan(1024 * 1024);
+        // BGM_SRC 相对 public/ 根（与 Phaser setPath('assets') 同层级），文件已入库不可缺失；
+        // 上限 8MB：锁定「纯音频」瘦身成果（原文件是 17MB 的 MP4 视频容器，拖慢首次出声）
+        const size = statSync(join(ASSET_ROOT, '..', BGM_SRC)).size;
+        expect(size).toBeGreaterThan(1024 * 1024);
+        expect(size).toBeLessThan(8 * 1024 * 1024);
         expect(BGM_SRC.endsWith('.mp3')).toBe(true);
         expect(BGM_VOLUME).toBeGreaterThan(0);
         expect(BGM_VOLUME).toBeLessThanOrEqual(0.5);
+    });
+
+    it('ships the background music as a real MP3 stream (not a video container)', () => {
+        // ID3 标签或 MPEG 帧同步字（0xFFEx）开头才是真 MP3；MP4 容器（ftyp）会拖慢流式起播
+        const head = readFileSync(join(ASSET_ROOT, '..', BGM_SRC)).subarray(0, 3);
+        const isId3 = head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33;
+        const isFrameSync = head[0] === 0xff && (head[1] & 0xe0) === 0xe0;
+        expect(isId3 || isFrameSync).toBe(true);
     });
 
     it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical 72)', () => {

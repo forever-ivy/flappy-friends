@@ -70,8 +70,10 @@ describe('background music', () => {
 
         fakeWindow.emit('pointerdown');
         expect(audio.playing).toBe(true);
-        // 首次播放淡入：2 秒后升到目标音量（轻柔，不超过 0.5）
-        vi.advanceTimersByTime(2100);
+        // 短淡入（0.8s）：音乐在菜单首次交互后很快可闻，不再等 2 秒
+        vi.advanceTimersByTime(400);
+        expect(audio.volume).toBeGreaterThan(0);
+        vi.advanceTimersByTime(500);
         expect(audio.volume).toBeCloseTo(BGM_VOLUME);
     });
 

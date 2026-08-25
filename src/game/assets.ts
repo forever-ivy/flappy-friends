@@ -58,14 +58,17 @@ export const GAME_ASSETS = {
     sparkle: 'game/fx-sparkle.png',
 } as const;
 
-// 背景音乐（public/assets/bgm.mp3，17MB 流式播放不走 Phaser Loader）；
-// 由 src/game/bgm.ts 用 HTMLAudioElement 循环播放，与音效共用同一个静音开关
+// 背景音乐（public/assets/bgm.mp3，约 5MB 流式播放不走 Phaser Loader）；
+// 由 src/game/bgm.ts 用 HTMLAudioElement 循环播放，与音效共用同一个静音开关。
+// 文件已裁剪为纯音频 MP3（原文件是 17MB 的 MP4 视频容器，且开头 1.44s /
+// 结尾 8.3s 是静音）：现在从第一声旋律开始、结尾 2s 淡出，loop 回绕无静音空洞
 export const BGM_SRC = 'assets/bgm.mp3';
-// 轻柔偏低的音量，贴合少女梦幻氛围（1 为原始响度）
-export const BGM_VOLUME = 0.3;
+// 轻柔但可感的音量，贴合可爱梦幻氛围（1 为原始响度）
+export const BGM_VOLUME = 0.4;
 
-// 障碍变体清单：每个变体是一对底柱 / 顶柱贴图（柱身竖排文字不同，不能翻转复用），
-// 生成时按种子随机选取且相邻两对不重复；物理体参数全部一致（改这里只影响视觉）
+// 障碍变体清单：每个变体是一对底柱 / 顶柱贴图（柱身竖排文字不同，不能翻转复用）。
+// 玩法上统一只用樱花粉（用户要求全部粉色），不再轮换薰衣草/晴空蓝/蜜桃橘；
+// 物理体参数与贴图尺寸约定不变（改这里只影响视觉）
 export interface ObstacleVariant {
     id: string;
     palette: string;
@@ -77,9 +80,6 @@ export interface ObstacleVariant {
 
 export const OBSTACLE_VARIANTS: readonly ObstacleVariant[] = [
     { id: 'classic', palette: '樱花粉', bottomKey: 'obstacle', bottomImage: 'game/obstacle.png', topKey: 'obstacle-top', topImage: 'game/obstacle-top.png' },
-    { id: 'wish', palette: '薰衣草', bottomKey: 'obstacle-wish', bottomImage: 'game/obstacle-wish.png', topKey: 'obstacle-wish-top', topImage: 'game/obstacle-wish-top.png' },
-    { id: 'rain', palette: '晴空蓝', bottomKey: 'obstacle-rain', bottomImage: 'game/obstacle-rain.png', topKey: 'obstacle-rain-top', topImage: 'game/obstacle-rain-top.png' },
-    { id: 'aim', palette: '蜜桃橘', bottomKey: 'obstacle-aim', bottomImage: 'game/obstacle-aim.png', topKey: 'obstacle-aim-top', topImage: 'game/obstacle-aim-top.png' },
 ];
 
 // 音效清单：当前用 WebAudio 合成，替换真实音频文件时只需改这里与 sfx.ts 的实现

@@ -243,7 +243,6 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
                     {error && <p className="form-error" role="alert">{error}</p>}
                     <button className="primary-button" disabled={busy}>{busy ? '请稍候…' : '登录'}</button>
                 </form>
-                <p className="auth-note">用户名别和别人重名就行，密码随便设。首次登录自动建号，不收集邮箱、没有密码找回。</p>
             </section>
         </div>
     );

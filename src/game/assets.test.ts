@@ -2,7 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { BGM_SRC, BGM_VOLUME, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
+import { BGM_SRC, BGM_VOLUME, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, GAME_TITLE, GAME_TITLE_EN, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -168,10 +168,24 @@ describe('character roster', () => {
         expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
     });
 
+    // 品牌命名：菜单角色轨从左到右为 碗碗（nova）/ 盆盆（moss），卡片与无障碍标签都展示该名字
+    it('names the roster 碗碗 (left) and 盆盆 (right)', () => {
+        expect(CHARACTERS.map((character) => character.name)).toEqual(['碗碗', '盆盆']);
+        expect(getCharacter('nova').name).toBe('碗碗');
+        expect(getCharacter('moss').name).toBe('盆盆');
+    });
+
     it('falls back to nova for retired ids (sol / violet) from old saves or the backend', () => {
         expect(getCharacter('moss').id).toBe('moss');
         expect(getCharacter('sol').id).toBe('nova');
         expect(getCharacter('violet').id).toBe('nova');
         expect(getCharacter('unknown').id).toBe('nova');
+    });
+});
+
+describe('branding', () => {
+    it('pairs the Chinese main title with the English subtitle', () => {
+        expect(GAME_TITLE).toBe('飞天碗盆');
+        expect(GAME_TITLE_EN).toBe('Flying Wanpen');
     });
 });

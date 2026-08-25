@@ -88,8 +88,9 @@ function facingMargin(relativePath: string): number {
 }
 
 describe('obstacle variants manifest', () => {
-    it('provides at least four pastel variants', () => {
-        expect(OBSTACLE_VARIANTS.length).toBeGreaterThanOrEqual(4);
+    it('uses only the sakura-pink classic pillars', () => {
+        expect(OBSTACLE_VARIANTS.map((variant) => variant.id)).toEqual(['classic']);
+        expect(OBSTACLE_VARIANTS.map((variant) => variant.palette)).toEqual(['樱花粉']);
     });
 
     it('has unique ids and texture keys', () => {

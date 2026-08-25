@@ -51,6 +51,7 @@ Put the service behind the existing Nginx/Caddy HTTPS reverse proxy. Keep the `p
 - 35% 的障碍柱之间会出现可收集奖励，每个 5 分。
 - 达到 10、25、50 分时滚动速度加快、缺口收窄。
 - 最高分与累计分是两个独立的排行榜。
+- 账号规则宽松：用户名不与他人重复即可（1–24 个字符，中文、空格、符号都行），密码最短 1 位、不设复杂度要求。
 - 账户不收集邮箱，因此有意不提供密码找回。
 
 ## Art Assets

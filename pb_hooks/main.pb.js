@@ -6,10 +6,14 @@
 onRecordCreateRequest((e) => {
     const shared = require(`${__hooks}/shared.js`);
     const username = e.record.getString("username");
-    if (!shared.USERNAME_PATTERN.test(username)) throw new BadRequestError("Invalid username");
-    // Auth collections retain an internal email field; generate a non-delivery address
-    // so the player never has to provide or verify email.
-    if (e.record.getString("email") == "") e.record.set("email", username.toLowerCase() + "@local.invalid");
+    if (!shared.isValidUsername(username)) throw new BadRequestError("Invalid username");
+    // Auth collections retain an internal email field; generate a random non-delivery
+    // address so the player never provides or verifies email. Random (instead of
+    // username-derived) because relaxed usernames may contain spaces/symbols that
+    // would break the email format.
+    if (e.record.getString("email") == "") {
+        e.record.set("email", "player-" + $security.randomStringWithAlphabet(16, "abcdefghijklmnopqrstuvwxyz0123456789") + "@local.invalid");
+    }
     e.record.set("bestScore", 0);
     e.record.set("totalScore", 0);
     e.record.set("gamesPlayed", 0);

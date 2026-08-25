@@ -1,5 +1,6 @@
 // PocketBase 后端集成测试：针对真实运行的服务验证注册登录、无邮箱认证、
-// 成绩事务更新、重复提交幂等、防篡改、双榜排序与个人名次。
+// 宽松账号规则（用户名不重复即可、密码最短 1 位）、成绩事务更新、
+// 重复提交幂等、防篡改、双榜排序与个人名次。
 //
 // 用法：先启动服务（本地二进制或 docker compose），然后
 //   PB_URL=http://127.0.0.1:8090 npm run test:backend
@@ -88,19 +89,31 @@ async function main() {
     const adaToken = ada.auth.json?.token;
     const adaId = ada.auth.json?.record?.id;
 
-    const badUsernames = [`x_${STAMP}`.slice(0, 2), `has space ${STAMP}`, `way-too-long-username-${STAMP}-overflow`];
+    // 宽松规则：唯一硬规则是用户名不与他人重复。1 个字符的用户名 + 1 位密码
+    // 即可建号，中文与内部空格也合法。（1 字符用户名按时间取汉字，避免多次运行撞名）
+    const tiny = await registerPlayer('tiny', {
+        username: String.fromCharCode(0x4e00 + (Date.now() % 20000)),
+        password: '1',
+    });
+    check('1 字符用户名 + 1 位密码可注册', tiny.created.status === 200, tiny.created);
+    check('1 位密码可正常登录', tiny.auth.status === 200 && !!tiny.auth.json?.token, tiny.auth);
+    const casual = await registerPlayer('casual', { username: `碗碗 与 盆盆 ${STAMP}` });
+    check('中文与内部空格用户名可注册登录', casual.created.status === 200 && casual.auth.status === 200, casual.created);
+
+    // 仍然拒绝的仅剩最基础的输入问题：空、首尾空格、超过 24 个字符
+    const badUsernames = ['', `  padded_${STAMP}  `, `way-too-long-username-${STAMP}-overflow`];
     for (const username of badUsernames) {
         const result = await api('/api/collections/players/records', {
             method: 'POST',
             body: { username, password: 'password-123', passwordConfirm: 'password-123' },
         });
-        check(`拒绝非法用户名 "${username.slice(0, 14)}…"`, result.status === 400, result.json);
+        check(`拒绝非法用户名 ${JSON.stringify(username.slice(0, 16))}`, result.status === 400, result.json);
     }
-    const shortPassword = await api('/api/collections/players/records', {
+    const emptyPassword = await api('/api/collections/players/records', {
         method: 'POST',
-        body: { username: `shortpw_${STAMP}`, password: 'short', passwordConfirm: 'short' },
+        body: { username: `nopw_${STAMP}`, password: '', passwordConfirm: '' },
     });
-    check('拒绝过短密码（<8 位）', shortPassword.status === 400, shortPassword.json);
+    check('拒绝空密码', emptyPassword.status === 400, emptyPassword.json);
 
     const duplicate = await api('/api/collections/players/records', {
         method: 'POST',

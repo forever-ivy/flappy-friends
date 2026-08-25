@@ -7,6 +7,7 @@ import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
 import { currentPlayer, enter, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, signOut, syncRuns, updateCharacter } from './services/api';
+import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
 import { loadProgress, Progress, recordRun, removeSyncedRuns, saveProgress, selectCharacter } from './state/progress';
 
 type Screen = 'menu' | 'playing' | 'gameover';
@@ -212,20 +213,19 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
         setError('');
-        // 登录即注册：任何提交都可能触发自动建号，因此用户名始终按注册规则校验
-        if (!/^[A-Za-z0-9_\-\u4E00-\u9FFF]{3,16}$/.test(username)) {
-            setError('用户名需为 3–16 位中英文、数字、_ 或 -');
-            return;
-        }
-        if (password.length < 8 || password.length > 72) {
-            setError('密码需为 8–72 位');
+        // 宽松规则：唯一的硬规则是用户名不与他人重复（由服务端唯一索引兜底），
+        // 前端只做非空与超长这类最基础检查，密码不设长度与复杂度要求。
+        const name = normalizeUsername(username);
+        const invalid = validateCredentials(name, password);
+        if (invalid) {
+            setError(invalid);
             return;
         }
         setBusy(true);
         try {
-            onSuccess(await enter(username, password, characterId));
+            onSuccess(await enter(name, password, characterId));
         } catch (submitError) {
-            setError(submitError instanceof PasswordMismatchError ? '密码不正确，请重试' : '登录失败，请稍后再试');
+            setError(submitError instanceof PasswordMismatchError ? '这个用户名已被别人占用（或密码输错了），换个名字或输入正确密码' : '登录失败，请稍后再试');
         } finally {
             setBusy(false);
         }
@@ -238,12 +238,12 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
                 <p className="eyebrow">保存游戏进度</p>
                 <h2 id="auth-title">登录</h2>
                 <form onSubmit={submit}>
-                    <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={16} /></label>
-                    <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={72} /></label>
+                    <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={USERNAME_MAX} /></label>
+                    <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={PASSWORD_MAX} /></label>
                     {error && <p className="form-error" role="alert">{error}</p>}
                     <button className="primary-button" disabled={busy}>{busy ? '请稍候…' : '登录'}</button>
                 </form>
-                <p className="auth-note">新用户名首次登录即自动创建账号。不收集邮箱，也不提供密码找回。</p>
+                <p className="auth-note">用户名别和别人重名就行，密码随便设。首次登录自动建号，不收集邮箱、没有密码找回。</p>
             </section>
         </div>
     );

@@ -32,11 +32,42 @@ export function pickRewardKind(randomValue: number): RewardKind {
 // 同时覆盖两类放大源：高 DPR 屏（dpr≥2）与桌面大窗口（640 逻辑高被 CSS 拉伸到 ~1000px）。
 export const MAX_RENDER_SCALE = 3;
 
-export function computeRenderScale(devicePixelRatio: number, viewportHeight: number): number {
+// 设备能力线索（全部来自只读的 navigator/matchMedia，取不到时留空）
+export interface DeviceHints {
+    coarsePointer: boolean;
+    deviceMemory?: number;
+    hardwareConcurrency?: number;
+}
+
+// 渲染倍率上限按设备收敛（手机掉帧的主因是超采样后备像素过大）：
+// - 桌面（细指针）：3，Retina 大窗口仍锐利；
+// - 移动端（粗指针）：2 —— DPR3 手机若放开到 3x，后备像素达 1080×2400（约 260 万），
+//   中低端 GPU 明显掉帧；2x 已消除大部分糊化且像素量降到约 44%；
+// - 明确弱机（内存 ≤2GB 或逻辑核 ≤3）：1，流畅优先。
+export function computeRenderScaleCap(hints: DeviceHints): number {
+    const memory = hints.deviceMemory;
+    const cores = hints.hardwareConcurrency;
+    const weak = (typeof memory === 'number' && memory > 0 && memory <= 2)
+        || (typeof cores === 'number' && cores > 0 && cores <= 3);
+    if (weak) return 1;
+    if (hints.coarsePointer) return 2;
+    return MAX_RENDER_SCALE;
+}
+
+// 特效档位：移动端与弱机走 lite（减星光数量、去障碍缺口闪点、弹幕降密），
+// 桌面 full 保持原有观感。判定与渲染倍率上限共用同一套设备线索。
+export type EffectQuality = 'full' | 'lite';
+
+export function computeEffectQuality(hints: DeviceHints): EffectQuality {
+    return computeRenderScaleCap(hints) < MAX_RENDER_SCALE ? 'lite' : 'full';
+}
+
+export function computeRenderScale(devicePixelRatio: number, viewportHeight: number, cap = MAX_RENDER_SCALE): number {
     const dpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
     const cssHeight = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : GAME_HEIGHT;
+    const safeCap = Number.isFinite(cap) ? Math.min(MAX_RENDER_SCALE, Math.max(1, cap)) : MAX_RENDER_SCALE;
     const devicePixelHeight = cssHeight * dpr;
-    return Math.min(MAX_RENDER_SCALE, Math.max(1, Math.ceil(devicePixelHeight / GAME_HEIGHT)));
+    return Math.min(safeCap, Math.max(1, Math.ceil(devicePixelHeight / GAME_HEIGHT)));
 }
 
 export function computeGameWidth(viewportWidth: number, viewportHeight: number): number {
@@ -87,6 +118,30 @@ export interface RunResult {
     totalScore: number;
     durationMs: number;
     createdAt: string;
+}
+
+// crypto.randomUUID 只存在于安全上下文（HTTPS / localhost）。线上以 http://IP 访问时
+// 它是 undefined，直接调用会在碰撞回调里抛 TypeError，打断 Phaser 帧循环且
+// game:over 永远发不出去——表现为“死亡后卡死在对局画面，不出结算”。
+// 这里按可用性降级：randomUUID → getRandomValues 手组 UUIDv4 → Math.random 兜底。
+interface CryptoLike {
+    randomUUID?: () => string;
+    getRandomValues?: <T extends ArrayBufferView>(array: T) => T;
+}
+
+export function createRunId(cryptoLike: CryptoLike | undefined = globalThis.crypto): string {
+    if (typeof cryptoLike?.randomUUID === 'function') return cryptoLike.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (typeof cryptoLike?.getRandomValues === 'function') {
+        cryptoLike.getRandomValues(bytes);
+    } else {
+        for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    }
+    // RFC 4122 v4 的版本位与 variant 位，输出格式与 crypto.randomUUID 一致
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 export function calculateScore(pipeCount: number, rewardCount: number): number {

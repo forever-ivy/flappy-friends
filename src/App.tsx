@@ -5,6 +5,7 @@ import { RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
+import { getEffectQuality } from './game/renderScale';
 import { isSfxMuted, setSfxMuted } from './game/sfx';
 import { currentPlayer, DanmakuMessage, enter, getDanmaku, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, postDanmaku, signOut, syncRuns, updateCharacter } from './services/api';
 import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
@@ -84,13 +85,26 @@ function App() {
     }, [screen, overlay, progress]);
 
     useEffect(() => {
-        const onReady = () => EventBus.emit('character:selected', progress.selectedCharacter);
+        const onReady = () => {
+            EventBus.emit('character:selected', progress.selectedCharacter);
+            // 首次加载慢时玩家可能在 Phaser 场景就绪前就按了开始：那次 game:start
+            // 没有任何监听者（Game 场景 create 后才注册），会永久卡在「HUD 显示 0
+            // 但对局不开始」。场景就绪时若已处于对局屏，补发一次开始事件。
+            if (screen === 'playing') EventBus.emit('game:start', { characterId: progress.selectedCharacter });
+        };
         const onScore = (next: ScoreState) => setScore(next);
         const onOver = (run: RunResult) => {
-            const next = saveProgress(recordRun(progress, run));
+            const next = recordRun(progress, run);
             setProgress(next);
             setLastRun(run);
             setScreen('gameover');
+            // 持久化放最后并兜底：隐私模式禁写 localStorage / 配额满时只丢存档，
+            // 绝不阻断结算面板展示（死亡必出结算）
+            try {
+                saveProgress(next);
+            } catch {
+                // 忽略：进度同步仍可在登录后走 pendingRuns 内存态
+            }
         };
         EventBus.on('game:ready', onReady);
         EventBus.on('score:changed', onScore);
@@ -100,7 +114,7 @@ function App() {
             EventBus.off('score:changed', onScore);
             EventBus.off('game:over', onOver);
         };
-    }, [progress]);
+    }, [progress, screen]);
 
     useEffect(() => {
         if (!player || progress.pendingRuns.length === 0 || syncing) return;
@@ -163,8 +177,11 @@ function App() {
 
             {screen === 'menu' && (
                 <section className="menu-layer" aria-label="开始游戏">
-                    {/* 弹幕层垫底（z-index 0）：留言从标题后方的天空飘过，不挡任何点击 */}
-                    <MenuDanmaku messages={messages} burst={burst} />
+                    {/* 天空弹幕带：flex 撑满标题上方的全部空白，弹幕只在这条带内飘，
+                        结构上不可能压到「飞天碗盆」主标题；带太矮（横屏矮窗）时整带隐藏 */}
+                    <div className="menu-sky" aria-hidden="true">
+                        <MenuDanmaku messages={messages} burst={burst} />
+                    </div>
 
                     {/* 游戏名：加大主名 + 环绕装饰（蝴蝶结/小花/小云朵/星星爱心闪光，不用人形
                         角色贴图）填满上方天空，英文糖果药丸作副线不抢戏 */}
@@ -207,6 +224,9 @@ function App() {
                             <Play size={21} fill="currentColor" />
                         </button>
                     </div>
+
+                    {/* 底部配重：与顶部天空带平分剩余空间，保持标题+面板整体居中构图 */}
+                    <div className="menu-sky-spacer" aria-hidden="true" />
                 </section>
             )}
 
@@ -259,10 +279,16 @@ function App() {
     );
 }
 
-// 菜单弹幕层：留言在上方天空区（≤35% 舞台高）循环飘过。轨道/速度/字号由
-// bulletStyle 按发射序号确定性给出；弹幕池由 buildPool 决定——真实留言全量
-// 优先，不足 6 条才混入服务端种子垫场，离线退回本地欢迎语。
+// 菜单弹幕层：留言在「标题上方的天空带」（.menu-sky）内循环飘过，轨道是带高的
+// 百分比，绝不下探到标题与面板。轨道/速度/字号由 bulletStyle 按发射序号确定性
+// 给出；弹幕池由 buildPool 决定——真实留言全量优先，不足 6 条才混入服务端种子
+// 垫场，离线退回本地欢迎语。
 // 整层 pointer-events:none，只做氛围不挡角色选择与开始按钮；对局中整层不渲染。
+// 弹幕密度按设备档位（加载时定一次）：移动端/弱机 lite 档同屏更少、发射更疏，
+// 减少菜单里持续做 transform 动画的 DOM 数量
+const DANMAKU_MAX_ON_SCREEN = getEffectQuality() === 'lite' ? 6 : 9;
+const DANMAKU_INTERVAL_MS = getEffectQuality() === 'lite' ? 2600 : 1800;
+
 function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null }) {
     const [bullets, setBullets] = useState<{ id: number; text: string; author: string; style: BulletStyle }[]>([]);
     const counter = useRef(0);
@@ -276,11 +302,11 @@ function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: D
             const message = list[cursor.current % list.length];
             cursor.current += 1;
             const id = (counter.current += 1);
-            // 同屏最多 9 条，防止长留言列表下弹幕过密
-            setBullets((current) => (current.length >= 9 ? current : [...current, { id, ...message, style: bulletStyle(id) }]));
+            // 同屏上限防止长留言列表下弹幕过密（lite 档 6 条 / full 档 9 条）
+            setBullets((current) => (current.length >= DANMAKU_MAX_ON_SCREEN ? current : [...current, { id, ...message, style: bulletStyle(id) }]));
         };
         emit();
-        const timer = setInterval(emit, 1800);
+        const timer = setInterval(emit, DANMAKU_INTERVAL_MS);
         return () => clearInterval(timer);
     }, []);
 

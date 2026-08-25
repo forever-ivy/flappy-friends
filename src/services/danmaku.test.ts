@@ -60,12 +60,12 @@ describe('bulletStyle（弹幕轨道/速度/字号确定性取样）', () => {
         expect(bulletStyle(7)).toEqual(bulletStyle(7));
     });
 
-    it('连续 5 发落在 5 条不同轨道，轨道都在上方天空区（≤35%）', () => {
+    it('连续 5 发落在 5 条不同轨道，轨道都在天空带内（≤70%，弹幕不穿标题）', () => {
         const tops = [0, 1, 2, 3, 4].map((index) => bulletStyle(index).top);
         expect(new Set(tops).size).toBe(5);
         tops.forEach((top) => {
             expect(top).toBeGreaterThan(0);
-            expect(top).toBeLessThanOrEqual(35);
+            expect(top).toBeLessThanOrEqual(70);
         });
     });
 

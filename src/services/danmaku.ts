@@ -49,9 +49,11 @@ export function buildPool(messages: readonly PoolMessage[]): { text: string; aut
     return pool.map(({ text, author }) => ({ text, author }));
 }
 
-// 弹幕轨道：停留在菜单上方的天空区（相对舞台高度的百分比），
-// 不下探到角色面板与开始按钮，可爱但不挡操作
-const LANES = [8, 14, 20, 26, 32] as const;
+// 弹幕轨道：百分比相对「标题上方的天空带」（App 的 .menu-sky，由 flex 撑出
+// 标题以上的全部空白）而非整个舞台——弹幕结构上只会在标题上方飘，
+// 不可能穿过「飞天碗盆」主标题或下方面板。最低轨 70% 保证弹幕药丸
+// （约 28px 高）在常见带高下完整落在带内，不探进标题装饰区
+const LANES = [6, 22, 38, 54, 70] as const;
 const DURATIONS = [12, 15.5, 9.5] as const;       // 三档速度（横穿一屏的秒数）
 const FONT_SIZES = [13, 15, 12] as const;         // 三档字号（px）
 const OPACITIES = [0.85, 0.62, 0.94, 0.72] as const;

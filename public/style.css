@@ -168,7 +168,8 @@ body {
 }
 
 /* 游戏名：主名白字粉描边（与计分/倒计时同一手绘字风格），英文副线做成糖果药丸贴纸；
-   z-index 抬到弹幕层（z 0）之上，留言从标题后方飘过 */
+   弹幕已被限制在上方天空带内，z-index 1 仅保证探出标题顶部的装饰件
+   （蝴蝶结/小花）在与天空带交界处仍压在弹幕之上 */
 .game-title {
     position: relative;
     z-index: 1;
@@ -245,7 +246,20 @@ body {
     50% { opacity: 1; transform: scale(1.12) rotate(8deg); }
 }
 
-/* 弹幕留言：在菜单上方天空区（top ≤35%）从右缘飘入、穿出左缘后由 React 移除；
+/* 天空弹幕带：flex 吃掉标题上方的全部空白（与底部 spacer 平分剩余空间，
+   标题+面板仍整体居中）。弹幕只在这条带内飘，结构上不可能压到主标题；
+   开启尺寸容器查询，带太矮时（横屏矮窗、极小视口）整带弹幕隐藏 */
+.menu-sky {
+    position: relative;
+    align-self: stretch;
+    flex: 1 1 0;
+    min-height: 0;
+    container-type: size;
+}
+
+.menu-sky-spacer { flex: 1 1 0; }
+
+/* 弹幕留言：在天空带内从右缘飘入、穿出左缘后由 React 移除；
    整层不可交互，速度/轨道/字号由 services/danmaku.ts 确定性给出 */
 .danmaku-layer {
     position: absolute;
@@ -253,6 +267,11 @@ body {
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
+}
+
+/* 天空带矮于一条完整弹幕轨道的可读高度时不再显示弹幕（避免贴着标题挤成一团） */
+@container (max-height: 96px) {
+    .danmaku-bullet { display: none; }
 }
 
 .danmaku-bullet {

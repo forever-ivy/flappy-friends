@@ -106,6 +106,18 @@
 
 当前为 WebAudio 合成（无文件），参数在清单 `SFX_CUES`（`src/game/assets.ts`）：`flap` 上滑短音、`score` 高频哔、`reward` 双音上行、`hit` 下坠噪声。替换为真实音频时只需改 `src/game/sfx.ts` 的实现，游戏代码与清单键名不变。
 
+## 背景音乐（BGM）
+
+文件：`public/assets/bgm.mp3`（约 17MB，已入库，勿重复提交）。清单常量：`BGM_SRC`（路径，相对 `public/`）与 `BGM_VOLUME`（0.3，轻柔偏低贴合梦幻氛围），实现见 `src/game/bgm.ts`：
+
+- **加载**：HTMLAudioElement 流式播放，不走 Phaser Loader（不阻塞资源进度条，不整段解码进内存）。
+- **循环**：`loop = true` 无缝循环；首次播放做 2s 音量淡入。
+- **autoplay 策略**：页面加载后保持静默，首次用户交互（点击 / 触屏 / 按键）后才开始播放；被浏览器拒绝时静默等待下一次交互。
+- **静音联动**：与音效共用同一个持久化静音开关（`isSfxMuted` / 顶栏音量按钮 / localStorage `skyline-hop-muted-v1`），开关变化通过 `sfx.ts` 的 `onMuteChange` 订阅同步暂停/恢复。
+- **前后台**：`visibilitychange` 切后台自动暂停，回前台且未静音时继续。
+
+替换 BGM 只需覆盖 `public/assets/bgm.mp3`，或改清单里的 `BGM_SRC` / `BGM_VOLUME`；播放逻辑不用动。
+
 ## 替换流程
 
 1. 新文件与旧文件**同名同逻辑尺寸**，直接覆盖 `public/assets/game/` 下对应文件；或

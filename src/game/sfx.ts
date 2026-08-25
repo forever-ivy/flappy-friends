@@ -50,6 +50,16 @@ export function isSfxMuted(): boolean {
     return muted;
 }
 
+// 静音开关是全局音频开关（音效 + 背景音乐共用一个持久化状态与一个 UI 按钮）；
+// bgm.ts 通过订阅在开关变化时暂停/恢复背景音乐
+type MuteListener = (muted: boolean) => void;
+const muteListeners = new Set<MuteListener>();
+
+export function onMuteChange(listener: MuteListener): () => void {
+    muteListeners.add(listener);
+    return () => { muteListeners.delete(listener); };
+}
+
 export function setSfxMuted(value: boolean) {
     muted = value;
     try {
@@ -57,4 +67,5 @@ export function setSfxMuted(value: boolean) {
     } catch {
         // 无 localStorage（隐身模式等）时只影响本次会话
     }
+    muteListeners.forEach((listener) => listener(value));
 }

@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
+import { BGM_SRC, BGM_VOLUME, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -45,6 +45,14 @@ describe('game assets manifest', () => {
         // 位图必须是逻辑尺寸的整数倍（当前 3x，匹配 renderScale 上限），缩放才不引入采样畸变
         expect(REWARD_BITMAP_SIZE % REWARD_TEXTURE_SIZE).toBe(0);
         expect(REWARD_BITMAP_SIZE / REWARD_TEXTURE_SIZE).toBeGreaterThanOrEqual(2);
+    });
+
+    it('ships the background music at the committed public path with a soft volume', () => {
+        // BGM_SRC 相对 public/ 根（与 Phaser setPath('assets') 同层级），文件已入库不可缺失
+        expect(statSync(join(ASSET_ROOT, '..', BGM_SRC)).size).toBeGreaterThan(1024 * 1024);
+        expect(BGM_SRC.endsWith('.mp3')).toBe(true);
+        expect(BGM_VOLUME).toBeGreaterThan(0);
+        expect(BGM_VOLUME).toBeLessThanOrEqual(0.5);
     });
 
     it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical 72)', () => {

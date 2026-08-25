@@ -3,7 +3,7 @@ import {
     calculateScore, computeGameWidth, computePlayerX, computeRenderScale, computeStageHeight, createSeededRandom,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds,
     KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, MAX_STAGE_HEIGHT, PLAYER_BASE_X, PLAYER_MAX_X,
-    shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
+    pickRewardKind, REWARD_MIRROR_CHANCE, shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from './game';
 
 describe('game rules', () => {
@@ -23,6 +23,29 @@ describe('game rules', () => {
         expect(shouldSpawnReward(0)).toBe(true);
         expect(shouldSpawnReward(0.3499)).toBe(true);
         expect(shouldSpawnReward(0.35)).toBe(false);
+    });
+
+    it('spawns the two reward kinds at different rates (fork common, mirror rare)', () => {
+        // 概率必须不同：镜子为稀有款（<50%），叉子为主奖励
+        expect(REWARD_MIRROR_CHANCE).toBeGreaterThan(0);
+        expect(REWARD_MIRROR_CHANCE).toBeLessThan(0.5);
+        expect(pickRewardKind(0)).toBe('mirror');
+        expect(pickRewardKind(REWARD_MIRROR_CHANCE - 0.0001)).toBe('mirror');
+        expect(pickRewardKind(REWARD_MIRROR_CHANCE)).toBe('fork');
+        expect(pickRewardKind(0.9999)).toBe('fork');
+        // 非法输入回退到主奖励
+        expect(pickRewardKind(-0.1)).toBe('fork');
+    });
+
+    it('keeps the seeded reward-kind distribution near the configured 70/30 split', () => {
+        const random = createSeededRandom(2026);
+        let mirrors = 0;
+        const draws = 2000;
+        for (let index = 0; index < draws; index += 1) {
+            if (pickRewardKind(random()) === 'mirror') mirrors += 1;
+        }
+        expect(mirrors / draws).toBeGreaterThan(REWARD_MIRROR_CHANCE - 0.05);
+        expect(mirrors / draws).toBeLessThan(REWARD_MIRROR_CHANCE + 0.05);
     });
 
     it('ends the run only outside the vertical kill bounds', () => {

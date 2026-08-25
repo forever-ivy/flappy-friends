@@ -1,15 +1,20 @@
 import { BGM_SRC, BGM_VOLUME } from './assets';
 import { isSfxMuted, onMuteChange } from './sfx';
 
-// 背景音乐：HTMLAudioElement 流式循环播放 public/assets/bgm.mp3（17MB，不走 Phaser Loader，
-// 不阻塞资源进度条）。与音效共用同一个静音开关（isSfxMuted / 顶栏音量按钮）。
+// 背景音乐：HTMLAudioElement 流式循环播放 public/assets/bgm.mp3（约 5MB 纯音频，
+// 不走 Phaser Loader、不阻塞资源进度条）。与音效共用同一个静音开关
+// （isSfxMuted / 顶栏音量按钮）。
 //
-// 浏览器 autoplay 策略：页面加载后不能直接出声，必须等首次用户交互（点击/触屏/按键）。
-// initBgm 在 window 上挂一次性交互监听，首次交互后才真正开始播放；
+// 「音乐出现时间」的三个保障：
+// 1. 浏览器 autoplay 策略下页面加载后不能直接出声，initBgm 在 window 上挂
+//    pointerdown/keydown 监听，首次交互（菜单里任意点击/按键）立刻开始播放——
+//    音乐在菜单阶段就进入，不等开局；
+// 2. 音频文件已裁剪（见 assets.ts）：开头无静音过门，出声即旋律；
+// 3. 播放与对局状态完全无关：开局/结算/重开都不打断，loop 无缝续播可爱氛围。
 // 切到后台（document.hidden）时暂停，回到前台且未静音时继续。
 
-// 淡入时长（毫秒）：从 0 缓升到 BGM_VOLUME，入场不突兀，贴合梦幻氛围
-const FADE_IN_MS = 2000;
+// 淡入时长（毫秒）：从 0 快速缓升到 BGM_VOLUME，入场即闻但不突兀
+const FADE_IN_MS = 800;
 
 let audio: HTMLAudioElement | null = null;
 let unlocked = false;

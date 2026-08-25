@@ -16,6 +16,16 @@ export const PLAYER_MAX_X = 240;
 export const REWARD_POINTS = 5;
 export const REWARD_CHANCE = 0.35;
 
+// 两种奖励贴图的刷新概率不同（不再严格交替）：蝴蝶结叉子为主奖励（70%），
+// 蝴蝶结镜子为稀有款（30%）。仅贴图差异，碰撞与计分完全一致。
+export const REWARD_MIRROR_CHANCE = 0.3;
+
+export type RewardKind = 'fork' | 'mirror';
+
+export function pickRewardKind(randomValue: number): RewardKind {
+    return randomValue >= 0 && randomValue < REWARD_MIRROR_CHANCE ? 'mirror' : 'fork';
+}
+
 // Canvas 渲染倍率：打断「canvas 逻辑 72px → CSS/浏览器位图放大」的糊化链条。
 // canvas 后备像素 = 逻辑尺寸 × 倍率（相机 setZoom 同倍率，逻辑坐标不变），
 // 倍率 = 画布实际显示所需的设备像素高 / 逻辑高（640）向上取整，clamp 到 [1, 3]。

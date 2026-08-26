@@ -147,7 +147,9 @@
 ### nginx 反代示例
 
 实机验证过的完整配置见 [`deploy/nginx.flappy-friends.conf`](../deploy/nginx.flappy-friends.conf)
-（含静态边缘缓存、SSE 直通与管理面板收紧示例）。
+（含 HTTPS/Let's Encrypt、HTTP→HTTPS 与裸 IP→正式域名 301、静态边缘缓存、
+SSE 直通与管理面板收紧示例）。线上域名 `flyingwanpen.top`（含 www）证书由
+certbot 的 `certbot-renew.timer` 每日自动续期，续期后自动 reload nginx。
 
 **反代后必做**：PocketBase 看到的来源地址都会变成 127.0.0.1，按 IP 限流会
 全站共享同一个桶。需让 PocketBase 信任反代注入的 `X-Real-IP`——管理面板

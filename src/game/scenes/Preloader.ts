@@ -52,7 +52,7 @@ export class Preloader extends Scene
         // 背景/障碍按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480）；
         // 角色（216x216）与奖励（144x144）为高清位图，按实际像素原生加载（不降采样），
         // Game 场景用 setDisplaySize 分别缩到逻辑 72 / 48
-        // 背景音乐不在此加载：17MB mp3 由 src/game/bgm.ts 用 HTMLAudioElement 流式播放，不阻塞进度条
+        // 背景音乐不在此加载：约 3.1MB mp3 由 src/game/bgm.ts 用 HTMLAudioElement 流式播放，不阻塞进度条
         this.load.image('background-sky', GAME_ASSETS.sky);
         this.load.image('background-city', GAME_ASSETS.city);
         this.load.image('background-street', GAME_ASSETS.street);

@@ -1,7 +1,7 @@
 import { BGM_SRC, BGM_VOLUME } from './assets';
 import { isSfxMuted, onMuteChange } from './sfx';
 
-// 背景音乐：HTMLAudioElement 流式循环播放 public/assets/bgm.mp3（约 5MB 纯音频，
+// 背景音乐：HTMLAudioElement 流式循环播放 public/assets/bgm.mp3（约 3.1MB 纯音频，
 // 不走 Phaser Loader、不阻塞资源进度条）。与音效共用同一个静音开关
 // （isSfxMuted / 顶栏音量按钮）。
 //

@@ -67,9 +67,12 @@ describe('background music', () => {
         expect(audio.src).toBe(BGM_SRC);
         expect(audio.loop).toBe(true);
         expect(audio.playing).toBe(false);
+        // 首次交互前不预载：约 3.1MB 的 bgm 不与首屏游戏素材抢带宽
+        expect(audio.preload).toBe('none');
 
         fakeWindow.emit('pointerdown');
         expect(audio.playing).toBe(true);
+        expect(audio.preload).toBe('auto');
         // 短淡入（0.8s）：音乐在菜单首次交互后很快可闻，不再等 2 秒
         vi.advanceTimersByTime(400);
         expect(audio.volume).toBeGreaterThan(0);

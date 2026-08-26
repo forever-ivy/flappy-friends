@@ -51,6 +51,16 @@
         0.045em 0.045em 0 var(--text-stroke-color), -0.045em 0.045em 0 var(--text-stroke-color),
         0.045em -0.045em 0 var(--text-stroke-color), -0.045em -0.045em 0 var(--text-stroke-color),
         0 0.13em 0.2em rgba(166, 76, 95, .3);
+
+    /* 视口高度回退链：老引擎（Android 11 自带 WebView / 未更新的 X5 内核等，Chromium < 108、
+       iOS < 15.4）不认识 svh 单位，无回退时整条声明被丢弃——.game-shell 高度塌成 0 加上
+       overflow:hidden，页面只剩背景渐变，看起来永远卡在进场画面。
+       这里先给所有引擎都认识的 vh，支持 svh 的引擎再覆盖（排除手机动态地址栏高度） */
+    --viewport-height: 100vh;
+}
+
+@supports (height: 100svh) {
+    :root { --viewport-height: 100svh; }
 }
 
 * { box-sizing: border-box; }
@@ -78,6 +88,8 @@ body {
     /* --stage-width/--stage-height 由 Phaser 实际显示尺寸经 JS 写入（见 src/game/stageSync.ts），
        回退值保持旧的 9:16 居中计算，覆盖 JS 生效前的短暂启动期 */
     width: 100vw;
+    /* vh 在前做回退：不认 svh 的老引擎（Android 11 WebView 等）用 vh，新引擎被 svh 覆盖 */
+    height: 100vh;
     height: 100svh;
     overflow: hidden;
     isolation: isolate;
@@ -113,6 +125,11 @@ body {
 
 #game-container {
     position: absolute;
+    /* inset 简写是 Chromium 87+ / Safari 14.1+：老引擎会整条丢弃，先给四向 longhand 回退 */
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
     /* 容器保持透明：letterbox 留白显示 .game-shell 的梦幻渐变，而不是一块实色 */
     background: transparent;
@@ -122,8 +139,13 @@ body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: var(--stage-width, min(100vw, calc(100svh * 0.5625))) !important;
-    height: var(--stage-height, min(100svh, calc(100vw * 1.77778))) !important;
+    /* 回退链：JS（stageSync）写入 --stage-width/--stage-height 后所有引擎都走 px 精确值；
+       写入前的短暂启动期，老引擎（无 min()，Chromium < 79）先用 100vw/100vh 兜底，
+       其余引擎用 --viewport-height（vh/svh 已按支持度选好）参与 9:16 回退计算 */
+    width: 100vw !important;
+    height: 100vh !important;
+    width: var(--stage-width, min(100vw, calc(var(--viewport-height, 100vh) * 0.5625))) !important;
+    height: var(--stage-height, min(var(--viewport-height, 100vh), calc(100vw * 1.77778))) !important;
     margin: 0 !important;
     transform: translate(-50%, -50%);
     display: block;
@@ -131,7 +153,9 @@ body {
 }
 
 .topbar, .menu-layer, .hud {
-    width: var(--stage-width, min(100vw, calc(100svh * 0.5625)));
+    /* 与画布相同的回退链：老引擎在 JS 写入 --stage-width 前先按全宽兜底 */
+    width: 100vw;
+    width: var(--stage-width, min(100vw, calc(var(--viewport-height, 100vh) * 0.5625)));
     left: 50%;
     right: auto;
     transform: translateX(-50%);
@@ -140,6 +164,8 @@ body {
 .topbar {
     position: absolute;
     z-index: 40;
+    /* max() 是 Chromium 79+：更老引擎先用固定 12px */
+    top: 12px;
     top: max(12px, env(safe-area-inset-top));
     height: 42px;
     display: flex;
@@ -151,6 +177,10 @@ body {
 /* Keep the interactive overlays aligned to the centered portrait stage. */
 .menu-layer, .hud {
     position: absolute;
+    /* inset-block 是 Chromium 87+ / Safari 14.1+：老引擎丢弃后菜单层高度塌成 0，
+       必须先给 top/bottom 回退 */
+    top: 0;
+    bottom: 0;
     inset-block: 0;
     z-index: 20;
     pointer-events: none;
@@ -163,7 +193,12 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    /* 三段回退：无 clamp()（Chromium < 79）用固定值 → 无 svh 用 vh → 新引擎用 svh */
+    gap: 32px;
+    gap: clamp(22px, 6vh, 48px);
     gap: clamp(22px, 6svh, 48px);
+    padding-bottom: 16px;
+    padding-bottom: clamp(0px, 4vh, 40px);
     padding-bottom: clamp(0px, 4svh, 40px);
 }
 
@@ -194,6 +229,10 @@ body {
 .game-title::after {
     content: "";
     position: absolute;
+    top: 7px;
+    right: 7px;
+    bottom: 7px;
+    left: 7px;
     inset: 7px;
     border: 2px dashed rgba(242, 127, 165, .32);
     border-radius: 38px;
@@ -228,7 +267,7 @@ body {
 /* 牌缘装饰：全部锚定在糖果牌边缘（负偏移探出边框），服务边框不再满天散点。
    顶部正中蝴蝶结是主视觉（像给牌子打结），左下云朵托底、右上小花点角，
    另有三个小闪点补充；大件浮动、小件闪烁 */
-.title-decor { position: absolute; inset: 0; pointer-events: none; }
+.title-decor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; inset: 0; pointer-events: none; }
 
 .title-trim { position: absolute; }
 
@@ -293,6 +332,10 @@ body {
    整层不可交互，速度/轨道/字号由 services/danmaku.ts 确定性给出 */
 .danmaku-layer {
     position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
     z-index: 0;
     overflow: hidden;
@@ -348,6 +391,10 @@ body {
 
 .result-layer {
     position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
     z-index: 20;
     background: rgba(154, 86, 112, .3);
@@ -355,6 +402,9 @@ body {
 }
 
 .result-layer .result-sheet {
+    /* 无 min() 的老引擎回退：calc 撑满再用 max-width 封顶，效果等价 */
+    width: calc(100% - 28px);
+    max-width: 420px;
     width: min(calc(var(--stage-width, 100vw) - 28px), 420px);
     left: 50%;
     top: 50%;
@@ -366,6 +416,10 @@ body {
 
 .dialog-backdrop {
     position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
     z-index: 100;
     display: grid;
@@ -403,6 +457,9 @@ body {
 .menu-controls {
     position: relative;
     z-index: 1;
+    /* 无 min() 的老引擎回退 */
+    width: calc(100% - 28px);
+    max-width: 420px;
     width: min(100% - 28px, 420px);
     padding: 16px;
     color: var(--ink);
@@ -418,6 +475,10 @@ body {
 .menu-controls::after, .dialog::after, .result-sheet::after {
     content: "";
     position: absolute;
+    top: 7px;
+    right: 7px;
+    bottom: 7px;
+    left: 7px;
     inset: 7px;
     border: 2px dashed rgba(242, 127, 165, .3);
     border-radius: calc(var(--radius-panel) - 9px);
@@ -484,6 +545,8 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 10px;
+    /* max() 是 Chromium 79+：更老引擎先用固定 64px */
+    padding-top: 64px;
     padding-top: max(64px, calc(env(safe-area-inset-top) + 52px));
 }
 
@@ -518,6 +581,9 @@ body {
     top: 50%;
     right: auto;
     bottom: auto;
+    /* 无 min() 的老引擎回退 */
+    width: calc(100% - 28px);
+    max-width: 420px;
     width: min(calc(var(--stage-width, 100vw) - 28px), 420px);
     translate: -50% -50%;
     padding: 24px 18px 18px;
@@ -541,9 +607,21 @@ body {
 }
 .result-actions { display: flex; gap: 8px; margin-top: 10px; }
 
+/* 独立 translate 属性是 Chromium 104+ / Safari 14.1+：不支持的老引擎会让结算面板
+   失去居中（controls-in 动画的 transform 会覆盖静态 transform，所以正常路径才用
+   translate）。老引擎退回 transform 居中并放弃入场动画，保证面板出现在正中 */
+@supports not (translate: 0) {
+    .result-sheet {
+        transform: translate(-50%, -50%);
+        animation: none;
+    }
+}
+
 /* 作者水印：右下角小字低对比常驻，不可交互；对局中由 .faded 进一步淡化避免分神 */
 .watermark {
     position: absolute;
+    right: 12px;
+    bottom: 8px;
     right: max(12px, env(safe-area-inset-right));
     bottom: max(8px, env(safe-area-inset-bottom));
     z-index: 30;
@@ -611,7 +689,7 @@ body {
 }
 .note-button:hover { transform: rotate(0deg) translateY(-2px); background: #ffd9e8; }
 
-.leaderboard-dialog { height: min(590px, calc(100% - 24px)); display: flex; flex-direction: column; }
+.leaderboard-dialog { height: calc(100% - 24px); max-height: 590px; height: min(590px, calc(100% - 24px)); display: flex; flex-direction: column; }
 .leaderboard-list { flex: 1; min-height: 0; margin-top: 12px; overflow-y: auto; scrollbar-width: thin; }
 .leaderboard-row { height: 52px; display: grid; grid-template-columns: 28px 38px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-bottom: 1px solid #f7dbe7; }
 .leaderboard-row .rank { color: #bb8ba0; text-align: center; }
@@ -671,7 +749,7 @@ body {
 @media (max-height: 520px) {
     .menu-layer { gap: 10px; padding-bottom: 0; }
     .game-title { gap: 4px; padding: 10px 16px 8px; border-radius: 26px; }
-    .game-title::after { border-radius: 20px; inset: 5px; }
+    .game-title::after { border-radius: 20px; top: 5px; right: 5px; bottom: 5px; left: 5px; inset: 5px; }
     .game-title h1 { font-size: 32px; }
     .game-title p { font-size: 9px; padding: 2px 10px; }
     .title-decor { display: none; }

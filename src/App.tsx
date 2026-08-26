@@ -61,6 +61,12 @@ function App() {
             .catch(() => undefined);
     }, [screen]);
 
+    // React 挂载成功即移除 index.html 的静态启动兜底层（「载入中/加载失败」提示）：
+    // 老浏览器解析产物失败或脚本加载失败时它才留在页面上给出可重试的错误提示
+    useEffect(() => {
+        document.getElementById('boot-fallback')?.remove();
+    }, []);
+
     // 背景音乐：首次用户交互后循环播放，与音效共用静音按钮，切后台自动暂停
     useEffect(() => initBgm(), []);
 

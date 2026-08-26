@@ -19,6 +19,9 @@ const config: Phaser.Types.Core.GameConfig = {
         default: 'arcade',
         arcade: { gravity: { x: 0, y: 900 }, debug: false },
     },
+    // 弱网硬化：单个资源 30 秒无响应视为失败（默认 0 = 永不超时，悬挂连接会让进度条
+    // 永久卡住）；失败后 Phaser 自动重试 2 次，仍失败走 Preloader 的整批重载/点按重试
+    loader: { timeout: 30000, maxRetries: 2 },
     scale: {
         mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH,

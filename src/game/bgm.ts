@@ -62,6 +62,8 @@ function syncPlayback(fade = false) {
 function unlock() {
     const first = !unlocked;
     unlocked = true;
+    // 首次交互后才放开预载：play() 本身会触发加载，提前恢复 preload 只是语义对齐
+    if (audio) audio.preload = 'auto';
     syncPlayback(first);
 }
 
@@ -71,7 +73,9 @@ export function initBgm(): () => void {
     if (!audio) {
         audio = new Audio(BGM_SRC);
         audio.loop = true;
-        audio.preload = 'auto';
+        // 首次交互前不预载：约 3.1MB 的 mp3 会在弱网/老设备上与首屏游戏素材抢带宽，
+        // 拖慢 Preloader 进度条（表现为卡进场）。首次交互（unlock）后恢复 auto 并播放
+        audio.preload = 'none';
         audio.volume = BGM_VOLUME;
     }
 

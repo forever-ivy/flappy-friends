@@ -5,8 +5,18 @@ import { GAME_HEIGHT } from '../../domain/game';
 import { getRenderScale } from '../renderScale';
 import { syncStageVars } from '../stageSync';
 
+// 弱网硬化：Phaser 对单个文件已按 loader.maxRetries 自动重试，仍失败的文件在
+// complete 后整批延迟重载（瞬时断流/抖动下立即重试大概率还会失败）；自动轮次
+// 用尽则显示「点按重试」提示——绝不让首屏无声卡在进度条
+const RETRY_ROUND_DELAY_MS = 1200;
+const MAX_AUTO_RETRY_ROUNDS = 2;
+
 export class Preloader extends Scene
 {
+    // 本轮彻底失败（自动重试也没救回来）的文件：key → 带 path 前缀的 url
+    private failedFiles = new Map<string, string>();
+    private retryRound = 0;
+
     constructor ()
     {
         super('Preloader');
@@ -49,6 +59,12 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
+        // loaderror 只在该文件的自动重试（loader.maxRetries）全部失败后触发：
+        // 记下来等 complete 后整批重载，见 create()
+        this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
+            this.failedFiles.set(file.key, String(file.url));
+        });
+
         // 背景/障碍按逻辑 1x 尺寸交付（sky 960x640 / city 720x640 / street 720x180 / 障碍 76x480）；
         // 角色（216x216）与奖励（144x144）为高清位图，按实际像素原生加载（不降采样），
         // Game 场景用 setDisplaySize 分别缩到逻辑 72 / 48
@@ -71,10 +87,53 @@ export class Preloader extends Scene
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so it can be used in other scenes.
 
+        // 有彻底失败的文件：先整批延迟重载（最多 MAX_AUTO_RETRY_ROUNDS 轮），
+        // 轮次用尽再给出可点按的重试提示，而不是带着缺失素材硬开局
+        if (this.failedFiles.size > 0) {
+            if (this.retryRound < MAX_AUTO_RETRY_ROUNDS) this.retryFailedFiles();
+            else this.showRetryNotice();
+            return;
+        }
+
         // 尽早把画布显示尺寸同步给 DOM，避免覆盖层短暂按 9:16 回退值布局
         syncStageVars(this.scale.displaySize.width, this.scale.displaySize.height);
 
         //  Move to the Game scene. You could also swap this for a Scene Transition, such as a camera fade.
         this.scene.start('Game');
+    }
+
+    // 整批重载失败文件：file.url 入队时已带上 setPath('assets') 前缀，
+    // 重载前把 path 清空避免二次拼接；完成后回到 create() 重新裁决
+    private retryFailedFiles ()
+    {
+        this.retryRound += 1;
+        const entries = Array.from(this.failedFiles.entries());
+        this.failedFiles.clear();
+        this.time.delayedCall(RETRY_ROUND_DELAY_MS, () => {
+            this.load.setPath('');
+            entries.forEach(([key, url]) => this.load.image(key, url));
+            this.load.once(Phaser.Loader.Events.COMPLETE, () => this.create());
+            this.load.start();
+        });
+    }
+
+    // 自动重试轮次用尽：画布上给出明确提示，点按后重置轮次再来（弱网恢复后可救回），
+    // 不再让玩家对着满进度条死等
+    private showRetryNotice ()
+    {
+        const renderScale = getRenderScale();
+        const logicalWidth = this.scale.gameSize.width / renderScale;
+        const logicalHeight = this.scale.gameSize.height / renderScale;
+        const notice = this.add.text(
+            logicalWidth / 2,
+            GAME_HEIGHT - logicalHeight / 2 + 36,
+            '素材加载失败，点按屏幕重试',
+            { fontFamily: 'sans-serif', fontSize: '16px', color: '#d9598a' },
+        ).setOrigin(0.5);
+        this.input.once('pointerdown', () => {
+            notice.destroy();
+            this.retryRound = 0;
+            this.create();
+        });
     }
 }

@@ -8,10 +8,95 @@
     <meta name="description" content="飞天碗盆 Flying Wanpen：和碗碗、盆盆一起穿越樱花街道，打开链接就能玩的粉彩飞行小游戏。" />
     <link rel="stylesheet" href="/style.css">
     <title>飞天碗盆 · Flying Wanpen</title>
+    <style>
+        /* 启动兜底层：老浏览器/弱网下脚本加载失败时的可见提示（React 挂载成功后整层移除）。
+           只用最保守的 CSS（position/text-align 等），保证任何老引擎都能渲染 */
+        #boot-fallback {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+            display: block;
+            text-align: center;
+            color: #a2536b;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        #boot-fallback .boot-inner { margin-top: 42vh; padding: 0 24px; }
+        #boot-loading { font-size: 15px; letter-spacing: .2em; animation: boot-pulse 1.4s ease-in-out infinite; }
+        @keyframes boot-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+        #boot-error { display: none; pointer-events: auto; }
+        #boot-error p { margin: 0 0 6px; font-size: 15px; }
+        #boot-error small { display: block; margin-bottom: 14px; color: #bb8ba0; font-size: 12px; font-weight: normal; }
+        #boot-error button {
+            padding: 10px 34px;
+            color: #5c2440;
+            background: #ffa9c8;
+            border: 2px solid #d3688b;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
     <div id="root"></div>
+    <!-- 启动兜底：脚本还没接管前先显示「载入中」；加载失败/超时翻转成可重试的错误提示。
+         React 挂载成功后由 App 把整层移除（见 src/App.tsx） -->
+    <div id="boot-fallback">
+        <div class="boot-inner">
+            <div id="boot-loading">载入中…</div>
+            <div id="boot-error" role="alert">
+                <p>加载失败或网络较慢</p>
+                <small>请点击重试；若反复失败，建议升级系统或浏览器后再来</small>
+                <button type="button" onclick="location.reload()">重试</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // 非 module 的经典脚本：语法保持 ES5，保证再老的浏览器也能解析执行。
+        // 1) globalThis shim：Chromium < 71 / Safari < 12.1 没有 globalThis，
+        //    转译后的产物与部分依赖运行期会引用它；
+        // 2) 启动失败可见化：脚本资源加载失败 / 启动期抛错 / 超时未挂载时，
+        //    把「载入中」翻成带重试按钮的错误提示，而不是让玩家死等一块渐变背景。
+        (function () {
+            if (typeof window.globalThis === 'undefined') window.globalThis = window;
+
+            function showBootError() {
+                var fallback = document.getElementById('boot-fallback');
+                var error = document.getElementById('boot-error');
+                var loading = document.getElementById('boot-loading');
+                if (!fallback || !error) return; // 应用已接管，无需提示
+                if (loading) loading.style.display = 'none';
+                error.style.display = 'block';
+            }
+
+            // 老浏览器不支持 <script type="module"> 时静默跳过执行且不报错：
+            // 用特性检测直接判定，无需等超时
+            var probe = document.createElement('script');
+            if (!('noModule' in probe)) {
+                window.setTimeout(showBootError, 0);
+                return;
+            }
+
+            // 资源加载失败（script/css）在捕获阶段可见；启动期运行时错误带 event.error
+            window.addEventListener('error', function (event) {
+                if (!document.getElementById('boot-fallback')) return;
+                var target = event && event.target;
+                var isResource = !!(target && target.tagName
+                    && (target.tagName === 'SCRIPT' || target.tagName === 'LINK'));
+                if (isResource || (event && event.error)) showBootError();
+            }, true);
+
+            // 兜底超时：弱网慢加载时给出提示与重试入口（页面仍在继续加载，
+            // 若随后挂载成功，兜底层会被移除，提示自然消失）
+            window.setTimeout(showBootError, 20000);
+        })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
 
 </body>

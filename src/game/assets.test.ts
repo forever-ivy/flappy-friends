@@ -127,10 +127,11 @@ describe('game assets manifest', () => {
 
     it('ships the background music at the committed public path with a soft volume', () => {
         // BGM_SRC 相对 public/ 根（与 Phaser setPath('assets') 同层级），文件已入库不可缺失；
-        // 上限 8MB：锁定「纯音频」瘦身成果（原文件是 17MB 的 MP4 视频容器，拖慢首次出声）
+        // 上限 4MB：锁定 112kbps 重编码成果（2026-08-26 出口带宽打满事件后 5.3MB→3.1MB；
+        // 原文件曾是 17MB 的 MP4 视频容器，拖慢首次出声）
         const size = statSync(join(ASSET_ROOT, '..', BGM_SRC)).size;
         expect(size).toBeGreaterThan(1024 * 1024);
-        expect(size).toBeLessThan(8 * 1024 * 1024);
+        expect(size).toBeLessThan(4 * 1024 * 1024);
         expect(BGM_SRC.endsWith('.mp3')).toBe(true);
         expect(BGM_VOLUME).toBeGreaterThan(0);
         expect(BGM_VOLUME).toBeLessThanOrEqual(0.5);

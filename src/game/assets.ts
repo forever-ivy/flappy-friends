@@ -58,10 +58,12 @@ export const GAME_ASSETS = {
     sparkle: 'game/fx-sparkle.png',
 } as const;
 
-// 背景音乐（public/assets/bgm.mp3，约 5MB 流式播放不走 Phaser Loader）；
+// 背景音乐（public/assets/bgm.mp3，约 3.1MB 流式播放不走 Phaser Loader）；
 // 由 src/game/bgm.ts 用 HTMLAudioElement 循环播放，与音效共用同一个静音开关。
 // 文件已裁剪为纯音频 MP3（原文件是 17MB 的 MP4 视频容器，且开头 1.44s /
-// 结尾 8.3s 是静音）：现在从第一声旋律开始、结尾 2s 淡出，loop 回绕无静音空洞
+// 结尾 8.3s 是静音）：现在从第一声旋律开始、结尾 2s 淡出，loop 回绕无静音空洞。
+// 2026-08-26 出口带宽打满事件后由 192kbps 重编码为 112kbps joint stereo
+// （5.3MB→3.1MB，手机外放 0.4 音量下无感知差异），bgm 是首包流量大头，勿再调高码率
 export const BGM_SRC = 'assets/bgm.mp3';
 // 轻柔但可感的音量，贴合可爱梦幻氛围（1 为原始响度）
 export const BGM_VOLUME = 0.4;

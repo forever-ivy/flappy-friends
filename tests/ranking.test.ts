@@ -91,7 +91,6 @@ interface Entry {
     username: string;
     characterId: string;
     score: number;
-    official?: boolean;
 }
 
 const entryOf = (id: string, score: number): Entry => ({
@@ -153,9 +152,8 @@ describe('injectMechEntry（影子行注入纯函数）', () => {
         const entries = [entryOf('p1', 600), entryOf('p2', 400), entryOf('mech', 300)];
         const result: Entry[] = injectMechEntry(entries, entryOf('mech', 300), 'total');
         expect(result.map((item) => item.playerId)).toEqual(['mech', 'p1', 'p2']);
-        expect(result[0]).toMatchObject({ rank: 1, score: 1100, official: true });
+        expect(result[0]).toMatchObject({ rank: 1, score: 1100 });
         expect(result.filter((item) => item.playerId === 'mech')).toHaveLength(1);
-        expect(result.slice(1).every((item) => item.official === undefined)).toBe(true);
         expect(result.map((item) => item.rank)).toEqual([1, 2, 3]);
     });
 
@@ -173,7 +171,7 @@ describe('injectMechEntry（影子行注入纯函数）', () => {
     it('total 榜：空榜时也保底注入（500 起步）', () => {
         const result: Entry[] = injectMechEntry([], entryOf('mech', 0), 'total');
         expect(result).toHaveLength(1);
-        expect(result[0]).toMatchObject({ playerId: 'mech', rank: 1, score: 500, official: true });
+        expect(result[0]).toMatchObject({ playerId: 'mech', rank: 1, score: 500 });
     });
 
     it('best 榜：剔除真实行、钉第 3，展示分对齐真实第 3 名', () => {
@@ -181,7 +179,7 @@ describe('injectMechEntry（影子行注入纯函数）', () => {
         const entries = [entryOf('mech', 60), entryOf('p1', 50), entryOf('p2', 40), entryOf('p3', 30), entryOf('p4', 20)];
         const result: Entry[] = injectMechEntry(entries, entryOf('mech', 60), 'best');
         expect(result.map((item) => item.playerId)).toEqual(['p1', 'p2', 'mech', 'p3', 'p4']);
-        expect(result[2]).toMatchObject({ rank: 3, score: 30, official: true });
+        expect(result[2]).toMatchObject({ rank: 3, score: 30 });
         expect(result.map((item) => item.rank)).toEqual([1, 2, 3, 4, 5]);
     });
 
@@ -192,7 +190,7 @@ describe('injectMechEntry（影子行注入纯函数）', () => {
         expect(one.map((item) => [item.playerId, item.score])).toEqual([['p1', 50], ['mech', 50]]);
         const none: Entry[] = injectMechEntry([], entryOf('mech', 5), 'best');
         expect(none).toHaveLength(1);
-        expect(none[0]).toMatchObject({ rank: 1, score: 5, official: true });
+        expect(none[0]).toMatchObject({ rank: 1, score: 5 });
     });
 
     it('注入后截断回前 50，且名次连续', () => {
@@ -214,16 +212,15 @@ describe('topEntriesRaw（MECH_PLAYER_ID 环境开关）', () => {
         { id: 'mech', username: '官方号', characterId: 'nova', bestScore: 10, totalScore: 100, gamesPlayed: 1, bestAchievedAt: '2026-08-04 10:00:00.000Z', created: '2026-06-01 00:00:00.000Z' },
     ];
 
-    it('未设置环境变量（$os 缺失）时特性关闭：机制号按真实分排、无 official 字段', () => {
+    it('未设置环境变量（$os 缺失）时特性关闭：机制号按真实分排', () => {
         const entries: Entry[] = JSON.parse(topEntriesRaw(fakeApp(rows), 'total'));
         expect(entries.map((item) => item.playerId)).toEqual(['p1', 'p2', 'p3', 'mech']);
-        expect(entries.every((item) => item.official === undefined)).toBe(true);
     });
 
     it('设置后 total 榜注入影子行钉第 1', () => {
         mechEnvOn();
         const entries: Entry[] = JSON.parse(topEntriesRaw(fakeApp(rows), 'total'));
-        expect(entries[0]).toMatchObject({ playerId: 'mech', username: '官方号', rank: 1, score: 1100, official: true });
+        expect(entries[0]).toMatchObject({ playerId: 'mech', username: '官方号', rank: 1, score: 1100 });
         expect(entries.filter((item) => item.playerId === 'mech')).toHaveLength(1);
     });
 
@@ -231,13 +228,12 @@ describe('topEntriesRaw（MECH_PLAYER_ID 环境开关）', () => {
         mechEnvOn();
         const entries: Entry[] = JSON.parse(topEntriesRaw(fakeApp(rows), 'best'));
         expect(entries.map((item) => item.playerId)).toEqual(['p1', 'p2', 'mech', 'p3']);
-        expect(entries[2]).toMatchObject({ rank: 3, score: 30, official: true });
+        expect(entries[2]).toMatchObject({ rank: 3, score: 30 });
     });
 
     it('id 配置错误（账号不存在）时静默降级为普通榜单', () => {
         mechEnvOn('no-such-player');
         const entries: Entry[] = JSON.parse(topEntriesRaw(fakeApp(rows), 'best'));
-        expect(entries.every((item) => item.official === undefined)).toBe(true);
         expect(entries).toHaveLength(4);
     });
 });

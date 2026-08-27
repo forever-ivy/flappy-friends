@@ -697,9 +697,6 @@ body {
 .leaderboard-row img { width: 36px; height: 36px; object-fit: contain; }
 .leaderboard-row span { overflow: hidden; font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .leaderboard-row strong { color: #e0608a; font-size: 16px; }
-/* 官方机制号角标：名字后的小粉药丸，贴合糖果风但保持克制、不抢分数视觉 */
-.official-badge { display: inline-flex; align-items: center; margin-left: 6px; padding: 2px 7px 2px 5px; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; line-height: 1; vertical-align: 2px; background: #f48bab; border-radius: 999px; box-shadow: 0 1px 0 rgba(198, 112, 122, .25); }
-.official-badge svg { margin-right: 2px; }
 .empty-state { margin: 80px 0; color: #bb8ba0; text-align: center; }
 .my-rank { display: flex; justify-content: space-between; margin-top: 10px; padding: 11px 12px; color: var(--ink-strong); background: var(--pink-soft); border-radius: var(--radius-control); font-size: 12px; }
 

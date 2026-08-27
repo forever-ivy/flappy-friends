@@ -107,13 +107,13 @@ function mechPlayerId() {
 // 返回的新数组里所有条目的 rank 会按注入后的位置重写。
 function injectMechEntry(entries, mech, type) {
     const rest = entries.filter((entry) => entry.playerId !== mech.playerId);
+    // 故意不加任何特殊字段：机制号在榜单上必须与普通玩家外观完全一致
     const shadow = {
         rank: 0,
         playerId: mech.playerId,
         username: mech.username,
         characterId: mech.characterId,
         score: mech.score,
-        official: true,
     };
     if (type === "total") {
         const topScore = rest.length > 0 ? rest[0].score : 0;

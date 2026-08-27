@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { BadgeCheck, CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
+import { CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
 import { RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
@@ -473,11 +473,7 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
                             <div className="leaderboard-row" key={entry.playerId}>
                                 <b className="rank">{entry.rank}</b>
                                 <img src={`/assets/${character.portrait}`} alt={character.name} />
-                                <span>
-                                    {entry.username}
-                                    {/* 服务端标记的官方机制号：名字后跟一枚小粉药丸角标 */}
-                                    {entry.official && <i className="official-badge"><BadgeCheck size={11} /> 官方</i>}
-                                </span>
+                                <span>{entry.username}</span>
                                 <strong>{entry.score}</strong>
                             </div>
                         );

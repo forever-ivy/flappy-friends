@@ -315,16 +315,32 @@ async function main() {
         const injectedBest = await api('/api/game/leaderboards?type=best&limit=50');
         const bestEntries = injectedBest.json?.entries || [];
         const mechBestEntry = bestEntries.find((entry) => entry.playerId === MECH_ID);
-        check('best 榜机制号钉第 3', mechBestEntry?.rank === 3 && mechBestEntry?.official === undefined, bestEntries.slice(0, 5));
+        const mechBestRank = mechBestEntry?.rank ?? 0;
         check(
-            'best 榜展示分对齐真实第 3 名（注入后列第 4）',
-            !!mechBestEntry && !!bestEntries[3] && mechBestEntry.score === bestEntries[3].score,
-            bestEntries.slice(0, 5),
+            'best 榜机制号名次落在 3–7 活动区间',
+            mechBestRank >= 3 && mechBestRank <= 7 && mechBestEntry?.official === undefined,
+            bestEntries.slice(0, 8),
+        );
+        check(
+            'best 榜展示分与榜上所有人不同分',
+            !!mechBestEntry && bestEntries.every((entry) => entry.playerId === MECH_ID || entry.score !== mechBestEntry.score),
+            bestEntries.slice(0, 8),
+        );
+        check(
+            'best 榜穿过机制位仍严格降序（上一名 > 机制分 > 下一名）',
+            !!mechBestEntry
+                && bestEntries[mechBestRank - 2]?.score > mechBestEntry.score
+                && (bestEntries.length <= mechBestRank || mechBestEntry.score > bestEntries[mechBestRank].score),
+            bestEntries.slice(0, 8),
         );
         check('所有条目均无 official 字段（机制号外观无差异）', bestEntries.every((entry) => entry.official === undefined), null);
 
         const mechMe = await api('/api/game/leaderboards?type=best&limit=50', { token: mechAuth.json?.token });
-        check('机制号自己的 me 与注入条目一致', mechMe.json?.me?.playerId === MECH_ID && mechMe.json?.me?.rank === 3, mechMe.json?.me);
+        check(
+            '机制号自己的 me 与注入条目一致',
+            mechMe.json?.me?.playerId === MECH_ID && mechMe.json?.me?.rank === mechBestRank,
+            mechMe.json?.me,
+        );
     } else {
         const plainBoard = await api('/api/game/leaderboards?type=total&limit=50');
         check(

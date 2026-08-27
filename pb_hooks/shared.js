@@ -87,14 +87,19 @@ function leaderboardEntry(record, rank, type) {
 // 运营机制号由环境变量 MECH_PLAYER_ID 指定（账号 id，不在代码里写死用户名），
 // 需要稳定出现在两个榜单上，但绝不写库抬分——加成只发生在查询层的展示结果里：
 // - total 榜：钉在第 1 名，展示分 = max(真实总分, 圆整到百位的「真实第 1 名 + margin」)，
-//   margin = max(500, ceil(第 1 名 × 3%))，既稳定领先又随榜首水涨船高、不显夸张。
-// - best 榜：钉在第 3 名（index 2），展示分对齐真实第 3 名（不足 3 人取末位），
+//   margin = max(500, ceil(第 1 名 × 3%))，恒严格大于真实榜首，既稳定领先又不显夸张。
+// - best 榜：名次在 3–7 区间内活动（目标名次按 UTC 日期稳定轮换，不死钉一位），
+//   展示分取上下两名之间的中间整数，恒满足「上一名 > 机制分 > 下一名」的严格
+//   降序，因此与榜上任何真实玩家都不同分；目标位分数挤满（空隙 < 2）时先在
+//   区间内就近找空隙，区间全满再向后退化，实在无处可放才升到第 2 乃至第 1。
 //   姿态克制，不抢真实玩家的单局第一荣誉。
 // 注入前先从 SQL 结果剔除机制号自己的真实行，注入后重编名次并截断回前 50。
 // 未设置 MECH_PLAYER_ID 时特性完全关闭；id 配置错误（账号不存在）时静默降级。
-var MECH_MIN_MARGIN = 500;   // total 榜领先真实第 1 名的最小分差
-var MECH_MARGIN_RATE = 0.03; // 领先分差随榜首分数按 3% 放大
-var MECH_BEST_INDEX = 2;     // best 榜钉在第 3 名（index 2）
+var MECH_MIN_MARGIN = 500;      // total 榜领先真实第 1 名的最小分差
+var MECH_MARGIN_RATE = 0.03;    // 领先分差随榜首分数按 3% 放大
+var MECH_BEST_MIN_RANK = 3;     // best 榜活动区间下界（名次 3，index 2）
+var MECH_BEST_MAX_RANK = 7;     // best 榜活动区间上界（名次 7，index 6）
+var MECH_BEST_ROTATE_MS = 24 * 60 * 60 * 1000; // 目标名次按 UTC 日期轮换
 
 function mechPlayerId() {
     // $os 由 PocketBase JSVM 注入；node 单测环境无该全局时视为特性关闭
@@ -102,10 +107,48 @@ function mechPlayerId() {
     return $os.getenv("MECH_PLAYER_ID") || "";
 }
 
+// best 榜：影子行插到降序榜单 rest 的 index 位时可用的唯一展示分。
+// 必须满足严格降序「上一名 > 展示分 > 下一名」——更高名次的分数都 ≥ 上一名、
+// 更低名次的都 ≤ 下一名，因此该分与榜上所有条目都不同。放不下返回 null。
+function mechBestScoreAt(rest, index) {
+    const above = index > 0 ? rest[index - 1].score : null;
+    const below = index < rest.length ? rest[index].score : null;
+    if (above === null && below === null) return null;
+    if (above === null) return below + 1;                       // 插到榜首上方
+    if (below === null) return above >= 1 ? above - 1 : null;   // 插到榜尾下方
+    if (above - below < 2) return null;                         // 空隙不足，放不下唯一分
+    return Math.floor((above + below) / 2);                     // 有空档取中间整数
+}
+
+// best 榜插入位选择：目标名次按 UTC 日期在 3–7 区间内稳定轮换；目标位分数
+// 挤满（空隙 < 2）时先在区间内按距离就近找有空隙的槽；区间全挤满再向后
+// （第 8、第 9……但不越出前 50）退化；实在无处可放才升到第 2 乃至第 1
+// （榜首 + 1 永远放得下，作为最终兜底）。
+function pickMechBestIndex(rest, nowMs) {
+    const lo = MECH_BEST_MIN_RANK - 1;
+    const hi = Math.min(MECH_BEST_MAX_RANK - 1, rest.length);
+    const candidates = [];
+    if (hi >= lo) {
+        const target = lo + (Math.floor(nowMs / MECH_BEST_ROTATE_MS) % (hi - lo + 1));
+        candidates.push(target);
+        for (let step = 1; step <= hi - lo; step += 1) {
+            if (target + step <= hi) candidates.push(target + step);
+            if (target - step >= lo) candidates.push(target - step);
+        }
+    }
+    for (let i = Math.max(hi + 1, lo); i <= Math.min(rest.length, LEADERBOARD_TOP - 1); i += 1) candidates.push(i);
+    for (let i = Math.min(lo, rest.length + 1) - 1; i >= 0; i -= 1) candidates.push(i);
+    for (const index of candidates) {
+        if (mechBestScoreAt(rest, index) !== null) return index;
+    }
+    return 0; // rest 非空时不可达（index 0 永远可行），仅为满足返回值
+}
+
 // 纯函数：把机制号影子行注入真实榜单。entries 为 SQL 排序后的真实条目
 // （可能含机制号自己的真实行，会被剔除），mech 为机制号真实条目（score 为真实分）。
+// nowMs 仅供测试注入固定时间；生产路径取 Date.now()（best 榜目标位按日轮换）。
 // 返回的新数组里所有条目的 rank 会按注入后的位置重写。
-function injectMechEntry(entries, mech, type) {
+function injectMechEntry(entries, mech, type, nowMs) {
     const rest = entries.filter((entry) => entry.playerId !== mech.playerId);
     // 故意不加任何特殊字段：机制号在榜单上必须与普通玩家外观完全一致
     const shadow = {
@@ -118,15 +161,18 @@ function injectMechEntry(entries, mech, type) {
     if (type === "total") {
         const topScore = rest.length > 0 ? rest[0].score : 0;
         const margin = Math.max(MECH_MIN_MARGIN, Math.ceil(topScore * MECH_MARGIN_RATE));
-        // 圆整到百位：整百的展示分更像运营号的正常高分，而非公式逐次算出的值
+        // 圆整到百位：整百的展示分更像运营号的正常高分，而非公式逐次算出的值；
+        // target ≥ 榜首 + 500，因此展示分恒严格大于真实第 2 名，total 榜不会同分
         const target = Math.ceil((topScore + margin) / 100) * 100;
         shadow.score = Math.max(mech.score, target);
         rest.unshift(shadow);
+    } else if (rest.length > 0) {
+        const index = pickMechBestIndex(rest, typeof nowMs === "number" ? nowMs : Date.now());
+        const score = mechBestScoreAt(rest, index);
+        if (score !== null) shadow.score = score;
+        rest.splice(index, 0, shadow);
     } else {
-        if (rest.length > 0) {
-            shadow.score = rest[Math.min(MECH_BEST_INDEX, rest.length - 1)].score;
-        }
-        rest.splice(Math.min(MECH_BEST_INDEX, rest.length), 0, shadow);
+        rest.push(shadow); // 空榜保底：以真实分独占榜单
     }
     const top = rest.slice(0, LEADERBOARD_TOP);
     for (let i = 0; i < top.length; i += 1) top[i].rank = i + 1;
@@ -206,7 +252,7 @@ function myRank(app, playerId, type, topEntries) {
         ));
     }
     let rank = Number(better) + 1;
-    // 机制号修正：特性开启时展示榜上机制号恒占一位（total 第 1 / best 第 3），
+    // 机制号修正：特性开启时展示榜上机制号恒占一位（total 第 1 / best 3–7 区间），
     // 而我不在前 50、机制号必在我之上。若其真实行赢过我，COUNT 已把它算进
     // better，无需调整；若没赢过（真实分低或 gamesPlayed=0），COUNT 里没有它，
     // 展示名次需 +1 才与注入后的榜单一致。
@@ -251,6 +297,8 @@ module.exports = {
     LEADERBOARD_SORTS: LEADERBOARD_SORTS,
     leaderboardEntry: leaderboardEntry,
     mechPlayerId: mechPlayerId,
+    MECH_BEST_MIN_RANK: MECH_BEST_MIN_RANK,
+    MECH_BEST_MAX_RANK: MECH_BEST_MAX_RANK,
     injectMechEntry: injectMechEntry,
     mechRealWinsOver: mechRealWinsOver,
     topEntriesRaw: topEntriesRaw,

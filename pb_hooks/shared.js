@@ -82,6 +82,72 @@ function leaderboardEntry(record, rank, type) {
     };
 }
 
+// ============ 机制账号保榜（查询层影子分注入，不写库） ============
+//
+// 运营机制号由环境变量 MECH_PLAYER_ID 指定（账号 id，不在代码里写死用户名），
+// 需要稳定出现在两个榜单上，但绝不写库抬分——加成只发生在查询层的展示结果里：
+// - total 榜：钉在第 1 名，展示分 = max(真实总分, 圆整到百位的「真实第 1 名 + margin」)，
+//   margin = max(500, ceil(第 1 名 × 3%))，既稳定领先又随榜首水涨船高、不显夸张。
+// - best 榜：钉在第 3 名（index 2），展示分对齐真实第 3 名（不足 3 人取末位），
+//   姿态克制，不抢真实玩家的单局第一荣誉。
+// 注入前先从 SQL 结果剔除机制号自己的真实行，注入后重编名次并截断回前 50。
+// 未设置 MECH_PLAYER_ID 时特性完全关闭；id 配置错误（账号不存在）时静默降级。
+var MECH_MIN_MARGIN = 500;   // total 榜领先真实第 1 名的最小分差
+var MECH_MARGIN_RATE = 0.03; // 领先分差随榜首分数按 3% 放大
+var MECH_BEST_INDEX = 2;     // best 榜钉在第 3 名（index 2）
+
+function mechPlayerId() {
+    // $os 由 PocketBase JSVM 注入；node 单测环境无该全局时视为特性关闭
+    if (typeof $os === "undefined" || typeof $os.getenv !== "function") return "";
+    return $os.getenv("MECH_PLAYER_ID") || "";
+}
+
+// 纯函数：把机制号影子行注入真实榜单。entries 为 SQL 排序后的真实条目
+// （可能含机制号自己的真实行，会被剔除），mech 为机制号真实条目（score 为真实分）。
+// 返回的新数组里所有条目的 rank 会按注入后的位置重写。
+function injectMechEntry(entries, mech, type) {
+    const rest = entries.filter((entry) => entry.playerId !== mech.playerId);
+    const shadow = {
+        rank: 0,
+        playerId: mech.playerId,
+        username: mech.username,
+        characterId: mech.characterId,
+        score: mech.score,
+        official: true,
+    };
+    if (type === "total") {
+        const topScore = rest.length > 0 ? rest[0].score : 0;
+        const margin = Math.max(MECH_MIN_MARGIN, Math.ceil(topScore * MECH_MARGIN_RATE));
+        // 圆整到百位：整百的展示分更像运营号的正常高分，而非公式逐次算出的值
+        const target = Math.ceil((topScore + margin) / 100) * 100;
+        shadow.score = Math.max(mech.score, target);
+        rest.unshift(shadow);
+    } else {
+        if (rest.length > 0) {
+            shadow.score = rest[Math.min(MECH_BEST_INDEX, rest.length - 1)].score;
+        }
+        rest.splice(Math.min(MECH_BEST_INDEX, rest.length), 0, shadow);
+    }
+    const top = rest.slice(0, LEADERBOARD_TOP);
+    for (let i = 0; i < top.length; i += 1) top[i].rank = i + 1;
+    return top;
+}
+
+// 机制号的真实行是否按排序语义赢过我（即已被 myRank 的 COUNT 计入）。
+// 比较条件与 myRank 里的 SQL 表达式一一对应；机制号 gamesPlayed = 0 时
+// 不满足 COUNT 的过滤条件，视为没赢过。
+function mechRealWinsOver(mech, me, type) {
+    if (mech.getInt("gamesPlayed") <= 0) return false;
+    if (type === "total") {
+        if (mech.getInt("totalScore") !== me.getInt("totalScore")) return mech.getInt("totalScore") > me.getInt("totalScore");
+        if (mech.getInt("bestScore") !== me.getInt("bestScore")) return mech.getInt("bestScore") > me.getInt("bestScore");
+        return mech.getString("created") < me.getString("created");
+    }
+    if (mech.getInt("bestScore") !== me.getInt("bestScore")) return mech.getInt("bestScore") > me.getInt("bestScore");
+    if (mech.getString("bestAchievedAt") !== me.getString("bestAchievedAt")) return mech.getString("bestAchievedAt") < me.getString("bestAchievedAt");
+    return mech.getString("created") < me.getString("created");
+}
+
 // 通用短缓存：结果数组以「预序列化 JSON 字符串」存进 $app.store()（进程级
 // 并发安全，跨 JSVM 执行器共享）。热路径直接拼接返回该字符串，省掉每请求的
 // JSON.parse/stringify；exp 与 raw 分两个键，失效时只删 exp。
@@ -99,10 +165,16 @@ function cachedRaw(app, key, ttlMs, producer) {
 
 // 前 50 名：索引排序 + LIMIT 由 SQLite 完成，TTL 3 秒；跑分写入时主动失效，
 // 因此测试与玩家都能读到写后的最新榜单，缓存只用来扛突发读洪峰。
+// 配置了 MECH_PLAYER_ID 时在缓存 producer 里完成机制号影子行注入（见上）。
 function topEntriesRaw(app, type) {
     return cachedRaw(app, "lb:" + type, LEADERBOARD_CACHE_MS, () => {
         const records = app.findRecordsByFilter("players", "gamesPlayed > 0", LEADERBOARD_SORTS[type], LEADERBOARD_TOP, 0);
-        return records.map((record, index) => leaderboardEntry(record, index + 1, type));
+        const entries = records.map((record, index) => leaderboardEntry(record, index + 1, type));
+        const mechId = mechPlayerId();
+        if (!mechId) return entries;
+        let mech = null;
+        try { mech = app.findRecordById("players", mechId); } catch (_) { return entries; }
+        return injectMechEntry(entries, leaderboardEntry(mech, 0, type), type);
     });
 }
 
@@ -133,7 +205,21 @@ function myRank(app, playerId, type, topEntries) {
             { best: me.getInt("bestScore"), achieved: me.getString("bestAchievedAt"), created: me.getString("created") },
         ));
     }
-    return leaderboardEntry(me, Number(better) + 1, type);
+    let rank = Number(better) + 1;
+    // 机制号修正：特性开启时展示榜上机制号恒占一位（total 第 1 / best 第 3），
+    // 而我不在前 50、机制号必在我之上。若其真实行赢过我，COUNT 已把它算进
+    // better，无需调整；若没赢过（真实分低或 gamesPlayed=0），COUNT 里没有它，
+    // 展示名次需 +1 才与注入后的榜单一致。
+    const mechId = mechPlayerId();
+    if (mechId && mechId !== playerId) {
+        try {
+            const mech = app.findRecordById("players", mechId);
+            if (!mechRealWinsOver(mech, me, type)) rank += 1;
+        } catch (_) {
+            // 机制号不存在时榜单未注入，无需修正
+        }
+    }
+    return leaderboardEntry(me, rank, type);
 }
 
 // ============ 留言列表缓存 ============
@@ -164,6 +250,9 @@ module.exports = {
     LEADERBOARD_TOP: LEADERBOARD_TOP,
     LEADERBOARD_SORTS: LEADERBOARD_SORTS,
     leaderboardEntry: leaderboardEntry,
+    mechPlayerId: mechPlayerId,
+    injectMechEntry: injectMechEntry,
+    mechRealWinsOver: mechRealWinsOver,
     topEntriesRaw: topEntriesRaw,
     invalidateLeaderboards: invalidateLeaderboards,
     myRank: myRank,

@@ -19,6 +19,8 @@ export interface LeaderboardEntry {
     username: string;
     characterId: string;
     score: number;
+    // 服务端标记的官方机制号条目（查询层保榜注入），前端渲染官方角标
+    official?: boolean;
 }
 
 export interface LeaderboardResponse {

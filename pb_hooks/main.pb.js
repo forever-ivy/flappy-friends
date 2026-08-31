@@ -24,6 +24,10 @@ onRecordCreateRequest((e) => {
 
 routerAdd("POST", "/api/game/runs", (e) => {
     const shared = require(`${__hooks}/shared.js`);
+    // 机制号只在查询层保榜（见 shared.js 的影子分注入），禁止其真实提交成绩，
+    // 避免运营误操作把真实分写进库里
+    const mechId = shared.mechPlayerId();
+    if (mechId && e.auth.id === mechId) throw new ForbiddenError("Official account cannot submit runs");
     const submittedRuns = e.requestInfo().body.runs;
     if (!Array.isArray(submittedRuns) || submittedRuns.length === 0 || submittedRuns.length > 50) {
         throw new BadRequestError("Expected 1 to 50 runs");

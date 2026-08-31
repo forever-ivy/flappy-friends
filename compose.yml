@@ -8,6 +8,8 @@ services:
     environment:
       PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL}
       PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD}
+      # 机制账号保榜（查询层影子分注入）的账号 id；留空则特性关闭
+      MECH_PLAYER_ID: ${MECH_PLAYER_ID:-}
     volumes:
       - pb_data:/pb/pb_data
     ports:

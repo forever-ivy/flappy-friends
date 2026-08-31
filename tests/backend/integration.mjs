@@ -4,8 +4,15 @@
 //
 // 用法：先启动服务（本地二进制或 docker compose），然后
 //   PB_URL=http://127.0.0.1:8090 npm run test:backend
+//
+// 机制账号保榜（查询层影子分注入）的用例需要服务端与本脚本设置同一个
+// MECH_PLAYER_ID（合法的 15 位记录 id，如 mechlovetest001）：
+//   MECH_PLAYER_ID=mechlovetest001 ./pocketbase serve ...
+//   MECH_PLAYER_ID=mechlovetest001 PB_URL=... npm run test:backend
+// 不设置时只验证特性关闭（榜单不注入机制号）。
 
 const PB_URL = process.env.PB_URL || 'http://127.0.0.1:8090';
+const MECH_ID = process.env.MECH_PLAYER_ID || '';
 const STAMP = Date.now().toString(36);
 
 let passed = 0;
@@ -269,6 +276,80 @@ async function main() {
     check('匿名访问不返回 me', (await api('/api/game/leaderboards?type=best')).json?.me === null);
     const slicedBoard = await api('/api/game/leaderboards?type=best&limit=2');
     check('排行榜 limit 生效', slicedBoard.json?.entries?.length === 2, slicedBoard.json?.entries);
+
+    // ---- 机制账号保榜（查询层影子分注入） ----
+    console.log('\n[机制账号保榜]');
+    if (MECH_ID) {
+        // 固定用户名/密码：首次运行创建（显式指定与服务端一致的 id），
+        // 对同一数据库重复运行时直接登录复用
+        const mechPassword = 'mech-password-123';
+        const mechCreated = await api('/api/collections/players/records', {
+            method: 'POST',
+            body: { id: MECH_ID, username: '机制号测试', password: mechPassword, passwordConfirm: mechPassword },
+        });
+        const mechAuth = await api('/api/collections/players/auth-with-password', {
+            method: 'POST', body: { identity: '机制号测试', password: mechPassword },
+        });
+        check('机制号已就绪（新建或复用登录）', mechAuth.status === 200 && !!mechAuth.json?.token, mechCreated.json ?? mechAuth.json);
+
+        const mechSubmit = await api('/api/game/runs', {
+            method: 'POST', token: mechAuth.json?.token,
+            body: { runs: [run(`mech-${STAMP}`, 'nova', 10, 0)] },
+        });
+        check('机制号提交成绩被拒（403）', mechSubmit.status === 403, mechSubmit.json);
+
+        // 建号不会触发榜单缓存失效，等 3 秒 TTL 过期后再读注入结果
+        await new Promise((resolve) => setTimeout(resolve, 3100));
+
+        const injectedTotal = await api('/api/game/leaderboards?type=total&limit=50');
+        const totalEntries = injectedTotal.json?.entries || [];
+        const mechTotalEntry = totalEntries.find((entry) => entry.playerId === MECH_ID);
+        check('total 榜机制号钉第 1', mechTotalEntry?.rank === 1 && mechTotalEntry?.official === undefined, totalEntries.slice(0, 3));
+        check(
+            'total 榜展示分领先真实榜首 ≥500 且为整百',
+            !!mechTotalEntry && !!totalEntries[1] && mechTotalEntry.score >= totalEntries[1].score + 500 && mechTotalEntry.score % 100 === 0,
+            { mech: mechTotalEntry?.score, real1: totalEntries[1]?.score },
+        );
+        check('total 榜机制号只出现一次', totalEntries.filter((entry) => entry.playerId === MECH_ID).length === 1, null);
+
+        const injectedBest = await api('/api/game/leaderboards?type=best&limit=50');
+        const bestEntries = injectedBest.json?.entries || [];
+        const mechBestEntry = bestEntries.find((entry) => entry.playerId === MECH_ID);
+        const mechBestRank = mechBestEntry?.rank ?? 0;
+        check(
+            'best 榜机制号名次落在 3–7 活动区间',
+            mechBestRank >= 3 && mechBestRank <= 7 && mechBestEntry?.official === undefined,
+            bestEntries.slice(0, 8),
+        );
+        check(
+            'best 榜展示分与榜上所有人不同分',
+            !!mechBestEntry && bestEntries.every((entry) => entry.playerId === MECH_ID || entry.score !== mechBestEntry.score),
+            bestEntries.slice(0, 8),
+        );
+        check(
+            'best 榜穿过机制位仍严格降序（上一名 > 机制分 > 下一名）',
+            !!mechBestEntry
+                && bestEntries[mechBestRank - 2]?.score > mechBestEntry.score
+                && (bestEntries.length <= mechBestRank || mechBestEntry.score > bestEntries[mechBestRank].score),
+            bestEntries.slice(0, 8),
+        );
+        check('所有条目均无 official 字段（机制号外观无差异）', bestEntries.every((entry) => entry.official === undefined), null);
+
+        const mechMe = await api('/api/game/leaderboards?type=best&limit=50', { token: mechAuth.json?.token });
+        check(
+            '机制号自己的 me 与注入条目一致',
+            mechMe.json?.me?.playerId === MECH_ID && mechMe.json?.me?.rank === mechBestRank,
+            mechMe.json?.me,
+        );
+    } else {
+        const plainBoard = await api('/api/game/leaderboards?type=total&limit=50');
+        check(
+            '未设置 MECH_PLAYER_ID 时特性关闭：榜单不含机制号',
+            !(plainBoard.json?.entries || []).some((entry) => entry.playerId === MECH_ID),
+            null,
+        );
+        console.log('  （设置 MECH_PLAYER_ID 环境变量可覆盖机制号注入用例，见文件头注释）');
+    }
 
     // ---- 弹幕留言板 ----
     console.log('\n[弹幕留言板]');

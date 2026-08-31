@@ -44,6 +44,10 @@ docker compose up -d --build
 
 Put the service behind the existing Nginx/Caddy HTTPS reverse proxy. Keep the `pb_data` volume backed up. The PocketBase dashboard is available at `/_/`; restrict it to an administrator network or IP in the reverse proxy.
 
+### 机制账号保榜（可选）
+
+在 `.env` 里设置 `MECH_PLAYER_ID`（运营机制号在 `players` 集合中的 15 位记录 id）后，该账号会以「查询层影子分注入」的方式常驻榜单：累计榜钉在第 1 名（展示分自动领先真实榜首，margin = max(500, 榜首×3%) 并圆整到百位，恒严格大于第 2 名）；最高分榜名次在第 3–7 名区间内活动（目标名次按 UTC 日期稳定轮换，不死钉一位），展示分取上下两名之间的中间整数，保证与榜上任何真实玩家都不同分、全榜严格降序；区间内分数挤满时自动就近退化到能保证唯一分的名次。榜单条目与普通玩家外观完全一致，不加任何官方标记。整个机制不写库、不修改任何真实分数；该账号提交成绩会被服务端以 403 拒绝。留空 `MECH_PLAYER_ID` 时特性完全关闭。上线时建议顺手重置该机制号的密码，避免账号被他人登录使用。
+
 支撑约 1000 人同时在线的容量设计（排行榜索引化 + 进程内缓存、按 IP 限流、静态资源强缓存、压测数字与机器/反代建议）见 [`docs/concurrency.md`](docs/concurrency.md)；压测脚本为 `scripts/loadtest.mjs`。
 
 ## 游戏规则

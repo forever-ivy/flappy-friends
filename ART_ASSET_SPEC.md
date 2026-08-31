@@ -83,7 +83,7 @@
 
 ## 奖励物
 
-文件：`reward.png`（主奖励，蝴蝶结叉子）与 `reward-mirror.png`（副奖励，蝴蝶结镜子），生成时按障碍对序交替出现，玩法 / 碰撞 / 计分完全一致。
+文件：`reward.png`（主奖励，Jiniret / Hyunjin）与 `reward-mirror.png`（副奖励，BbokAri / Felix），生成时按障碍对序交替出现，玩法 / 碰撞 / 计分完全一致。
 
 | 项 | 规格 |
 | --- | --- |
@@ -92,7 +92,7 @@
 | 锚点 | 中心；生成于间隙中心 ±42px 内（代码计算安全偏移） |
 | 碰撞 | Arcade Body 随缩放同步收缩，世界坐标下仍为 48×48 矩形（物理与计分零改动） |
 | 动态 | 代码内以 2.4s/圈自转 + 拾取时 8 向粒子闪光——素材画正即可，不要自带旋转 |
-| 视觉 | 叉子取自 `pictures/IMG_5248.PNG`，镜子取自 `pictures/IMG_5245.PNG`（均为 2048² 高清透明底，摆正后一次缩放到 144，无二次损失） |
+| 视觉 | Jiniret 取自 `pictures/REWARD_JINIRET.png`，BbokAri 取自 `pictures/REWARD_BBOAKRI.jpg`（黑底抠图后缩放到 144） |
 
 尺寸常量在清单登记：`REWARD_BITMAP_SIZE = 144`（位图）与 `REWARD_TEXTURE_SIZE = 48`（逻辑显示），改尺寸只动清单与生成脚本。单独重生成：`python3 scripts/generate_assets.py --rewards-only`。
 

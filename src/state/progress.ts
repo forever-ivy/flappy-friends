@@ -12,7 +12,7 @@ export interface Progress {
 }
 
 export const DEFAULT_PROGRESS: Progress = {
-    selectedCharacter: 'nova', bestScore: 0, totalScore: 0, gamesPlayed: 0, pendingRuns: [],
+    selectedCharacter: 'snow', bestScore: 0, totalScore: 0, gamesPlayed: 0, pendingRuns: [],
 };
 
 export function loadProgress(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Progress {

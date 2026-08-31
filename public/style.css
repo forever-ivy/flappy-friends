@@ -1,41 +1,31 @@
 :root {
     color: #6b3a50;
-    background: #b0d1fc;
+    background: #fcf1e4;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-synthesis: none;
     letter-spacing: 0;
 
-    /* 画布外留白（letterbox/pillarbox）的梦幻延伸背景：逐段取自 sky/city/street 三层合成后的
-       实际逐行均色（顶部晴空蓝 → 城市粉紫 → 草地嫩绿 → 街面奶油粉），宽屏时画布铺满视口高度，
-       渐变按视口高度百分比与画面纵向色带对齐，两侧留白像同一张画的延伸而不是冷灰蓝硬边 */
     --stage-backdrop: linear-gradient(
         180deg,
-        #b0d1fc 0%,
-        #bed9fb 20%,
-        #c5defc 35%,
-        #ddd8ee 42%,
-        #ecd2e3 50%,
-        #ebcbe0 60%,
-        #dfe3c2 66%,
-        #b7f78f 73%,
-        #aef185 82%,
-        #b4ee92 90%,
-        #f7f0ee 95%,
-        #fbefe4 100%
+        #fcf1e4 0%,
+        #f8ead0 35%,
+        #e8d4f5 55%,
+        #ffffff 75%,
+        #f5f0ff 100%
     );
 
-    /* 樱花奇比调色板（对齐 ART_ASSET_SPEC 与 public/assets/game/ 素材描边） */
-    --ink: #6b3a50;            /* 正文 */
-    --ink-strong: #6b2d47;
-    --muted: #bb8ba0;
-    --paper: #fff5f9;          /* 纸白面板 */
-    --pink: #f27fa5;           /* 樱花粉强调 */
-    --pink-strong: #e0608a;
-    --pink-soft: #ffd3e5;
-    --pink-pale: #fbe4ee;
-    --stroke: #f2a9c6;         /* 面板描边 */
-    --stroke-soft: #e5b3c8;
-    --line: #f0cfdd;           /* 分隔线 */
+    /* Hyunlix：奶油 + 薰衣草 UI（对齐 chibi 角色与 pastel 背景） */
+    --ink: #5c4a62;
+    --ink-strong: #4a3850;
+    --muted: #a894b8;
+    --paper: #fffbf5;
+    --pink: #b8a0d0;
+    --pink-strong: #9580b8;
+    --pink-soft: #e8dff5;
+    --pink-pale: #faf6f0;
+    --stroke: #ddd0eb;
+    --stroke-soft: #d4c4e4;
+    --line: #e8dff0;
     --radius-panel: 26px;      /* 面板：更圆润的卡通感 */
     --radius-card: 18px;       /* 卡片 */
     --radius-control: 14px;    /* 输入框/分段控件 */
@@ -44,7 +34,7 @@
     --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
 
     /* 手绘描边文字：em 随字号缩放，--text-stroke-color 可按元素覆盖 */
-    --text-stroke-color: #d97a99;
+    --text-stroke-color: #b898c8;
     --text-outline:
         0 0.07em 0 var(--text-stroke-color), 0 -0.055em 0 var(--text-stroke-color),
         0.06em 0 0 var(--text-stroke-color), -0.06em 0 0 var(--text-stroke-color),
@@ -79,7 +69,7 @@ button { -webkit-tap-highlight-color: transparent; }
 body {
     display: grid;
     place-items: center;
-    background-color: #b0d1fc;
+    background-color: #fcf1e4;
     background-image: var(--stage-backdrop);
 }
 
@@ -164,14 +154,93 @@ body {
 .topbar {
     position: absolute;
     z-index: 40;
-    /* max() 是 Chromium 79+：更老引擎先用固定 12px */
     top: 12px;
     top: max(12px, env(safe-area-inset-top));
     height: 42px;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
+    padding: 0 10px;
     pointer-events: none;
+}
+
+.lang-select-wrap {
+    pointer-events: auto;
+}
+
+.lang-select {
+    min-width: 108px;
+    max-width: 132px;
+    padding: 6px 28px 6px 10px;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--pink-pale);
+    color: #a2536b;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    cursor: pointer;
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #a2536b 50%),
+        linear-gradient(135deg, #a2536b 50%, transparent 50%);
+    background-position:
+        calc(100% - 14px) calc(50% - 2px),
+        calc(100% - 9px) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    box-shadow: 0 2px 0 rgba(198, 112, 122, .12);
+    transition: transform .16s var(--ease-bounce), border-color .16s ease, background-color .16s ease;
+}
+
+.lang-select:hover {
+    transform: translateY(-1px);
+    border-color: var(--pink);
+    background-color: var(--pink-soft);
+}
+
+.lang-select:focus-visible {
+    outline: 2px solid var(--pink-strong);
+    outline-offset: 2px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* legacy：旧版 EN/PT 按钮样式保留供参考，已改为 .lang-select */
+.lang-switch {
+    display: flex;
+    gap: 4px;
+    pointer-events: auto;
+}
+
+.lang-switch button {
+    min-width: 34px;
+    padding: 4px 8px;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--pink-pale);
+    color: #a2536b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    cursor: pointer;
+}
+
+.lang-switch button.active {
+    background: var(--pink-soft);
+    border-color: var(--pink);
+    color: var(--pink-strong);
 }
 
 /* Keep the interactive overlays aligned to the centered portrait stage. */
@@ -211,17 +280,19 @@ body {
     z-index: 1;
     display: grid;
     justify-items: center;
-    gap: 9px;
+    gap: 6px;
     max-width: calc(100% - 24px);
-    padding: 24px 30px 18px;
+    padding: 22px 32px 16px;
     text-align: center;
     pointer-events: none;
-    background: linear-gradient(168deg, #ffeff7 0%, #ffddeb 62%, #ffd2e4 100%);
+    background:
+        linear-gradient(168deg, rgba(255, 255, 255, .72) 0%, rgba(255, 251, 245, .92) 38%, rgba(245, 238, 248, .96) 100%);
     border: 3px solid var(--stroke);
-    border-radius: 46px;
+    border-radius: 50px;
     box-shadow:
-        0 9px 0 rgba(233, 111, 155, .16),
-        0 18px 38px rgba(233, 111, 155, .22);
+        0 10px 0 rgba(149, 128, 184, .13),
+        0 20px 42px rgba(149, 128, 184, .2),
+        inset 0 1px 0 rgba(255, 255, 255, .85);
     animation: title-in .6s var(--ease-bounce) both;
 }
 
@@ -229,40 +300,122 @@ body {
 .game-title::after {
     content: "";
     position: absolute;
-    top: 7px;
-    right: 7px;
-    bottom: 7px;
-    left: 7px;
-    inset: 7px;
-    border: 2px dashed rgba(242, 127, 165, .32);
-    border-radius: 38px;
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    inset: 8px;
+    border: 2px dashed rgba(184, 160, 208, .36);
+    border-radius: 42px;
     pointer-events: none;
 }
 
-/* 中文主名：每个字一个 span，交替旋转 + 上下错落 + 字号微差，
-   像手工剪贴上去的卡通字；整体仍居中、可读 */
+/* 主标题：Fredoka 圆体 + 逐字 Q 弹错落 + 名字分色 */
 .game-title h1 {
     margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff6f9;
-    font-family: "Arial Black", Impact, sans-serif;
-    font-size: 60px;
-    line-height: 1.12;
-    letter-spacing: 0;
-    text-shadow: var(--text-outline);
+    flex-wrap: wrap;
+    gap: .08em;
+    font-family: "Fredoka", "Arial Rounded MT Bold", "Helvetica Rounded", sans-serif;
+    font-size: clamp(30px, 7.6vw, 50px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -.01em;
 }
 
-.game-title h1 span {
+.title-name {
+    display: inline-flex;
+    align-items: baseline;
+}
+
+.title-letter {
     display: inline-block;
     transform: rotate(var(--tilt, 0deg)) translateY(var(--lift, 0));
+    animation: letter-pop .62s var(--ease-bounce) both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    paint-order: stroke fill;
+    -webkit-text-stroke: .07em var(--letter-stroke, #c898d8);
+    filter: drop-shadow(0 .08em 0 var(--letter-shadow, rgba(166, 96, 130, .28)));
 }
 
-.game-title h1 span:nth-child(4n + 1) { --tilt: -6deg; --lift: .05em; }
-.game-title h1 span:nth-child(4n + 2) { --tilt: 4deg; --lift: -.06em; font-size: 1.08em; }
-.game-title h1 span:nth-child(4n + 3) { --tilt: -3deg; --lift: .04em; font-size: .94em; }
-.game-title h1 span:nth-child(4n + 4) { --tilt: 6deg; --lift: -.04em; font-size: 1.04em; }
+.title-name--hyunjin .title-letter {
+    --letter-stroke: #e07aa0;
+    --letter-shadow: rgba(196, 92, 130, .32);
+    background-image: linear-gradient(180deg, #fffafc 0%, #ffd6e8 42%, #ff8fbf 100%);
+}
+
+.title-name--hyunjin .title-letter:nth-child(odd) { --tilt: -5deg; --lift: .04em; }
+.title-name--hyunjin .title-letter:nth-child(even) { --tilt: 4deg; --lift: -.05em; font-size: 1.06em; }
+
+.title-name--felix .title-letter {
+    --letter-stroke: #6a9fd8;
+    --letter-shadow: rgba(88, 128, 188, .3);
+    background-image: linear-gradient(180deg, #f8fcff 0%, #c8e4ff 45%, #7eb8f0 100%);
+}
+
+.title-name--felix .title-letter:nth-child(odd) { --tilt: 5deg; --lift: -.04em; font-size: 1.04em; }
+.title-name--felix .title-letter:nth-child(even) { --tilt: -4deg; --lift: .05em; }
+
+.title-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05em;
+    height: 1.05em;
+    margin: 0 .02em;
+    color: #fff6d8;
+    background: radial-gradient(circle at 35% 28%, #fff8c8 0%, #ffc95c 55%, #f0a030 100%);
+    border: .08em solid #e8a848;
+    border-radius: 999px;
+    font-size: .72em;
+    font-weight: 700;
+    line-height: 1;
+    transform: rotate(-8deg) translateY(-.06em);
+    box-shadow:
+        0 .12em 0 rgba(200, 140, 40, .35),
+        0 0 .5em rgba(255, 210, 100, .45);
+    animation: title-x-pop .7s var(--ease-bounce) .18s both, title-x-glow 2.4s ease-in-out 1s infinite;
+}
+
+.title-sub {
+    margin: 0;
+    padding: 3px 14px;
+    color: var(--pink-strong);
+    background: rgba(255, 250, 253, .94);
+    border: 2px solid var(--stroke);
+    border-radius: 999px;
+    font-family: "Fredoka", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-indent: .22em;
+    text-transform: uppercase;
+    transform: rotate(-2deg);
+    box-shadow: 0 3px 0 rgba(242, 127, 165, .18);
+    animation: letter-pop .55s var(--ease-bounce) .42s both;
+}
+
+@keyframes letter-pop {
+    0% { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateY(calc(var(--lift, 0) + .35em)) scale(.7); }
+    70% { opacity: 1; transform: rotate(var(--tilt, 0deg)) translateY(calc(var(--lift, 0) - .04em)) scale(1.08); }
+    100% { opacity: 1; transform: rotate(var(--tilt, 0deg)) translateY(var(--lift, 0)) scale(1); }
+}
+
+@keyframes title-x-pop {
+    0% { opacity: 0; transform: rotate(-8deg) translateY(.2em) scale(.5); }
+    70% { opacity: 1; transform: rotate(-8deg) translateY(-.12em) scale(1.15); }
+    100% { opacity: 1; transform: rotate(-8deg) translateY(-.06em) scale(1); }
+}
+
+@keyframes title-x-glow {
+    0%, 100% { box-shadow: 0 .12em 0 rgba(200, 140, 40, .35), 0 0 .4em rgba(255, 210, 100, .35); }
+    50% { box-shadow: 0 .12em 0 rgba(200, 140, 40, .35), 0 0 .75em rgba(255, 210, 100, .65); }
+}
 
 /* 牌缘装饰：全部锚定在糖果牌边缘（负偏移探出边框），服务边框不再满天散点。
    顶部正中蝴蝶结是主视觉（像给牌子打结），左下云朵托底、右上小花点角，
@@ -372,7 +525,7 @@ body {
     to { transform: translateX(calc(-1 * var(--stage-width, 100vw) - 100%)); }
 }
 
-/* 英文副标：糖果药丸做成轻微歪贴的贴纸，带卡通厚底阴影 */
+/* 英文副标（legacy）：保留选择器供旧 markup 兼容 */
 .game-title p {
     margin: 0;
     padding: 4px 15px;
@@ -487,8 +640,8 @@ body {
 
 .character-rail {
     display: grid;
-    /* 两位角色一行并排；卡片上只有高清头像（256² portrait），无名字文本 */
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* 三位角色一行并排；卡片上只有高清头像（256² portrait）+ 展示名 */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 14px;
 }
@@ -510,10 +663,10 @@ body {
 /* 选中的角色卡轻微歪头：贴纸随手一贴的俏皮感 */
 .character-choice.selected { background: var(--pink-soft); border-color: var(--pink); transform: translateY(-4px) rotate(-2deg) scale(1.04); }
 .character-choice.selected:nth-child(2n) { transform: translateY(-4px) rotate(2deg) scale(1.04); }
-.character-choice img { display: block; width: 48px; height: 48px; object-fit: contain; }
+.character-choice img { display: block; width: 64px; height: 64px; object-fit: contain; }
 
 /* 角色展示名（左碗碗 / 右盆盆）：头像下方小字，清晰但不与主按钮抢视线 */
-.character-name { color: #a2536b; font-size: 12px; font-weight: 900; letter-spacing: .1em; }
+.character-name { color: #7a6890; font-size: 12px; font-weight: 900; letter-spacing: .1em; }
 .character-choice.selected .character-name { color: var(--pink-strong); }
 
 /* 按钮统一「糖果药丸贴纸」样式：全圆角 + 同色系描边 + 实底边缘 */
@@ -554,8 +707,11 @@ body {
     color: #fff6f9;
     font-family: "Arial Black", Impact, sans-serif;
     font-size: 52px;
+    font-weight: 900;
     line-height: 1;
-    text-shadow: var(--text-outline);
+    -webkit-text-stroke: 3px #c898d8;
+    paint-order: stroke fill;
+    text-shadow: 0 4px 0 rgba(166, 96, 130, .28);
     animation: score-pop .22s ease-out both;
 }
 
@@ -570,8 +726,9 @@ body {
     background: var(--paper);
     border: 2px solid var(--stroke-soft);
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 900;
+    font-variant-numeric: tabular-nums;
     box-shadow: 0 3px 0 rgba(198, 112, 122, .25);
 }
 
@@ -598,12 +755,15 @@ body {
 
 .result-score {
     --text-stroke-color: var(--pink);
-    color: #fff;
+    color: #fff6f9;
     margin: 0 0 18px;
     font-family: "Arial Black", Impact, sans-serif;
     font-size: 72px;
+    font-weight: 900;
     line-height: 1;
-    text-shadow: var(--text-outline);
+    -webkit-text-stroke: 4px #c898d8;
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 rgba(166, 96, 130, .28);
 }
 .result-actions { display: flex; gap: 8px; margin-top: 10px; }
 
@@ -616,26 +776,6 @@ body {
         animation: none;
     }
 }
-
-/* 作者水印：右下角小字低对比常驻，不可交互；对局中由 .faded 进一步淡化避免分神 */
-.watermark {
-    position: absolute;
-    right: 12px;
-    bottom: 8px;
-    right: max(12px, env(safe-area-inset-right));
-    bottom: max(8px, env(safe-area-inset-bottom));
-    z-index: 30;
-    color: rgba(107, 58, 80, .38);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .05em;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
-    pointer-events: none;
-    user-select: none;
-    transition: opacity .4s ease;
-}
-
-.watermark.faded { opacity: .35; }
 
 .dialog {
     position: relative;
@@ -720,14 +860,15 @@ body {
 
 @media (max-height: 700px) {
     .menu-layer { gap: 16px; padding-bottom: 8px; }
-    .game-title { padding: 19px 24px 14px; border-radius: 38px; }
-    .game-title::after { border-radius: 31px; }
-    .game-title h1 { font-size: 50px; }
+    .game-title { padding: 18px 24px 12px; border-radius: 40px; }
+    .game-title::after { border-radius: 34px; }
+    .game-title h1 { font-size: 42px; }
+    .title-sub { font-size: 10px; padding: 2px 12px; }
     .title-trim.ribbon { width: 26px; height: 26px; top: -16px; margin-left: -13px; }
     .title-trim.cloud-left { width: 26px; height: 26px; bottom: -11px; left: -15px; }
     .title-trim.flower-right { width: 22px; height: 22px; top: -11px; right: -12px; }
     .menu-controls { padding: 11px; }
-    .character-choice img { width: 42px; height: 42px; }
+    .character-choice img { width: 56px; height: 56px; }
     .primary-button, .secondary-button, .save-button { min-height: 43px; }
 }
 
@@ -737,11 +878,12 @@ body {
     .result-score { font-size: 84px; }
     .game-title { padding: 30px 40px 22px; border-radius: 56px; }
     .game-title::after { border-radius: 48px; }
-    .game-title h1 { font-size: 74px; }
+    .game-title h1 { font-size: 58px; }
+    .title-sub { font-size: 12px; }
     .title-trim.ribbon { width: 40px; height: 40px; top: -24px; margin-left: -20px; }
     .title-trim.cloud-left { width: 40px; height: 40px; bottom: -16px; left: -24px; }
     .title-trim.flower-right { width: 33px; height: 33px; top: -16px; right: -19px; }
-    .character-choice img { width: 56px; height: 56px; }
+    .character-choice img { width: 72px; height: 72px; }
     .character-name { font-size: 13px; }
 }
 
@@ -751,12 +893,13 @@ body {
     .game-title { gap: 4px; padding: 10px 16px 8px; border-radius: 26px; }
     .game-title::after { border-radius: 20px; top: 5px; right: 5px; bottom: 5px; left: 5px; inset: 5px; }
     .game-title h1 { font-size: 32px; }
+    .title-sub { font-size: 9px; padding: 2px 10px; }
     .game-title p { font-size: 9px; padding: 2px 10px; }
     .title-decor { display: none; }
     .menu-controls { padding: 8px; }
     .note-button { top: -12px; padding: 4px 10px; font-size: 11px; }
     .character-choice { padding: 4px 2px 3px; gap: 1px; }
-    .character-choice img { width: 30px; height: 30px; }
+    .character-choice img { width: 40px; height: 40px; }
     .character-name { font-size: 10px; }
     .primary-button, .secondary-button, .save-button { min-height: 38px; }
 }

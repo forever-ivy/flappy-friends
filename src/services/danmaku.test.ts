@@ -1,34 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { buildPool, bulletStyle, DEFAULT_MESSAGES, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage, REAL_POOL_TARGET } from './danmaku';
+import { buildPool, bulletStyle, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage, REAL_POOL_TARGET } from './danmaku';
 
 const real = (n: number) => Array.from({ length: n }, (_, i) => ({ text: `真留言${i}`, author: `玩家${i}`, seed: false }));
 const seeds = (n: number) => Array.from({ length: n }, (_, i) => ({ text: `种子${i}`, author: '路过的碗', seed: true }));
 
+const FALLBACK = [{ text: 'Welcome!', author: 'Guest' }];
+
 describe('buildPool（真留言优先的弹幕池策略）', () => {
     it('真留言足够（≥6 条）时只循环真留言，种子全部退场', () => {
-        const pool = buildPool([...real(REAL_POOL_TARGET), ...seeds(8)]);
+        const pool = buildPool([...real(REAL_POOL_TARGET), ...seeds(8)], FALLBACK);
         expect(pool).toHaveLength(REAL_POOL_TARGET);
         expect(pool.every((message) => message.text.startsWith('真留言'))).toBe(true);
     });
 
     it('真留言不足时用种子补足到目标条数，真留言仍在最前', () => {
-        const pool = buildPool([...real(2), ...seeds(8)]);
+        const pool = buildPool([...real(2), ...seeds(8)], FALLBACK);
         expect(pool).toHaveLength(REAL_POOL_TARGET);
         expect(pool.slice(0, 2).every((message) => message.text.startsWith('真留言'))).toBe(true);
         expect(pool.slice(2).every((message) => message.text.startsWith('种子'))).toBe(true);
     });
 
     it('空库时全用种子；种子也不够就有多少用多少', () => {
-        expect(buildPool(seeds(8))).toHaveLength(REAL_POOL_TARGET);
-        expect(buildPool([...real(1), ...seeds(2)])).toHaveLength(3);
+        expect(buildPool(seeds(8), FALLBACK)).toHaveLength(REAL_POOL_TARGET);
+        expect(buildPool([...real(1), ...seeds(2)], FALLBACK)).toHaveLength(3);
     });
 
-    it('离线（完全没有服务器数据）退回本地欢迎语', () => {
-        expect(buildPool([])).toEqual([...DEFAULT_MESSAGES]);
+    it('离线（完全没有服务器数据）退回 fallback', () => {
+        expect(buildPool([], FALLBACK)).toEqual(FALLBACK);
     });
 
     it('缺 seed 字段的旧数据按真留言处理', () => {
-        const pool = buildPool([{ text: '老留言', author: '老玩家' }, ...seeds(8)]);
+        const pool = buildPool([{ text: '老留言', author: '老玩家' }, ...seeds(8)], FALLBACK);
         expect(pool[0]).toEqual({ text: '老留言', author: '老玩家' });
     });
 });
@@ -87,16 +89,5 @@ describe('bulletStyle（弹幕轨道/速度/字号确定性取样）', () => {
     it('非法序号回退到 0 号样式，不会崩', () => {
         expect(bulletStyle(-3)).toEqual(bulletStyle(0));
         expect(bulletStyle(Number.NaN)).toEqual(bulletStyle(0));
-    });
-});
-
-describe('DEFAULT_MESSAGES（空库欢迎弹幕）', () => {
-    it('非空且每条都符合留言规则', () => {
-        expect(DEFAULT_MESSAGES.length).toBeGreaterThanOrEqual(4);
-        DEFAULT_MESSAGES.forEach((message) => {
-            expect(normalizeMessage(message.text)).toBe(message.text);
-            expect(message.author.length).toBeGreaterThan(0);
-            expect(message.author.length).toBeLessThanOrEqual(NICKNAME_MAX);
-        });
     });
 });

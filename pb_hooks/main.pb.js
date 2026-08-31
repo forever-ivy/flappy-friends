@@ -18,7 +18,7 @@ onRecordCreateRequest((e) => {
     e.record.set("totalScore", 0);
     e.record.set("gamesPlayed", 0);
     e.record.set("bestAchievedAt", "");
-    if (!shared.CHARACTER_IDS.includes(e.record.getString("characterId"))) e.record.set("characterId", "nova");
+    if (!shared.CHARACTER_IDS.includes(e.record.getString("characterId"))) e.record.set("characterId", "snow");
     return e.next();
 }, "players");
 
@@ -166,7 +166,7 @@ routerUse((e) => {
     const path = e.request.url.path;
     if (/^\/assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(js|css)$/.test(path)) {
         e.response.header().set("Cache-Control", "public, max-age=31536000, immutable");
-    } else if (path.startsWith("/assets/") || path === "/favicon-duo.png") {
+    } else if (path.startsWith("/assets/") || path === "/favicon-duo.png" || path === "/favicon.png" || path === "/apple-touch-icon.png") {
         e.response.header().set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     }
     return e.next();

@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
-import { CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
+import { BACKGROUNDS, CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
 import { GAME_HEIGHT } from '../../domain/game';
 import { getRenderScale } from '../renderScale';
 import { syncStageVars } from '../stageSync';
@@ -41,7 +41,7 @@ export class Preloader extends Scene
         this.cameras.main.setZoom(renderScale).centerOn(centerX, centerY);
 
         // 画布尺寸随视口自适应（宽 360–960 / 高 640–800），进度条放在取景中心
-        this.cameras.main.setBackgroundColor('#fdeef4');
+        this.cameras.main.setBackgroundColor('#fcf1e4');
         this.add.rectangle(centerX, centerY, 184, 8, 0xf3cdda);
         const bar = this.add.rectangle(centerX - 92, centerY, 0, 8, 0xef7fa6).setOrigin(0, 0.5);
 
@@ -69,9 +69,7 @@ export class Preloader extends Scene
         // 角色（216x216）与奖励（144x144）为高清位图，按实际像素原生加载（不降采样），
         // Game 场景用 setDisplaySize 分别缩到逻辑 72 / 48
         // 背景音乐不在此加载：约 3.1MB mp3 由 src/game/bgm.ts 用 HTMLAudioElement 流式播放，不阻塞进度条
-        this.load.image('background-sky', GAME_ASSETS.sky);
-        this.load.image('background-city', GAME_ASSETS.city);
-        this.load.image('background-street', GAME_ASSETS.street);
+        BACKGROUNDS.forEach((background) => this.load.image(background.textureKey, background.image));
         this.load.image('reward', GAME_ASSETS.reward);
         this.load.image('reward-mirror', GAME_ASSETS.rewardMirror);
         this.load.image('fx-sparkle', GAME_ASSETS.sparkle);

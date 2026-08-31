@@ -2,7 +2,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
 import { RunResult } from './domain/game';
-import { CHARACTERS, GAME_TITLE, GAME_TITLE_EN, getCharacter } from './game/assets';
+import { CHARACTERS, GAME_TITLE, getCharacter } from './game/assets';
+import { getCharacterCopy, getCountdownSequence, LOCALE_OPTIONS, type Locale, useI18n } from './i18n';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
 import { getEffectQuality } from './game/renderScale';
@@ -22,6 +23,18 @@ interface DanmakuBurst {
     nonce: number;
 }
 
+function TitleLetters({ word, className }: { word: string; className: string }) {
+    return (
+        <span className={`title-name ${className}`}>
+            {word.split('').map((ch, index) => (
+                <span key={`${className}-${index}`} className="title-letter" style={{ '--i': index } as React.CSSProperties}>
+                    {ch}
+                </span>
+            ))}
+        </span>
+    );
+}
+
 interface ScoreState {
     total: number;
     pipeCount: number;
@@ -31,6 +44,7 @@ interface ScoreState {
 const initialScore: ScoreState = { total: 0, pipeCount: 0, rewardCount: 0 };
 
 function App() {
+    const { locale, setLocale, t } = useI18n();
     const [screen, setScreen] = useState<Screen>('menu');
     const [overlay, setOverlay] = useState<Overlay>('none');
     const [progress, setProgress] = useState<Progress>(() => loadProgress());
@@ -43,6 +57,23 @@ function App() {
     const [messages, setMessages] = useState<DanmakuMessage[]>([]);
     const [burst, setBurst] = useState<DanmakuBurst | null>(null);
     const selected = useMemo(() => getCharacter(progress.selectedCharacter), [progress.selectedCharacter]);
+    const wantsPlayRef = useRef(false);
+    const progressRef = useRef(progress);
+    const localeRef = useRef(locale);
+    progressRef.current = progress;
+    localeRef.current = locale;
+
+    const emitGameStart = () => {
+        if (!wantsPlayRef.current) return;
+        EventBus.emit('game:start', {
+            characterId: progressRef.current.selectedCharacter,
+            countdownSequence: getCountdownSequence(localeRef.current),
+        });
+    };
+
+    const stopPlayRequest = () => {
+        wantsPlayRef.current = false;
+    };
 
     useEffect(() => onAuthChange(setPlayer), []);
 
@@ -92,14 +123,13 @@ function App() {
 
     useEffect(() => {
         const onReady = () => {
-            EventBus.emit('character:selected', progress.selectedCharacter);
-            // 首次加载慢时玩家可能在 Phaser 场景就绪前就按了开始：那次 game:start
-            // 没有任何监听者（Game 场景 create 后才注册），会永久卡在「HUD 显示 0
-            // 但对局不开始」。场景就绪时若已处于对局屏，补发一次开始事件。
-            if (screen === 'playing') EventBus.emit('game:start', { characterId: progress.selectedCharacter });
+            EventBus.emit('character:selected', progressRef.current.selectedCharacter);
+            // Phaser 场景 create 前按开始会丢 game:start；用 ref 记录意图，就绪后补发。
+            emitGameStart();
         };
         const onScore = (next: ScoreState) => setScore(next);
         const onOver = (run: RunResult) => {
+            wantsPlayRef.current = false;
             const next = recordRun(progress, run);
             setProgress(next);
             setLastRun(run);
@@ -120,7 +150,7 @@ function App() {
             EventBus.off('score:changed', onScore);
             EventBus.off('game:over', onOver);
         };
-    }, [progress, screen]);
+    }, [progress, locale]);
 
     useEffect(() => {
         if (!player || progress.pendingRuns.length === 0 || syncing) return;
@@ -143,11 +173,12 @@ function App() {
     };
 
     const play = () => {
+        wantsPlayRef.current = true;
         setScore(initialScore);
         setLastRun(null);
         setOverlay('none');
         setScreen('playing');
-        EventBus.emit('game:start', { characterId: progress.selectedCharacter });
+        emitGameStart();
     };
 
     const toggleMute = () => {
@@ -161,19 +192,32 @@ function App() {
 
             {screen !== 'playing' && (
                 <header className="topbar">
-                    <nav className="top-actions" aria-label="账户与排名">
-                        <button className="icon-button" onClick={toggleMute} aria-label={muted ? '开启音效' : '关闭音效'}>
+                    <label className="lang-select-wrap">
+                        <span className="sr-only">{t.languageLabel}</span>
+                        <select
+                            className="lang-select"
+                            value={locale}
+                            aria-label={t.languageLabel}
+                            onChange={(event) => setLocale(event.target.value as Locale)}
+                        >
+                            {LOCALE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <nav className="top-actions" aria-label={t.accountNav}>
+                        <button className="icon-button" onClick={toggleMute} aria-label={muted ? t.muteOn : t.muteOff}>
                             {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
                         </button>
-                        <button className="icon-button" onClick={() => setOverlay('leaderboard')} aria-label="打开排行榜">
+                        <button className="icon-button" onClick={() => setOverlay('leaderboard')} aria-label={t.openLeaderboard}>
                             <Trophy size={19} />
                         </button>
                         {player ? (
-                            <button className="icon-button account-active" onClick={signOut} aria-label="退出登录">
+                            <button className="icon-button account-active" onClick={signOut} aria-label={t.signOut}>
                                 <LogOut size={19} />
                             </button>
                         ) : (
-                            <button className="icon-button" onClick={() => setOverlay('auth')} aria-label="登录">
+                            <button className="icon-button" onClick={() => setOverlay('auth')} aria-label={t.signIn}>
                                 <CircleUserRound size={20} />
                             </button>
                         )}
@@ -182,17 +226,11 @@ function App() {
             )}
 
             {screen === 'menu' && (
-                <section className="menu-layer" aria-label="开始游戏">
-                    {/* 天空弹幕带：flex 撑满标题上方的全部空白，弹幕只在这条带内飘，
-                        结构上不可能压到「飞天碗盆」主标题；带太矮（横屏矮窗）时整带隐藏 */}
+                <section className="menu-layer" aria-label={t.startMenu}>
                     <div className="menu-sky" aria-hidden="true">
-                        <MenuDanmaku messages={messages} burst={burst} />
+                        <MenuDanmaku messages={messages} burst={burst} fallbackMessages={t.defaultMessages} />
                     </div>
 
-                    {/* 游戏名：大弧角粉色糖果牌当底板，把中文主名+英文药丸收进一个整体，
-                        不再让文字直接飘在柱子/弹幕上。装饰件只挂在牌子外缘（顶部蝴蝶结
-                        主视觉 + 角落云/花 + 少量闪点），成组且克制；中文每字拆开做轻微
-                        错落旋转，手账贴纸的卡通感 */}
                     <header className="game-title">
                         <div className="title-decor" aria-hidden="true">
                             <Ribbon className="title-trim ribbon" size={32} />
@@ -203,38 +241,39 @@ function App() {
                             <Heart className="title-trim heart-bottom" size={13} fill="currentColor" />
                         </div>
                         <h1 aria-label={GAME_TITLE}>
-                            {Array.from(GAME_TITLE).map((char, index) => (
-                                <span key={index} aria-hidden="true">{char}</span>
-                            ))}
+                            <TitleLetters word={t.gameTitleWords[0]} className="title-name--hyunjin" />
+                            <span className="title-x" aria-hidden="true">{t.gameTitleWords[1]}</span>
+                            <TitleLetters word={t.gameTitleWords[2]} className="title-name--felix" />
                         </h1>
-                        <p>{GAME_TITLE_EN}</p>
+                        <p className="title-sub">{t.gameSubtitle}</p>
                     </header>
                     <div className="menu-controls">
-                        {/* 留言入口：面板上沿的小贴纸按钮，发出的留言立刻加入弹幕 */}
-                        <button className="note-button" onClick={() => setOverlay('note')} aria-label="写弹幕留言">
-                            <MessageCircle size={14} /> 留言
+                        <button className="note-button" onClick={() => setOverlay('note')} aria-label={t.leaveMessage}>
+                            <MessageCircle size={14} /> {t.leaveMessage}
                         </button>
-                        <div className="character-rail" role="list" aria-label="选择角色">
-                            {CHARACTERS.map((character) => (
+                        <div className="character-rail" role="list" aria-label={t.chooseCharacter}>
+                            {CHARACTERS.map((character) => {
+                                const copy = getCharacterCopy(locale, character.id);
+                                return (
                                 <button
                                     key={character.id}
                                     className={`character-choice ${character.id === selected.id ? 'selected' : ''}`}
                                     onClick={() => chooseCharacter(character.id)}
                                     aria-pressed={character.id === selected.id}
-                                    aria-label={`选择${character.name}`}
+                                    aria-label={t.chooseCharacterNamed(copy.name)}
                                 >
                                     <img src={`/assets/${character.portrait}`} alt="" />
-                                    <span className="character-name">{character.name}</span>
+                                    <span className="character-name">{copy.name}</span>
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
 
-                        <button className="primary-button" onClick={play} aria-label="开始游戏">
+                        <button className="primary-button" onClick={play} aria-label={t.startGame}>
                             <Play size={21} fill="currentColor" />
                         </button>
                     </div>
 
-                    {/* 底部配重：与顶部天空带平分剩余空间，保持标题+面板整体居中构图 */}
                     <div className="menu-sky-spacer" aria-hidden="true" />
                 </section>
             )}
@@ -247,17 +286,17 @@ function App() {
             )}
 
             {screen === 'gameover' && lastRun && (
-                <section className="result-layer" aria-label="本局结果">
+                <section className="result-layer" aria-label={t.playAgain}>
                     <div className="result-sheet">
                         <div className="result-score">{lastRun.totalScore}</div>
                         {!player && (
-                            <button className="save-button" onClick={() => setOverlay('auth')} aria-label="登录并保存">
+                            <button className="save-button" onClick={() => setOverlay('auth')} aria-label={t.loginToSave}>
                                 <LogIn size={18} />
                             </button>
                         )}
                         <div className="result-actions">
-                            <button className="secondary-button" onClick={() => setScreen('menu')} aria-label="选角色"><Home size={19} /></button>
-                            <button className="primary-button compact" onClick={play} aria-label="再来一局"><RotateCcw size={19} /></button>
+                            <button className="secondary-button" onClick={() => { stopPlayRequest(); setScreen('menu'); }} aria-label={t.pickCharacter}><Home size={19} /></button>
+                            <button className="primary-button compact" onClick={play} aria-label={t.playAgain}><RotateCcw size={19} /></button>
                         </div>
                     </div>
                 </section>
@@ -282,8 +321,6 @@ function App() {
                 />
             )}
 
-            {/* 作者水印：右下角低调常驻，对局中进一步淡化以免分散注意力 */}
-            <span className={`watermark ${screen === 'playing' ? 'faded' : ''}`} aria-hidden="true">@一只云</span>
         </main>
     );
 }
@@ -298,12 +335,12 @@ function App() {
 const DANMAKU_MAX_ON_SCREEN = getEffectQuality() === 'lite' ? 6 : 9;
 const DANMAKU_INTERVAL_MS = getEffectQuality() === 'lite' ? 2600 : 1800;
 
-function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null }) {
+function MenuDanmaku({ messages, burst, fallbackMessages }: { messages: DanmakuMessage[]; burst: DanmakuBurst | null; fallbackMessages: readonly { text: string; author: string }[] }) {
     const [bullets, setBullets] = useState<{ id: number; text: string; author: string; style: BulletStyle }[]>([]);
     const counter = useRef(0);
     const cursor = useRef(0);
     const pool = useRef<{ text: string; author: string }[]>([]);
-    pool.current = buildPool(messages);
+    pool.current = buildPool(messages, fallbackMessages);
 
     useEffect(() => {
         const emit = () => {
@@ -351,6 +388,7 @@ function MenuDanmaku({ messages, burst }: { messages: DanmakuMessage[]; burst: D
 // 弹幕留言弹窗：一句话 + 可选昵称。留言与账号完全解绑——登录与否都是同一套
 // 表单，署名只看昵称，留空由服务端署「路过的碗」。
 function MessageDialog({ onClose, onPosted }: { onClose: () => void; onPosted: (message: DanmakuMessage) => void }) {
+    const { t } = useI18n();
     const [text, setText] = useState('');
     const [nickname, setNickname] = useState('');
     const [busy, setBusy] = useState(false);
@@ -361,14 +399,14 @@ function MessageDialog({ onClose, onPosted }: { onClose: () => void; onPosted: (
         setError('');
         const normalized = normalizeMessage(text);
         if (!normalized) {
-            setError(`写一句 1–${MESSAGE_MAX} 字的留言吧`);
+            setError(t.noteErrorEmpty);
             return;
         }
         setBusy(true);
         try {
             onPosted(await postDanmaku(normalized, nickname));
         } catch {
-            setError('发送失败，请稍后再试');
+            setError(t.noteErrorSend);
             setBusy(false);
         }
     };
@@ -376,15 +414,15 @@ function MessageDialog({ onClose, onPosted }: { onClose: () => void; onPosted: (
     return (
         <div className="dialog-backdrop" role="presentation">
             <section className="dialog note-dialog" role="dialog" aria-modal="true" aria-labelledby="note-title">
-                <button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={20} /></button>
-                <p className="eyebrow">弹幕留言板</p>
-                <h2 id="note-title">写句留言</h2>
+                <button className="dialog-close" onClick={onClose} aria-label={t.close}><X size={20} /></button>
+                <p className="eyebrow">{t.noteEyebrow}</p>
+                <h2 id="note-title">{t.noteTitle}</h2>
                 <form onSubmit={submit}>
-                    <label>留言<input value={text} onChange={(event) => setText(event.target.value)} maxLength={MESSAGE_MAX} placeholder="碗碗加油！" /></label>
-                    <label>昵称（可不填）<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={NICKNAME_MAX} placeholder="路过的碗" /></label>
+                    <label>{t.noteLabel}<input value={text} onChange={(event) => setText(event.target.value)} maxLength={MESSAGE_MAX} placeholder={t.notePlaceholder} /></label>
+                    <label>{t.nicknameLabel}<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={NICKNAME_MAX} placeholder={t.nicknamePlaceholder} /></label>
                     {error && <p className="form-error" role="alert">{error}</p>}
                     <button className="primary-button" disabled={busy}>
-                        {busy ? '发送中…' : <><Send size={17} /> 发射弹幕</>}
+                        {busy ? t.noteSending : <><Send size={17} /> {t.noteSubmit}</>}
                     </button>
                 </form>
             </section>
@@ -393,6 +431,7 @@ function MessageDialog({ onClose, onPosted }: { onClose: () => void; onPosted: (
 }
 
 function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; onClose: () => void; onSuccess: (player: PlayerProfile) => void }) {
+    const { t } = useI18n();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [busy, setBusy] = useState(false);
@@ -413,7 +452,7 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
         try {
             onSuccess(await enter(name, password, characterId));
         } catch (submitError) {
-            setError(submitError instanceof PasswordMismatchError ? '这个用户名已被别人占用（或密码输错了），换个名字或输入正确密码' : '登录失败，请稍后再试');
+            setError(submitError instanceof PasswordMismatchError ? t.authErrorTaken : t.authErrorGeneric);
         } finally {
             setBusy(false);
         }
@@ -422,14 +461,14 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
     return (
         <div className="dialog-backdrop" role="presentation">
             <section className="dialog auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-                <button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={20} /></button>
-                <p className="eyebrow">保存游戏进度</p>
-                <h2 id="auth-title">登录</h2>
+                <button className="dialog-close" onClick={onClose} aria-label={t.close}><X size={20} /></button>
+                <p className="eyebrow">{t.saveProgressEyebrow}</p>
+                <h2 id="auth-title">{t.signInTitle}</h2>
                 <form onSubmit={submit}>
-                    <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={USERNAME_MAX} /></label>
-                    <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={PASSWORD_MAX} /></label>
+                    <label>{t.username}<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={USERNAME_MAX} /></label>
+                    <label>{t.password}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={PASSWORD_MAX} /></label>
                     {error && <p className="form-error" role="alert">{error}</p>}
-                    <button className="primary-button" disabled={busy}>{busy ? '请稍候…' : '登录'}</button>
+                    <button className="primary-button" disabled={busy}>{busy ? t.signInBusy : t.signInSubmit}</button>
                 </form>
             </section>
         </div>
@@ -437,6 +476,7 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
 }
 
 function LeaderboardDialog({ onClose }: { onClose: () => void }) {
+    const { locale, t } = useI18n();
     const [type, setType] = useState<'best' | 'total'>('best');
     const [data, setData] = useState<LeaderboardResponse | null>(null);
     const [error, setError] = useState(false);
@@ -456,23 +496,24 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
     return (
         <div className="dialog-backdrop" role="presentation">
             <section className="dialog leaderboard-dialog" role="dialog" aria-modal="true" aria-labelledby="leaderboard-title">
-                <button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={20} /></button>
-                <p className="eyebrow">全服排名</p>
-                <h2 id="leaderboard-title">排行榜</h2>
+                <button className="dialog-close" onClick={onClose} aria-label={t.close}><X size={20} /></button>
+                <p className="eyebrow">{t.leaderboardEyebrow}</p>
+                <h2 id="leaderboard-title">{t.leaderboardTitle}</h2>
                 <div className="segmented" role="tablist">
-                    <button className={type === 'best' ? 'active' : ''} onClick={() => setType('best')}>最高分</button>
-                    <button className={type === 'total' ? 'active' : ''} onClick={() => setType('total')}>累计分</button>
+                    <button className={type === 'best' ? 'active' : ''} onClick={() => setType('best')}>{t.tabBest}</button>
+                    <button className={type === 'total' ? 'active' : ''} onClick={() => setType('total')}>{t.tabTotal}</button>
                 </div>
                 <div className="leaderboard-list">
-                    {!data && !error && <p className="empty-state">读取中…</p>}
-                    {error && <p className="empty-state">排行榜暂时不可用</p>}
-                    {data?.entries.length === 0 && <p className="empty-state">还没人上榜</p>}
+                    {!data && !error && <p className="empty-state">{t.leaderboardLoading}</p>}
+                    {error && <p className="empty-state">{t.leaderboardUnavailable}</p>}
+                    {data?.entries.length === 0 && <p className="empty-state">{t.leaderboardEmpty}</p>}
                     {data?.entries.map((entry) => {
                         const character = getCharacter(entry.characterId);
+                        const copy = getCharacterCopy(locale, character.id);
                         return (
                             <div className="leaderboard-row" key={entry.playerId}>
                                 <b className="rank">{entry.rank}</b>
-                                <img src={`/assets/${character.portrait}`} alt={character.name} />
+                                <img src={`/assets/${character.portrait}`} alt={copy.name} />
                                 <span>{entry.username}</span>
                                 <strong>{entry.score}</strong>
                             </div>
@@ -480,7 +521,7 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
                     })}
                 </div>
                 {data?.me && !data.entries.some((entry) => entry.playerId === data.me?.playerId) && (
-                    <div className="my-rank"><span>我的排名 #{data.me.rank}</span><b>{data.me.score}</b></div>
+                    <div className="my-rank"><span>{t.myRank(data.me.rank)}</span><b>{data.me.score}</b></div>
                 )}
             </section>
         </div>

@@ -1,17 +1,27 @@
 import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
 import {
-    calculateScore, computeGameWidth, computePlayerX, computeStageHeight, createRunId, createSeededRandom,
-    FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRewardKind, RunResult,
+    advanceEmojiTriggerState, calculateScore, computeGameWidth, computePlayerX, computeStageHeight,
+    createEmojiTriggerState, createRunId, createSeededRandom, EASTER_EGG_143_DANMAKU_MESSAGES,
+    EASTER_EGG_143_DANMAKU_MS, EASTER_EGG_143_DANMAKU_SPAWN_MS, EMOJI_FADE_MS, EMOJI_HOLD_MS,
+    FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRandomEmoji,
+    pickRewardKind, resetEmojiTriggerAfterEmit, RunResult, shouldEmitPlayerEmoji, shouldTrigger143EasterEgg,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
-import { CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, type ObstacleVariant, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE, SKY_TOP_COLOR } from '../assets';
+import { BACKGROUNDS, BACKGROUND_SLIDE_FADE_MS, BACKGROUND_SLIDE_INTERVAL_MS, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, getObstacleVariant, type ObstacleVariant, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE } from '../assets';
 import { getEffectQuality, getRenderScale } from '../renderScale';
 import { playSfx } from '../sfx';
 import { syncStageVars } from '../stageSync';
 import { EventBus } from '../EventBus';
 
 type GamePhase = 'idle' | 'countdown' | 'playing' | 'over';
+
+interface EmojiFollower {
+    container: Phaser.GameObjects.Container;
+    offsetX: number;
+    offsetY: number;
+    floatY: number;
+}
 
 interface ObstaclePair {
     top: Phaser.Physics.Arcade.Image;
@@ -26,20 +36,22 @@ const COUNTDOWN_TEXT_Y = 264;
 // 移动端/弱机（lite 档）减量到 8 颗并去掉旋转 tween，降低每帧绘制与补间开销。
 const SPARKLE_COUNT_FULL = 14;
 const SPARKLE_COUNT_LITE = 8;
-const SPARKLE_TINTS = [0xffffff, 0xffd3e8, 0xd9c8ff, 0xbcd9ff, 0xfff0c9];
+const SPARKLE_TINTS = [0xffffff, 0xfff0e0, 0xe8dff5, 0xdce8ff, 0xffe8d0];
 
 export class Game extends Scene {
     private phase: GamePhase = 'idle';
-    private selectedCharacter = 'nova';
+    private selectedCharacter = 'snow';
     private player!: Phaser.Physics.Arcade.Sprite;
     private obstacles!: Phaser.Physics.Arcade.Group;
     private rewards!: Phaser.Physics.Arcade.Group;
     private pairs: ObstaclePair[] = [];
     private sky!: Phaser.GameObjects.Image;
-    // 竖屏出血区（画布高 >640）用天空顶行同色矩形向上续接，消除顶部 letterbox
+    // 竖屏出血区（画布高 >640）用当前背景顶行同色矩形向上续接
     private skyExtension!: Phaser.GameObjects.Rectangle;
-    private city!: Phaser.GameObjects.TileSprite;
-    private street!: Phaser.GameObjects.TileSprite;
+    private backgroundIndex = 0;
+    private backgroundSlideTimer?: Phaser.Time.TimerEvent;
+    private backgroundCrossfading = false;
+    private backgroundFadeTween?: Phaser.Tweens.Tween;
     private idleTween?: Phaser.Tweens.Tween;
     private countdownText?: Phaser.GameObjects.Text;
     private pipeCount = 0;
@@ -57,6 +69,16 @@ export class Game extends Scene {
     private playerBaseScale = CHARACTER_TEXTURE_SIZE / CHARACTER_SPRITE_SIZE;
     private lastGapSkewSign = 0;
     private lastVariantIndex = -1;
+    private emojiTrigger = createEmojiTriggerState(0.5);
+    private emojiFollowers: EmojiFollower[] = [];
+    private lastEmittedScore = 0;
+    private easterEgg143Shown = false;
+    private forceOne43Obstacle = false;
+    private easterEgg143Text?: Phaser.GameObjects.Text;
+    private invincibleRainUntil = 0;
+    private danmakuRainTimer?: Phaser.Time.TimerEvent;
+    private danmakuRainEndTimer?: Phaser.Time.TimerEvent;
+    private danmakuRainSpawnIndex = 0;
     private flapKeyHandler = () => this.flap();
     private resizeHandler = () => {
         this.maybeApplyStageSize();
@@ -68,11 +90,10 @@ export class Game extends Scene {
     }
 
     create() {
-        this.sky = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'background-sky');
-        // 底边锚在世界 y=0（origin 0.5,1），layout 里按出血量拉高，与天空贴图顶行颜色无缝相接
-        this.skyExtension = this.add.rectangle(GAME_WIDTH / 2, 0, GAME_WIDTH, 0, SKY_TOP_COLOR).setOrigin(0.5, 1);
-        this.city = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 'background-city');
-        this.street = this.add.tileSprite(GAME_WIDTH / 2, 565, GAME_WIDTH, 180, 'background-street').setDepth(2);
+        this.sky = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, BACKGROUNDS[0].textureKey);
+        this.skyExtension = this.add.rectangle(GAME_WIDTH / 2, 0, GAME_WIDTH, 0, BACKGROUNDS[0].topColor).setOrigin(0.5, 1);
+        this.applyBackground(this.backgroundIndex);
+        this.scheduleBackgroundSlideshow();
         this.createAmbientSparkles();
         this.obstacles = this.physics.add.group({ allowGravity: false, immovable: true });
         this.rewards = this.physics.add.group({ allowGravity: false, immovable: true });
@@ -97,6 +118,7 @@ export class Game extends Scene {
         this.layout();
 
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.backgroundSlideTimer?.remove(false);
             this.scale.off('resize', this.resizeHandler);
             this.input.keyboard?.off('keydown-SPACE', this.flapKeyHandler);
             this.input.keyboard?.off('keydown-UP', this.flapKeyHandler);
@@ -140,9 +162,8 @@ export class Game extends Scene {
         this.cameras.main.centerOn(width / 2, GAME_HEIGHT - height / 2);
         this.sky.setPosition(width / 2, GAME_HEIGHT / 2);
         this.skyExtension.setPosition(width / 2, 0).setSize(width, Math.max(0, height - GAME_HEIGHT));
-        this.city.setSize(width, GAME_HEIGHT).setPosition(width / 2, GAME_HEIGHT / 2);
-        this.street.setSize(width, 180).setPosition(width / 2, 565);
         if (this.countdownText?.active) this.countdownText.setPosition(width / 2, COUNTDOWN_TEXT_Y);
+        if (this.easterEgg143Text?.active) this.easterEgg143Text.setX(width / 2);
         // 画布变窄时把滞留在右侧画外的星光挪回可见区
         this.sparkles.forEach((sparkle) => {
             if (sparkle.x > width + 16) sparkle.x = Math.random() * width;
@@ -155,13 +176,17 @@ export class Game extends Scene {
     update(_time: number, delta: number) {
         const seconds = delta / 1000;
         const scrollSpeed = this.phase === 'playing' ? getDifficulty(this.currentScore()).speed : 22;
-        this.city.tilePositionX += scrollSpeed * 0.18 * seconds;
-        this.street.tilePositionX += scrollSpeed * seconds;
         this.driftSparkles(scrollSpeed, seconds);
 
         if (this.phase !== 'playing') return;
         // 速度只在难度跳档时批量下发（旧实现每帧对全部柱子/奖励 setVelocityX）
         if (scrollSpeed !== this.appliedSpeed) this.applyScrollSpeed(scrollSpeed);
+        this.emojiTrigger = advanceEmojiTriggerState(this.emojiTrigger, delta);
+        this.syncEmojiFollowers();
+        if (shouldEmitPlayerEmoji(this.emojiTrigger, this.emojiFollowers.length)) {
+            this.emitPlayerEmoji();
+            this.emojiTrigger = resetEmojiTriggerAfterEmit(this.emojiTrigger, this.random());
+        }
 
         // 计分 + 出屏销毁用单次就地压缩遍历完成：热路径零数组/闭包分配
         let write = 0;
@@ -170,6 +195,7 @@ export class Game extends Scene {
             if (!pair.scored && pair.top.x + pair.top.displayWidth / 2 < this.player.x) {
                 pair.scored = true;
                 this.pipeCount += 1;
+                this.emojiTrigger = { ...this.emojiTrigger, pipesSinceLast: this.emojiTrigger.pipesSinceLast + 1 };
                 playSfx('score');
                 this.emitScore();
             }
@@ -188,7 +214,11 @@ export class Game extends Scene {
         if (!latest || latest.top.x < this.logicalWidth() - SPAWN_TRIGGER_FROM_RIGHT) this.spawnPair();
 
         this.player.setAngle(Phaser.Math.Clamp((this.player.body?.velocity.y ?? 0) * 0.08, -22, 72));
-        if (isOutOfBounds(this.player.y)) this.finishRun();
+        if (!this.is143Invincible() && isOutOfBounds(this.player.y)) this.finishRun();
+    }
+
+    private is143Invincible(): boolean {
+        return this.invincibleRainUntil > 0 && this.time.now < this.invincibleRainUntil;
     }
 
     // 把当前难度速度一次性下发给场上全部柱子与未收集奖励；新生成的对在 spawnPair 里单独赋速
@@ -247,6 +277,69 @@ export class Game extends Scene {
         }
     }
 
+    private applyBackground(index: number) {
+        const frame = BACKGROUNDS[index % BACKGROUNDS.length];
+        this.backgroundIndex = index % BACKGROUNDS.length;
+        this.sky.setTexture(frame.textureKey).setAlpha(1).setScale(1);
+        this.skyExtension.setFillStyle(frame.topColor);
+    }
+
+    private lerpColor(from: number, to: number, t: number): number {
+        const fr = (from >> 16) & 0xff;
+        const fg = (from >> 8) & 0xff;
+        const fb = from & 0xff;
+        const tr = (to >> 16) & 0xff;
+        const tg = (to >> 8) & 0xff;
+        const tb = to & 0xff;
+        const r = Math.round(fr + (tr - fr) * t);
+        const g = Math.round(fg + (tg - fg) * t);
+        const b = Math.round(fb + (tb - fb) * t);
+        return (r << 16) | (g << 8) | b;
+    }
+
+    private scheduleBackgroundSlideshow() {
+        this.backgroundSlideTimer?.remove(false);
+        this.backgroundSlideTimer = this.time.addEvent({
+            delay: BACKGROUND_SLIDE_INTERVAL_MS,
+            loop: true,
+            callback: () => this.cycleBackground(),
+        });
+    }
+
+    private cycleBackground() {
+        if (this.backgroundCrossfading) return;
+        const current = BACKGROUNDS[this.backgroundIndex];
+        const nextIndex = (this.backgroundIndex + 1) % BACKGROUNDS.length;
+        const next = BACKGROUNDS[nextIndex];
+        const width = this.logicalWidth();
+        const incoming = this.add.image(width / 2, GAME_HEIGHT / 2, next.textureKey)
+            .setDepth(0)
+            .setAlpha(0)
+            .setScale(1.028);
+        this.backgroundCrossfading = true;
+        this.backgroundFadeTween?.stop();
+        const fade = { progress: 0 };
+        this.backgroundFadeTween = this.tweens.add({
+            targets: fade,
+            progress: 1,
+            duration: BACKGROUND_SLIDE_FADE_MS,
+            ease: 'Cubic.easeInOut',
+            onUpdate: () => {
+                const p = fade.progress;
+                const eased = Phaser.Math.Easing.Cubic.InOut(p);
+                incoming.setAlpha(eased).setScale(1.028 - eased * 0.028);
+                this.sky.setAlpha(1 - eased).setScale(1 - eased * 0.022);
+                this.skyExtension.setFillStyle(this.lerpColor(current.topColor, next.topColor, eased));
+            },
+            onComplete: () => {
+                this.applyBackground(nextIndex);
+                incoming.destroy();
+                this.backgroundCrossfading = false;
+                this.backgroundFadeTween = undefined;
+            },
+        });
+    }
+
     private selectCharacter(characterId: string) {
         this.selectedCharacter = characterId;
         if (this.phase === 'idle' || this.phase === 'over') this.applyCharacterBody(characterId);
@@ -264,8 +357,10 @@ export class Game extends Scene {
         this.player.setCircle(textureRadius, offset, offset);
     }
 
-    private startRun = (payload: { characterId: string; seed?: number }) => {
+    private startRun = (payload: { characterId: string; seed?: number; countdownSequence?: readonly string[] }) => {
+        if (this.phase === 'countdown' || this.phase === 'playing') return;
         this.time.removeAllEvents();
+        this.scheduleBackgroundSlideshow();
         this.clearWorld();
         this.phase = 'countdown';
         this.selectedCharacter = payload.characterId;
@@ -274,6 +369,13 @@ export class Game extends Scene {
         this.lastVariantIndex = -1;
         this.pipeCount = 0;
         this.rewardCount = 0;
+        this.emojiTrigger = createEmojiTriggerState(this.random());
+        this.clearEmojiFollowers();
+        this.lastEmittedScore = 0;
+        this.easterEgg143Shown = false;
+        this.forceOne43Obstacle = false;
+        this.clearEasterEgg143Text();
+        this.stop143DanmakuRain();
         // 清零已下发速度：开局第一帧会按当前难度重新批量下发
         this.appliedSpeed = 0;
         // 连同待机浮动与上一局可能残留的挤压 tween 一起清掉，防止旧 tween 覆盖刚复位的基准 scale
@@ -285,7 +387,7 @@ export class Game extends Scene {
         this.emitScore();
 
         this.showCountdown('3');
-        const sequence = ['3', '2', '1', '开始'];
+        const sequence = payload.countdownSequence ?? ['3', '2', '1', 'GO!'];
         let index = 0;
         this.time.addEvent({
             delay: 620,
@@ -392,8 +494,14 @@ export class Game extends Scene {
         this.pairs.push(pair);
     }
 
-    // 五张标语按对局种子随机轮换；相邻两对不重复，颜色仍统一为樱花粉。
+    // 十套标语按对局种子随机轮换；相邻两对不重复。143 彩蛋会强制下一对为 one43。
     private pickObstacleVariant(): ObstacleVariant {
+        if (this.forceOne43Obstacle) {
+            this.forceOne43Obstacle = false;
+            const forced = getObstacleVariant('one43') ?? OBSTACLE_VARIANTS[1];
+            this.lastVariantIndex = OBSTACLE_VARIANTS.findIndex((variant) => variant.id === forced.id);
+            return forced;
+        }
         let index = Math.floor(this.random() * OBSTACLE_VARIANTS.length) % OBSTACLE_VARIANTS.length;
         if (OBSTACLE_VARIANTS.length > 1 && index === this.lastVariantIndex) {
             index = (index + 1) % OBSTACLE_VARIANTS.length;
@@ -464,10 +572,84 @@ export class Game extends Scene {
         if (pair) pair.reward = undefined;
     }
 
+    private syncEmojiFollowers() {
+        for (let index = this.emojiFollowers.length - 1; index >= 0; index -= 1) {
+            const follower = this.emojiFollowers[index];
+            if (!follower.container.active) {
+                this.emojiFollowers.splice(index, 1);
+                continue;
+            }
+            follower.container.setPosition(
+                this.player.x + follower.offsetX,
+                this.player.y + follower.offsetY + follower.floatY,
+            );
+        }
+    }
+
+    private clearEmojiFollowers() {
+        for (const follower of this.emojiFollowers) follower.container.destroy();
+        this.emojiFollowers = [];
+    }
+
+    private emitPlayerEmoji() {
+        const emoji = pickRandomEmoji(this.random());
+        const offsetX = 14 + this.random() * 18;
+        const offsetY = -22 - this.random() * 14;
+        const fontSize = 22 + Math.floor(this.random() * 8);
+        const follower: EmojiFollower = {
+            container: this.add.container(this.player.x + offsetX, this.player.y + offsetY).setDepth(15).setAlpha(0),
+            offsetX,
+            offsetY,
+            floatY: 0,
+        };
+        const bubble = this.add.text(0, 0, emoji, {
+            fontFamily: 'Arial, Apple Color Emoji, Segoe UI Emoji, sans-serif',
+            fontSize: `${fontSize}px`,
+            resolution: this.renderScale,
+        }).setOrigin(0.5).setScale(0.82);
+        follower.container.add(bubble);
+        this.emojiFollowers.push(follower);
+
+        this.tweens.add({
+            targets: follower.container,
+            alpha: 1,
+            duration: 180,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: bubble,
+                    scale: 1,
+                    duration: 120,
+                    ease: 'Back.easeOut',
+                });
+                this.time.delayedCall(EMOJI_HOLD_MS, () => {
+                    if (!follower.container.active) return;
+                    this.tweens.add({
+                        targets: follower,
+                        floatY: -24 - this.random() * 12,
+                        duration: EMOJI_FADE_MS,
+                        ease: 'Sine.easeOut',
+                    });
+                    this.tweens.add({
+                        targets: follower.container,
+                        alpha: 0,
+                        duration: EMOJI_FADE_MS,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => {
+                            follower.container.destroy();
+                            const slot = this.emojiFollowers.indexOf(follower);
+                            if (slot >= 0) this.emojiFollowers.splice(slot, 1);
+                        },
+                    });
+                });
+            },
+        });
+    }
+
     private spawnSpark(x: number, y: number) {
         for (let index = 0; index < 8; index += 1) {
             const angle = (Math.PI * 2 * index) / 8;
-            const dot = this.add.circle(x, y, 3, index % 2 ? 0xffd3e3 : 0xf27fa5).setDepth(20);
+            const dot = this.add.circle(x, y, 3, index % 2 ? 0xe8dff5 : 0xc9b0e0).setDepth(20);
             this.tweens.add({
                 targets: dot, x: x + Math.cos(angle) * 34, y: y + Math.sin(angle) * 34,
                 alpha: 0, scale: 0.2, duration: 420, onComplete: () => dot.destroy(),
@@ -476,7 +658,7 @@ export class Game extends Scene {
     }
 
     private finishRun() {
-        if (this.phase !== 'playing') return;
+        if (this.phase !== 'playing' || this.is143Invincible()) return;
         this.phase = 'over';
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
@@ -493,7 +675,114 @@ export class Game extends Scene {
     }
 
     private emitScore() {
-        EventBus.emit('score:changed', { total: this.currentScore(), pipeCount: this.pipeCount, rewardCount: this.rewardCount });
+        const previous = this.lastEmittedScore;
+        const total = this.currentScore();
+        this.lastEmittedScore = total;
+        EventBus.emit('score:changed', { total, pipeCount: this.pipeCount, rewardCount: this.rewardCount });
+        if (shouldTrigger143EasterEgg(previous, total, this.easterEgg143Shown)) {
+            this.trigger143EasterEgg();
+        }
+    }
+
+    private trigger143EasterEgg() {
+        this.easterEgg143Shown = true;
+        this.forceOne43Obstacle = true;
+        playSfx('easter143');
+        this.show143Celebration();
+        this.spawnSpark(this.player.x, this.player.y - 8);
+    }
+
+    private show143Celebration() {
+        this.clearEasterEgg143Text();
+        const centerY = GAME_HEIGHT * 0.42;
+        this.easterEgg143Text = this.add.text(this.logicalWidth() / 2, centerY, '143 ♡', {
+            fontFamily: 'Arial Black',
+            fontSize: 78,
+            color: '#fff6f9',
+            stroke: '#e87898',
+            strokeThickness: 10,
+            resolution: this.renderScale,
+        }).setOrigin(0.5).setDepth(35).setAlpha(0).setScale(0.72);
+
+        this.tweens.add({
+            targets: this.easterEgg143Text,
+            alpha: 1,
+            scale: 1.08,
+            duration: 320,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                this.start143DanmakuRain();
+                this.time.delayedCall(1200, () => {
+                    if (!this.easterEgg143Text?.active) return;
+                    this.tweens.add({
+                        targets: this.easterEgg143Text,
+                        alpha: 0,
+                        scale: 1.2,
+                        y: centerY - 28,
+                        duration: 680,
+                        ease: 'Cubic.easeIn',
+                        onComplete: () => this.clearEasterEgg143Text(),
+                    });
+                });
+            },
+        });
+    }
+
+    private clearEasterEgg143Text() {
+        this.easterEgg143Text?.destroy();
+        this.easterEgg143Text = undefined;
+    }
+
+    private start143DanmakuRain() {
+        this.stop143DanmakuRain(false);
+        this.invincibleRainUntil = this.time.now + EASTER_EGG_143_DANMAKU_MS;
+        this.player.setTint(0xffd0e4);
+        this.danmakuRainSpawnIndex = 0;
+        const spawnMs = this.effectsLite ? 360 : EASTER_EGG_143_DANMAKU_SPAWN_MS;
+        this.spawn143DanmakuBullet();
+        this.danmakuRainTimer = this.time.addEvent({
+            delay: spawnMs,
+            loop: true,
+            callback: () => this.spawn143DanmakuBullet(),
+        });
+        this.danmakuRainEndTimer = this.time.delayedCall(EASTER_EGG_143_DANMAKU_MS, () => this.stop143DanmakuRain());
+    }
+
+    private spawn143DanmakuBullet() {
+        if (!this.is143Invincible()) return;
+        const index = this.danmakuRainSpawnIndex;
+        this.danmakuRainSpawnIndex += 1;
+        const message = EASTER_EGG_143_DANMAKU_MESSAGES[index % EASTER_EGG_143_DANMAKU_MESSAGES.length];
+        const width = this.logicalWidth();
+        const y = 52 + ((index * 41) % (GAME_HEIGHT - 108));
+        const fontSize = 13 + (index % 3) * 2;
+        const speed = 165 + this.random() * 70;
+        const travelMs = ((width + 180) / speed) * 1000;
+        const label = this.add.text(width + 48, y, message, {
+            fontFamily: 'Arial, Apple Color Emoji, Segoe UI Emoji, sans-serif',
+            fontSize: `${fontSize}px`,
+            color: '#d9598a',
+            backgroundColor: '#fff9fcbb',
+            padding: { x: 8, y: 3 },
+            resolution: this.renderScale,
+        }).setDepth(24).setAlpha(0.9);
+
+        this.tweens.add({
+            targets: label,
+            x: -140,
+            duration: travelMs,
+            ease: 'Linear',
+            onComplete: () => label.destroy(),
+        });
+    }
+
+    private stop143DanmakuRain(clearTint = true) {
+        this.invincibleRainUntil = 0;
+        this.danmakuRainTimer?.remove(false);
+        this.danmakuRainTimer = undefined;
+        this.danmakuRainEndTimer?.remove(false);
+        this.danmakuRainEndTimer = undefined;
+        if (clearTint && this.player?.active) this.player.clearTint();
     }
 
     private playerBody(): Phaser.Physics.Arcade.Body {
@@ -505,6 +794,9 @@ export class Game extends Scene {
     }
 
     private clearWorld() {
+        this.clearEmojiFollowers();
+        this.clearEasterEgg143Text();
+        this.stop143DanmakuRain();
         this.pairs.forEach((pair) => {
             pair.top.destroy();
             pair.bottom.destroy();

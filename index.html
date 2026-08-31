@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="128x128" href="/favicon-duo.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#b0d1fc" />
-    <meta name="description" content="飞天碗盆 Flying Wanpen：和碗碗、盆盆一起穿越樱花街道，打开链接就能玩的粉彩飞行小游戏。" />
+    <meta name="theme-color" content="#fcf1e4" />
+    <meta name="description" content="Hyunjin × Felix (Hyunlix): a cute duo fan flying game with three characters, leaderboards, and danmaku messages." />
     <link rel="stylesheet" href="/style.css">
-    <title>飞天碗盆 · Flying Wanpen</title>
+    <title>Hyunjin × Felix</title>
     <style>
-        /* 启动兜底层：老浏览器/弱网下脚本加载失败时的可见提示（React 挂载成功后整层移除）。
-           只用最保守的 CSS（position/text-align 等），保证任何老引擎都能渲染 */
         #boot-fallback {
             position: fixed;
             top: 0;
@@ -45,24 +47,17 @@
 
 <body>
     <div id="root"></div>
-    <!-- 启动兜底：脚本还没接管前先显示「载入中」；加载失败/超时翻转成可重试的错误提示。
-         React 挂载成功后由 App 把整层移除（见 src/App.tsx） -->
     <div id="boot-fallback">
         <div class="boot-inner">
-            <div id="boot-loading">载入中…</div>
+            <div id="boot-loading">Loading…</div>
             <div id="boot-error" role="alert">
-                <p>加载失败或网络较慢</p>
-                <small>请点击重试；若反复失败，建议升级系统或浏览器后再来</small>
-                <button type="button" onclick="location.reload()">重试</button>
+                <p>Load failed or network is slow</p>
+                <small>Tap retry. If it keeps failing, try a newer browser.</small>
+                <button type="button" onclick="location.reload()">Retry</button>
             </div>
         </div>
     </div>
     <script>
-        // 非 module 的经典脚本：语法保持 ES5，保证再老的浏览器也能解析执行。
-        // 1) globalThis shim：Chromium < 71 / Safari < 12.1 没有 globalThis，
-        //    转译后的产物与部分依赖运行期会引用它；
-        // 2) 启动失败可见化：脚本资源加载失败 / 启动期抛错 / 超时未挂载时，
-        //    把「载入中」翻成带重试按钮的错误提示，而不是让玩家死等一块渐变背景。
         (function () {
             if (typeof window.globalThis === 'undefined') window.globalThis = window;
 
@@ -70,20 +65,17 @@
                 var fallback = document.getElementById('boot-fallback');
                 var error = document.getElementById('boot-error');
                 var loading = document.getElementById('boot-loading');
-                if (!fallback || !error) return; // 应用已接管，无需提示
+                if (!fallback || !error) return;
                 if (loading) loading.style.display = 'none';
                 error.style.display = 'block';
             }
 
-            // 老浏览器不支持 <script type="module"> 时静默跳过执行且不报错：
-            // 用特性检测直接判定，无需等超时
             var probe = document.createElement('script');
             if (!('noModule' in probe)) {
                 window.setTimeout(showBootError, 0);
                 return;
             }
 
-            // 资源加载失败（script/css）在捕获阶段可见；启动期运行时错误带 event.error
             window.addEventListener('error', function (event) {
                 if (!document.getElementById('boot-fallback')) return;
                 var target = event && event.target;
@@ -92,8 +84,6 @@
                 if (isResource || (event && event.error)) showBootError();
             }, true);
 
-            // 兜底超时：弱网慢加载时给出提示与重试入口（页面仍在继续加载，
-            // 若随后挂载成功，兜底层会被移除，提示自然消失）
             window.setTimeout(showBootError, 20000);
         })();
     </script>

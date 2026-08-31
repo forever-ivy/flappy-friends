@@ -65,7 +65,7 @@ describe('leaderboardEntry（条目构造）', () => {
 
     it('按榜单类型取分，缺角色回退 nova', () => {
         const player = record({ id: 'p9', username: 'ada', characterId: '', bestScore: 12, totalScore: 99 });
-        expect(leaderboardEntry(player, 3, 'best')).toEqual({ rank: 3, playerId: 'p9', username: 'ada', characterId: 'nova', score: 12 });
+        expect(leaderboardEntry(player, 3, 'best')).toEqual({ rank: 3, playerId: 'p9', username: 'ada', characterId: 'snow', score: 12 });
         expect(leaderboardEntry(player, 1, 'total').score).toBe(99);
     });
 

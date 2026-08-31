@@ -1,0 +1,10 @@
+Background music: Lucid (Lofi, Dreamy, Chill)
+Artist: HoliznaCC0
+License: CC0 1.0 Universal (public domain — no attribution required)
+Source: https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/lucid-lofi-dreamy-chill/
+
+Re-encoded for in-game loop playback (112 kbps MP3).
+
+Alternates considered (also CC0, same artist):
+- Shimmer (LoFi, Chill): https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/shimmer-lofi-chill/
+- Calm Currents (Lofi, Relax, Calm): https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/calm-currents-lofi-relax-calm/

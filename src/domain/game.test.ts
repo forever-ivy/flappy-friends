@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
     calculateScore, computeEffectQuality, computeGameWidth, computePlayerX, computeRenderScale, computeRenderScaleCap,
-    computeStageHeight, createRunId, createSeededRandom,
+    computeStageHeight, createEmojiTriggerState, createRunId, createSeededRandom, EASTER_EGG_143_DANMAKU_MESSAGES,
+    EASTER_EGG_143_DANMAKU_MS, EASTER_EGG_143_DANMAKU_SPAWN_MS, EASTER_EGG_143_SCORE,
+    EMOJI_MIN_COOLDOWN_MS, EMOJI_PIPE_INTERVAL_MAX, EMOJI_PIPE_INTERVAL_MIN,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds,
-    KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, MAX_STAGE_HEIGHT, PLAYER_BASE_X, PLAYER_MAX_X,
-    pickRewardKind, REWARD_MIRROR_CHANCE, shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
+    KILL_BOTTOM, KILL_TOP, MAX_GAME_WIDTH, MAX_RENDER_SCALE, MAX_STAGE_HEIGHT, PLAYER_BASE_X, PLAYER_EMOJIS, PLAYER_MAX_X,
+    pickEmojiPipeInterval, pickRandomEmoji, pickRewardKind, REWARD_MIRROR_CHANCE,
+    resetEmojiTriggerAfterEmit, shouldEmitPlayerEmoji, shouldTrigger143EasterEgg, advanceEmojiTriggerState, shouldSpawnReward,
+    SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from './game';
 
 describe('game rules', () => {
@@ -62,6 +66,37 @@ describe('game rules', () => {
         const first = createSeededRandom(42);
         const second = createSeededRandom(42);
         expect([first(), first(), first()]).toEqual([second(), second(), second()]);
+    });
+
+    it('picks player emojis from the pastel fan pool', () => {
+        expect(PLAYER_EMOJIS.length).toBeGreaterThanOrEqual(8);
+        expect(pickRandomEmoji(0)).toBe(PLAYER_EMOJIS[0]);
+        expect(PLAYER_EMOJIS).toContain(pickRandomEmoji(0.5));
+    });
+
+    it('spaces emoji triggers with pipe intervals and cooldown', () => {
+        expect(pickEmojiPipeInterval(0)).toBe(EMOJI_PIPE_INTERVAL_MIN);
+        expect(pickEmojiPipeInterval(0.99)).toBe(EMOJI_PIPE_INTERVAL_MAX);
+
+        let state = createEmojiTriggerState(0.2);
+        expect(shouldEmitPlayerEmoji(state, 0)).toBe(false);
+
+        state = { ...state, cooldownMs: 0, pipesSinceLast: state.pipeInterval };
+        expect(shouldEmitPlayerEmoji(state, 0)).toBe(true);
+        expect(shouldEmitPlayerEmoji(state, 1)).toBe(false);
+
+        state = resetEmojiTriggerAfterEmit(state, 0.4);
+        expect(state.cooldownMs).toBe(EMOJI_MIN_COOLDOWN_MS);
+        expect(state.pipesSinceLast).toBe(0);
+    });
+
+    it('fires the 143 easter egg exactly once when crossing the fan milestone', () => {
+        expect(shouldTrigger143EasterEgg(142, 143, false)).toBe(true);
+        expect(shouldTrigger143EasterEgg(143, 144, false)).toBe(false);
+        expect(shouldTrigger143EasterEgg(140, 145, false)).toBe(true);
+        expect(shouldTrigger143EasterEgg(142, 143, true)).toBe(false);
+        expect(EASTER_EGG_143_SCORE).toBe(143);
+        expect(EASTER_EGG_143_DANMAKU_MESSAGES.length).toBeGreaterThanOrEqual(6);
     });
 });
 

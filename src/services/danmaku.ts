@@ -16,16 +16,8 @@ export function normalizeMessage(raw: string, max = MESSAGE_MAX): string | null 
     return text;
 }
 
-// 拉不到服务器（离线/接口报错）时的兜底欢迎弹幕；正常情况下垫场靠服务端
-// 预置的种子留言（pb_migrations 的 seed），播放策略见 buildPool
-export const DEFAULT_MESSAGES: readonly { text: string; author: string }[] = [
-    { text: '欢迎来到飞天碗盆 ♡', author: '一只云' },
-    { text: '碗碗加油！', author: '路过的碗' },
-    { text: '盆盆冲鸭～', author: '路过的盆' },
-    { text: '今天也要开心地飞呀', author: '碗碗' },
-    { text: '小心粉粉的柱子哦', author: '盆盆' },
-    { text: '点「留言」写下你的一句话 ✿', author: '一只云' },
-];
+// 拉不到服务器（离线/接口报错）时的兜底欢迎弹幕；文案由 App 按当前语言注入
+export const DEFAULT_MESSAGES: readonly { text: string; author: string }[] = [];
 
 // 真留言达到这个条数后，弹幕池只循环真留言，不再混入服务端种子
 export const REAL_POOL_TARGET = 6;
@@ -37,15 +29,15 @@ export interface PoolMessage {
 }
 
 // 弹幕池策略：真实用户留言永远全量优先；真留言不足 REAL_POOL_TARGET 条时
-// 才用服务端种子补足到目标条数；连种子都没有（离线）就退回本地欢迎语
-export function buildPool(messages: readonly PoolMessage[]): { text: string; author: string }[] {
+// 才用服务端种子补足到目标条数；连种子都没有（离线）就退回 fallbackMessages
+export function buildPool(messages: readonly PoolMessage[], fallbackMessages: readonly { text: string; author: string }[]): { text: string; author: string }[] {
     const real = messages.filter((message) => message.seed !== true);
     if (real.length >= REAL_POOL_TARGET) {
         return real.map(({ text, author }) => ({ text, author }));
     }
     const seeds = messages.filter((message) => message.seed === true);
     const pool = [...real, ...seeds.slice(0, REAL_POOL_TARGET - real.length)];
-    if (pool.length === 0) return [...DEFAULT_MESSAGES];
+    if (pool.length === 0) return [...fallbackMessages];
     return pool.map(({ text, author }) => ({ text, author }));
 }
 

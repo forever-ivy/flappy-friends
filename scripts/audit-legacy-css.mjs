@@ -65,7 +65,6 @@ const checks = [
     ['.result-sheet', 'transform', (v) => v != null && v.includes('translate(-50%, -50%)')],
     ['#game-container canvas', 'width', (v) => v != null],
     ['#game-container canvas', 'height', (v) => v != null],
-    ['.watermark', 'right', (v) => v != null],
     ['.danmaku-layer', 'top', (v) => v === '0'],
 ];
 

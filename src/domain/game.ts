@@ -16,6 +16,83 @@ export const PLAYER_MAX_X = 240;
 export const REWARD_POINTS = 5;
 export const REWARD_CHANCE = 0.35;
 
+// 143 分彩蛋：Hyunjin「I love you」暗号，每局至多触发一次
+export const EASTER_EGG_143_SCORE = 143;
+
+export function shouldTrigger143EasterEgg(previousScore: number, nextScore: number, alreadyTriggered: boolean): boolean {
+    if (alreadyTriggered) return false;
+    return previousScore < EASTER_EGG_143_SCORE && nextScore >= EASTER_EGG_143_SCORE;
+}
+
+export const EASTER_EGG_143_DANMAKU_MS = 4800;
+export const EASTER_EGG_143_DANMAKU_SPAWN_MS = 240;
+
+export const EASTER_EGG_143_DANMAKU_MESSAGES = [
+    '143 ♡', 'I love you', 'Hyunlix', 'STAY', '143', '현릭스', 'Fly high together!',
+    'Hyunjin × Felix', 'WITH U', 'LISGO', '♡ 143 ♡', 'You got this!', '143 forever',
+] as const;
+
+// 角色自动 emoji：仅过柱触发 + 长冷却；停留期间跟随角色
+export const EMOJI_MIN_COOLDOWN_MS = 5200;
+export const EMOJI_HOLD_MS = 2000;
+export const EMOJI_FADE_MS = 900;
+export const EMOJI_PIPE_INTERVAL_MIN = 6;
+export const EMOJI_PIPE_INTERVAL_MAX = 9;
+export const EMOJI_MAX_ACTIVE = 1;
+
+export const PLAYER_EMOJIS = [
+    '♡', '💜', '✨', '🌸', '💫', '🎀', '⭐', '🪽', '💕', '🥰', '💙', '💛',
+] as const;
+
+export interface EmojiTriggerState {
+    pipesSinceLast: number;
+    cooldownMs: number;
+    pipeInterval: number;
+}
+
+function clampUnit(randomValue: number): number {
+    if (!Number.isFinite(randomValue)) return 0;
+    return Math.max(0, Math.min(0.999999, randomValue));
+}
+
+export function pickRandomEmoji(randomValue: number): string {
+    return PLAYER_EMOJIS[Math.floor(clampUnit(randomValue) * PLAYER_EMOJIS.length)]!;
+}
+
+export function pickEmojiPipeInterval(randomValue: number): number {
+    const span = EMOJI_PIPE_INTERVAL_MAX - EMOJI_PIPE_INTERVAL_MIN + 1;
+    return EMOJI_PIPE_INTERVAL_MIN + Math.floor(clampUnit(randomValue) * span);
+}
+
+export function createEmojiTriggerState(randomValue: number): EmojiTriggerState {
+    return {
+        pipesSinceLast: 0,
+        cooldownMs: EMOJI_MIN_COOLDOWN_MS,
+        pipeInterval: pickEmojiPipeInterval(randomValue),
+    };
+}
+
+export function advanceEmojiTriggerState(state: EmojiTriggerState, deltaMs: number): EmojiTriggerState {
+    return {
+        ...state,
+        cooldownMs: Math.max(0, state.cooldownMs - deltaMs),
+    };
+}
+
+export function shouldEmitPlayerEmoji(state: EmojiTriggerState, activeCount: number): boolean {
+    if (activeCount >= EMOJI_MAX_ACTIVE) return false;
+    if (state.cooldownMs > 0) return false;
+    return state.pipesSinceLast >= state.pipeInterval;
+}
+
+export function resetEmojiTriggerAfterEmit(state: EmojiTriggerState, randomPipe: number): EmojiTriggerState {
+    return {
+        pipesSinceLast: 0,
+        cooldownMs: EMOJI_MIN_COOLDOWN_MS,
+        pipeInterval: pickEmojiPipeInterval(randomPipe),
+    };
+}
+
 // 两种奖励贴图的刷新概率不同（不再严格交替）：蝴蝶结叉子为主奖励（70%），
 // 蝴蝶结镜子为稀有款（30%）。仅贴图差异，碰撞与计分完全一致。
 export const REWARD_MIRROR_CHANCE = 0.3;

@@ -52,7 +52,7 @@ pb.autoCancellation(false);
 const toProfile = (record: RecordModel | null): PlayerProfile | null => record ? {
     id: record.id,
     username: record.username,
-    characterId: record.characterId || 'nova',
+    characterId: record.characterId || 'snow',
     bestScore: record.bestScore || 0,
     totalScore: record.totalScore || 0,
     gamesPlayed: record.gamesPlayed || 0,

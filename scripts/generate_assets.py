@@ -7,8 +7,8 @@
 高清源（pictures/，透明底 PNG）：
   IMG_5246.PNG      2048x2048  藏青条纹衫男孩飞行姿态（朝左）-> nova（HD 原色，不做任何改色）
   IMG_5247.PNG      2048x2048  浅蓝番茄衫男孩飞行姿态（朝左）-> moss（HD 原色，不做任何改色）
-  IMG_5248.PNG      2048x2048  蝴蝶结叉子 -> reward.png（主奖励）
-  IMG_5245.PNG      2048x2048  蝴蝶结镜子 -> reward-mirror.png（副奖励）
+  REWARD_JINIRET.png           用户提供的 Jiniret icon -> reward.png（主奖励）
+  REWARD_BBOAKRI.jpg           用户提供的 BbokAri icon -> reward-mirror.png（副奖励）
   IMG_5250.PNG      1080x1920  樱花树秋千场景 -> 三层视差背景的调色与花瓣裁切来源
   IMG_3452.PNG       746x2172  标语柱「一起命中十环」-> 障碍变体文字源
   IMG_3453(1).PNG   1100x3140  标语柱「做你想做的」  -> 障碍变体文字源
@@ -19,7 +19,7 @@
   character-{nova,moss}-hand-right.png  216x216 局内精灵（Phaser setDisplaySize 缩到逻辑 72），透明背景，伸手朝右
   portrait-{nova,moss}-hand-right.png   256x256 菜单头像（DOM/CSS 专用，不复用局内精灵），透明背景，伸手朝右
   obstacle[-{cry,aim,wish,rain}][-top].png  76x480  五套樱花粉障碍（底柱 / 顶柱，文字均正向可读）
-  reward.png / reward-mirror.png        144x144 蝴蝶结叉子 / 蝴蝶结镜子（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清）
+  reward.png / reward-mirror.png        144x144 自 BG_SKY 抠出的 Jiniret / BbokAri icon（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清）
   fx-sparkle.png                        24x24   四角星光（白色基底，游戏内随机着粉彩色）
   background-sky.png                    960x640 静态天空层（梦幻粉紫渐变 + 光斑 + 星光）
   background-city.png                   720x640 中景视差层（无缝平铺）
@@ -32,12 +32,13 @@ import os
 import sys
 from collections import deque
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PIC = os.path.join(ROOT, 'pictures')
 RES = os.path.join(ROOT, 'resource')
 OUT = os.path.join(ROOT, 'public', 'assets', 'game')
+PUBLIC = os.path.join(ROOT, 'public')
 
 # ---- 调色板（均采样自 pictures/*.PNG 高清素材） ----
 SKY_TOP = (185, 226, 255)
@@ -73,16 +74,24 @@ FENCE_OUTLINE = (211, 124, 131)
 SEAT = (216, 180, 166)
 ROPE = (196, 116, 112)
 
-# ---- 障碍配色（当前五张标语统一使用 sakura；其余调色板保留给未来扩展） ----
+# ---- 障碍配色（Hyunlix pastel 系列：奶油 / 薰衣草 / 蜜桃 / 天蓝 / 樱粉 / 黄油 / 薄荷 / 玫瑰） ----
 PILLAR_PALETTES = {
-    'sakura': dict(body=(255, 188, 222), deep=(250, 158, 205), hi=(255, 214, 235),
-                   outline=(153, 77, 77), ink=(153, 77, 77), blossom=(255, 176, 202)),
-    'lavender': dict(body=(223, 202, 255), deep=(199, 168, 246), hi=(238, 226, 255),
-                     outline=(122, 84, 150), ink=(122, 84, 150), blossom=(238, 198, 255)),
-    'skyblue': dict(body=(187, 221, 255), deep=(151, 196, 250), hi=(221, 239, 255),
-                    outline=(84, 116, 168), ink=(84, 116, 168), blossom=(206, 228, 255)),
-    'peach': dict(body=(255, 216, 191), deep=(250, 187, 152), hi=(255, 234, 220),
-                  outline=(178, 104, 66), ink=(178, 104, 66), blossom=(255, 200, 178)),
+    'cream': dict(body=(255, 243, 217), deep=(235, 220, 190), hi=(255, 250, 240),
+                 outline=(160, 140, 120), ink=(130, 110, 95), accent=(255, 190, 200)),
+    'lavender': dict(body=(232, 220, 245), deep=(210, 190, 230), hi=(245, 240, 252),
+                     outline=(140, 120, 160), ink=(120, 100, 130), accent=(255, 200, 220)),
+    'peach': dict(body=(255, 228, 210), deep=(245, 205, 180), hi=(255, 242, 232),
+                  outline=(170, 130, 110), ink=(150, 110, 95), accent=(255, 200, 190)),
+    'sky': dict(body=(220, 235, 252), deep=(195, 215, 245), hi=(238, 245, 255),
+                outline=(120, 140, 175), ink=(100, 120, 155), accent=(200, 220, 255)),
+    'sakura': dict(body=(252, 220, 232), deep=(240, 195, 215), hi=(255, 235, 242),
+                   outline=(165, 120, 140), ink=(145, 100, 120), accent=(255, 210, 225)),
+    'butter': dict(body=(255, 244, 210), deep=(245, 225, 175), hi=(255, 250, 230),
+                   outline=(175, 155, 110), ink=(155, 135, 95), accent=(255, 230, 180)),
+    'mint': dict(body=(220, 245, 235), deep=(195, 225, 210), hi=(240, 252, 245),
+                 outline=(120, 155, 140), ink=(100, 130, 115), accent=(200, 235, 220)),
+    'rose': dict(body=(245, 225, 232), deep=(230, 200, 215), hi=(252, 240, 245),
+                 outline=(155, 125, 140), ink=(135, 105, 120), accent=(255, 215, 225)),
 }
 
 
@@ -130,15 +139,86 @@ CHARACTER_PORTRAIT_PX = 256
 CHARACTER_PORTRAIT_CONTENT = 232
 
 
+def key_green_to_alpha(img: Image.Image) -> Image.Image:
+    """AI 生成图常用浅绿底：把近绿像素转为透明，便于 fit_square 裁切。"""
+    rgba = img.convert('RGBA')
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if g > 140 and g >= r + 28 and g >= b + 28:
+                px[x, y] = (r, g, b, 0)
+    return rgba
+
+
+def key_black_to_alpha(img: Image.Image, threshold: int = 40) -> Image.Image:
+    """用户素材常用纯黑底：把近黑像素转为透明。"""
+    rgba = img.convert('RGBA')
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if r <= threshold and g <= threshold and b <= threshold:
+                px[x, y] = (r, g, b, 0)
+    return rgba
+
+
+def prepare_character_art(path: str) -> Image.Image:
+    art = Image.open(path).convert('RGBA')
+    art = key_black_to_alpha(art, threshold=42)
+    art = key_green_to_alpha(art)
+    r, g, b, a = art.split()
+    a = a.filter(ImageFilter.GaussianBlur(1.4))
+    a = a.point(lambda v: 255 if v > 210 else (0 if v < 24 else v))
+    return Image.merge('RGBA', (r, g, b, a))
+
+
+def pillar_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for path in (
+        '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+        '/Library/Fonts/Arial Bold.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    ):
+        if os.path.isfile(path):
+            return ImageFont.truetype(path, size)
+    return ImageFont.load_default()
+
+
+def render_vertical_english_mask(label: str, ss: int = 5) -> Image.Image:
+    """短英文竖排字（障碍柱身）。"""
+    chars = [ch for ch in label.strip().upper() if ch.isalnum()]
+    if not chars:
+        chars = ['?']
+    font = pillar_font(24 * ss)
+    spacing = 5 * ss
+    widths, heights = [], []
+    for ch in chars:
+        box = font.getbbox(ch)
+        widths.append(box[2] - box[0])
+        heights.append(box[3] - box[1])
+    w = max(widths) + 10 * ss
+    h = sum(heights) + spacing * (len(chars) - 1) + 10 * ss
+    mask = Image.new('L', (w, h), 0)
+    d = ImageDraw.Draw(mask)
+    y = 5 * ss
+    for ch, ch_h in zip(chars, heights):
+        box = font.getbbox(ch)
+        x = (w - (box[2] - box[0])) // 2 - box[0]
+        d.text((x, y - box[1]), ch, fill=255, font=font)
+        y += ch_h + spacing
+    box = mask.getbbox()
+    assert box is not None
+    return mask.crop(box)
+
+
 def build_characters() -> None:
-    # 两位角色一一对应两张 HD 原素材，禁止任何改色/滤镜/重绘。
-    # 处理仅限：按 alpha bbox 裁切本体（不整张 2048 缩放导致本体过小）、
-    # 保持用户确认的伸手朝右方向；菜单头像与局内精灵同一朝向。
-    navy = Image.open(os.path.join(PIC, 'IMG_5246.PNG')).convert('RGBA')
-    blue = Image.open(os.path.join(PIC, 'IMG_5247.PNG')).convert('RGBA')
+    # snow / stripe = Hyunjin / Felix 单人；duo = Hyunlix 双人同框。
     mapping = {
-        'nova': navy,  # IMG_5246 藏青条纹衫（HD 原色，伸手朝右）
-        'moss': blue,  # IMG_5247 浅蓝番茄衫（HD 原色，伸手朝右）
+        'snow': prepare_character_art(os.path.join(PIC, 'CHAR_HUMAN_1.png')),
+        'stripe': prepare_character_art(os.path.join(PIC, 'CHAR_HUMAN_2.png')),
+        'duo': prepare_character_art(os.path.join(PIC, 'CHAR_DUO.png')),
     }
     for cid, art in mapping.items():
         # 局内精灵：216×216 高清位图（缩放全部在 2048 源上一次完成，无二次损失）
@@ -150,6 +230,62 @@ def build_characters() -> None:
         print('character', cid, 'ok (sprite 216 + portrait 256)')
 
 
+# ---------------------------------------------------------------- 站点图标
+
+def _pastel_badge(size: int) -> Image.Image:
+    """Pastel 圆角糖果底：粉→薰衣草渐变 + 顶部高光 + 描边。"""
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    grad = Image.new('RGBA', (size, size))
+    top, mid, bot = (255, 228, 240), (245, 232, 255), (228, 218, 252)
+    d = ImageDraw.Draw(grad)
+    for y in range(size):
+        t = y / max(size - 1, 1)
+        if t < 0.5:
+            u = t * 2
+            src, dst = top, mid
+        else:
+            u = (t - 0.5) * 2
+            src, dst = mid, bot
+        r = int(src[0] * (1 - u) + dst[0] * u)
+        g = int(src[1] * (1 - u) + dst[1] * u)
+        b = int(src[2] * (1 - u) + dst[2] * u)
+        d.line([(0, y), (size, y)], fill=(r, g, b, 255))
+    radius = max(8, size // 4)
+    mask = Image.new('L', (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([2, 2, size - 3, size - 3], radius=radius, fill=255)
+    img.paste(grad, mask=mask)
+    gloss = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(gloss).ellipse(
+        [size * 0.08, size * 0.04, size * 0.72, size * 0.42], fill=(255, 255, 255, 58))
+    img = Image.alpha_composite(img, gloss)
+    border = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(border).rounded_rectangle(
+        [1, 1, size - 2, size - 2], radius=radius, outline=(210, 185, 230, 255), width=max(2, size // 32))
+    return Image.alpha_composite(img, border)
+
+
+def _draw_sparkle(draw: ImageDraw.ImageDraw, cx: int, cy: int, r: int, fill: tuple[int, int, int, int]) -> None:
+    draw.polygon([(cx, cy - r), (cx + r // 3, cy - r // 3), (cx + r, cy),
+                  (cx + r // 3, cy + r // 3), (cx, cy + r),
+                  (cx - r // 3, cy + r // 3), (cx - r, cy),
+                  (cx - r // 3, cy - r // 3)], fill=fill)
+
+
+def build_favicon() -> None:
+    """浏览器 tab / 主屏幕图标：pastel 糖果徽章 + Hyunlix duo，小尺寸仍可读。"""
+    duo = prepare_character_art(os.path.join(PIC, 'CHAR_DUO.png'))
+    for filename, size in (('favicon-duo.png', 128), ('apple-touch-icon.png', 180), ('favicon.png', 32)):
+        badge = _pastel_badge(size)
+        badge.alpha_composite(fit_square(duo, size, int(size * 0.74)))
+        if size >= 64:
+            sp = ImageDraw.Draw(badge)
+            _draw_sparkle(sp, int(size * 0.84), int(size * 0.17), max(4, size // 16), (255, 220, 120, 230))
+            _draw_sparkle(sp, int(size * 0.14), int(size * 0.78), max(3, size // 20), (255, 255, 255, 200))
+        out = os.path.join(PUBLIC, filename)
+        badge.save(out, format='PNG')
+        print('favicon', filename, size, 'ok')
+
+
 # ---------------------------------------------------------------- 奖励
 
 # 奖励位图 144×144（Phaser setDisplaySize 缩到逻辑 48，即 3x 高清，匹配 renderScale 上限 3）；
@@ -158,16 +294,22 @@ REWARD_SPRITE_PX = 144
 REWARD_SPRITE_CONTENT = 126
 
 
+def prepare_reward_art(path: str) -> Image.Image:
+    """用户提供的 SKZOO 奖励 icon（纯黑底）→ 透明 PNG。"""
+    art = key_black_to_alpha(Image.open(path).convert('RGBA'), threshold=42)
+    r, g, b, a = art.split()
+    a = a.filter(ImageFilter.GaussianBlur(1.2))
+    a = a.point(lambda v: 255 if v > 210 else (0 if v < 24 else v))
+    return Image.merge('RGBA', (r, g, b, a))
+
+
 def build_rewards() -> None:
-    # 主奖励：蝴蝶结叉子（HD 透明底，2048 源上摆正后一次缩放到 144，无二次损失）
-    fork = Image.open(os.path.join(PIC, 'IMG_5248.PNG')).convert('RGBA')
-    fork = fork.crop(alpha_bbox(fork)).rotate(-9, expand=True, resample=Image.BICUBIC)
-    fit_square(fork, REWARD_SPRITE_PX, REWARD_SPRITE_CONTENT).save(os.path.join(OUT, 'reward.png'))
-    # 副奖励：蝴蝶结镜子（源图斜置约 45°，转正为镜面朝上）
-    mirror = Image.open(os.path.join(PIC, 'IMG_5245.PNG')).convert('RGBA')
-    mirror = mirror.crop(alpha_bbox(mirror)).rotate(48, expand=True, resample=Image.BICUBIC)
-    fit_square(mirror, REWARD_SPRITE_PX, REWARD_SPRITE_CONTENT).save(os.path.join(OUT, 'reward-mirror.png'))
-    print('rewards ok (144x144, displayed at logical 48)')
+    """主奖励： Jiniret（Hyunjin）；副奖励： BbokAri（Felix）— 用户提供的 SKZOO icon。"""
+    hyunjin = prepare_reward_art(os.path.join(PIC, 'REWARD_JINIRET.png'))
+    felix = prepare_reward_art(os.path.join(PIC, 'REWARD_BBOAKRI.jpg'))
+    fit_square(hyunjin, REWARD_SPRITE_PX, REWARD_SPRITE_CONTENT).save(os.path.join(OUT, 'reward.png'))
+    fit_square(felix, REWARD_SPRITE_PX, REWARD_SPRITE_CONTENT).save(os.path.join(OUT, 'reward-mirror.png'))
+    print('rewards ok (jiniret + bbokari icons, 144x144)')
 
 
 # ---------------------------------------------------------------- 障碍
@@ -257,35 +399,41 @@ def build_pillar(mask: Image.Image, mouth: str, palette: dict, ss: int = 6) -> I
     ty = cap_h + 14 * ss if mouth == 'top' else H - cap_h - 14 * ss - th
     img.paste(glyphs, (tx, ty), glyphs)
 
-    # 文字外侧点缀一朵樱花
+    # 柱身英文外侧点缀小心形
     fy = ty + th + 18 * ss if mouth == 'top' else ty - 18 * ss
-    draw_blossom(ImageDraw.Draw(img), W // 2, fy, 8 * ss,
-                 fill=palette['blossom'], outline=palette['outline'], ow=2 * ss)
+    hr = 7 * ss
+    d2 = ImageDraw.Draw(img)
+    draw_heart(d2, W // 2, fy, hr, palette['accent'], palette['outline'], 2 * ss)
 
     return img.resize((76, 480), Image.LANCZOS)
 
 
-def build_obstacles() -> None:
-    """五张源标语各生成一套樱花粉障碍，与 OBSTACLE_VARIANTS 一一对应。"""
-    text_me = extract_text(os.path.join(RES, 'barrier.jpg'))           # 世界上另一个我
-    text_cry = extract_text(os.path.join(RES, 'barrier2.jpg'))         # 你在哭鼻子吗
-    text_aim = extract_text_hd(os.path.join(PIC, 'IMG_3452.PNG'))      # 一起命中十环
-    text_wish = extract_text_hd(os.path.join(PIC, 'IMG_3453(1).PNG'))  # 做你想做的
-    text_rain = extract_text_hd(os.path.join(PIC, 'IMG_3454.PNG'))     # 一起等雨停
+def draw_heart(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill, outline, ow: int) -> None:
+    d.ellipse([cx - r, cy - r * 0.85, cx, cy + r * 0.15], fill=fill, outline=outline, width=ow)
+    d.ellipse([cx, cy - r * 0.85, cx + r, cy + r * 0.15], fill=fill, outline=outline, width=ow)
+    d.polygon([(cx - r, cy), (cx + r, cy), (cx, cy + r * 1.35)], fill=fill, outline=outline)
 
+
+def build_obstacles() -> None:
+    """十套 Hyunlix 粉丝暗语障碍柱，八色 pastel 轮换。"""
     variants = [
-        # (文件后缀, 标语文字, 配色)；顶柱与底柱使用同一张源图，但分别正向排版。
-        ('', text_me, 'sakura'),
-        ('-cry', text_cry, 'sakura'),
-        ('-aim', text_aim, 'sakura'),
-        ('-wish', text_wish, 'sakura'),
-        ('-rain', text_rain, 'sakura'),
+        ('', 'STAY', 'cream'),
+        ('-cry', '143', 'sakura'),
+        ('-aim', 'HYUNLIX', 'lavender'),
+        ('-wish', 'BBOAKARI', 'butter'),
+        ('-rain', 'DEAR', 'rose'),
+        ('-jini', 'JINIRET', 'sky'),
+        ('-lala', 'LALALA', 'peach'),
+        ('-lisgo', 'LISGO', 'mint'),
+        ('-yong', 'YONGBOK', 'cream'),
+        ('-withu', 'WITHU', 'lavender'),
     ]
-    for suffix, text, palette_name in variants:
+    for suffix, label, palette_name in variants:
+        text = render_vertical_english_mask(label)
         palette = PILLAR_PALETTES[palette_name]
         build_pillar(text, mouth='top', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}.png'))
         build_pillar(text, mouth='bottom', palette=palette).save(os.path.join(OUT, f'obstacle{suffix}-top.png'))
-        print('obstacle variant', suffix or '-me', palette_name, 'ok')
+        print('obstacle variant', suffix or '-fly', palette_name, label, 'ok')
 
 
 # ---------------------------------------------------------------- 背景公共
@@ -351,7 +499,87 @@ def draw_blossom(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float,
                fill=FLOWER_CORE, width=max(1, ow // 2))
 
 
-# ---------------------------------------------------------------- 天空层
+def cover_resize(img: Image.Image, tw: int, th: int) -> Image.Image:
+    """等比放大后居中裁切，填满目标尺寸。"""
+    w, h = img.size
+    scale = max(tw / w, th / h)
+    resized = img.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
+    rw, rh = resized.size
+    left = (rw - tw) // 2
+    top = (rh - th) // 2
+    return resized.crop((left, top, left + tw, top + th))
+
+
+def apply_soft_vignette(img: Image.Image, strength: int = 24) -> Image.Image:
+    """边缘轻 vignette，让天空更有景深与高级感。"""
+    w, h = img.size
+    mask = Image.new('L', (w, h), 255)
+    d = ImageDraw.Draw(mask)
+    d.ellipse([-w * 0.06, -h * 0.04, w * 1.06, h * 1.01], fill=max(0, 255 - strength))
+    mask = mask.filter(ImageFilter.GaussianBlur(max(w, h) // 9))
+    base = Image.new('RGB', (w, h), (236, 230, 244))
+    return Image.composite(img.convert('RGB'), base, mask)
+
+
+def build_pastel_sky(stops: list[tuple[float, tuple[int, int, int]]], clouds: list[tuple[int, int, int, int]],
+                     bokeh: list[tuple[int, int, int, tuple[int, int, int], int]],
+                     wash: tuple[int, int, int, int] | None = None) -> Image.Image:
+    """程序化 pastel 天空（960×640）：统一构图 + 轻 vignette，便于轮播交叉淡入。"""
+    ss = 2
+    W, H = 960 * ss, 640 * ss
+    img = vertical_gradient(W, H, stops).convert('RGBA')
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    for cx, cy, s, a in clouds:
+        draw_cloud(d, cx * ss, cy * ss, s * ss, a)
+    img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(3 * ss)))
+    glow = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    for cx, cy, r, color, a in bokeh:
+        gd.ellipse([cx * ss - r * ss, cy * ss - r * ss, cx * ss + r * ss, cy * ss + r * ss],
+                   fill=(*color, a))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(8 * ss)))
+    stars = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(stars)
+    for cx, cy, r, a in ((120, 90, 6, 160), (420, 140, 5, 130), (700, 80, 7, 170), (860, 200, 5, 120)):
+        draw_star(sd, cx * ss, cy * ss, r * ss, (255, 252, 244, a))
+    img.alpha_composite(stars.filter(ImageFilter.GaussianBlur(0.6 * ss)))
+    if wash is not None:
+        tint = Image.new('RGBA', (W, H), wash)
+        img = Image.alpha_composite(img, tint)
+    finished = apply_soft_vignette(img.convert('RGB'))
+    return finished.resize((960, 640), Image.LANCZOS)
+
+
+# 三张背景共用云层 / 光斑布局，仅渐变与色调 wash 不同，轮播时交叉淡入更自然
+BACKGROUND_CLOUDS = [
+    (80, 118, 44, 132), (360, 198, 36, 108), (620, 98, 50, 124), (820, 258, 32, 96),
+    (240, 320, 28, 72), (540, 360, 24, 68),
+]
+BACKGROUND_BOKEH = [
+    (100, 178, 30, (255, 220, 200), 68), (320, 278, 24, (230, 210, 250), 78),
+    (540, 148, 34, (255, 255, 255), 58), (780, 358, 26, (255, 230, 210), 72),
+    (200, 420, 20, (240, 225, 255), 64), (680, 260, 22, (255, 240, 220), 60),
+]
+
+
+def build_backgrounds() -> None:
+    """三张同构图 pastel 天空（轮播），色调渐进、交叉淡入更顺滑。"""
+    frames = [
+        ([(0.0, (252, 241, 228)), (0.48, (255, 248, 240)), (1.0, (248, 235, 218))],
+         (255, 236, 220, 18)),
+        ([(0.0, (248, 238, 252)), (0.5, (242, 232, 248)), (1.0, (235, 225, 242))],
+         (245, 228, 252, 16)),
+        ([(0.0, (235, 242, 255)), (0.46, (242, 240, 252)), (1.0, (252, 244, 235))],
+         (228, 238, 255, 14)),
+    ]
+    for i, (stops, wash) in enumerate(frames):
+        build_pastel_sky(stops, BACKGROUND_CLOUDS, BACKGROUND_BOKEH, wash).save(
+            os.path.join(OUT, f'background-{i}.png'))
+    print('backgrounds ok (3x unified pastel sky 960x640)')
+
+
+# ---------------------------------------------------------------- 天空层（旧版程序化，已被 build_backgrounds 替代）
 
 def draw_star(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill) -> None:
     """四角星光（细长凹菱形，少女梦幻感的标志性点缀）。"""
@@ -593,9 +821,7 @@ def build_street(ss: int = 2) -> None:
 
 def build_preview() -> None:
     """拼一张 960×640 的模拟游戏画面（五张标语并排）用于快速目检。"""
-    sky = Image.open(os.path.join(OUT, 'background-sky.png')).convert('RGBA')
-    city = Image.open(os.path.join(OUT, 'background-city.png')).convert('RGBA')
-    street = Image.open(os.path.join(OUT, 'background-street.png')).convert('RGBA')
+    sky = Image.open(os.path.join(OUT, 'background-0.png')).convert('RGBA')
     # 奖励位图为 144 高清，预览按游戏内逻辑尺寸 48 显示
     reward = Image.open(os.path.join(OUT, 'reward.png')).convert('RGBA').resize((48, 48), Image.LANCZOS)
     # 角色位图为 216 高清，预览按游戏内逻辑尺寸 72 显示
@@ -604,10 +830,6 @@ def build_preview() -> None:
 
     frame = Image.new('RGBA', (960, 640))
     frame.paste(sky)
-    frame.alpha_composite(city.crop((0, 0, 720, 640)))
-    frame.alpha_composite(city.crop((0, 0, 240, 640)), (720, 0))
-    frame.alpha_composite(street.crop((0, 0, 720, 165)), (0, 475))
-    frame.alpha_composite(street.crop((0, 0, 240, 165)), (720, 475))
     for sx, sy in ((60, 120), (170, 340), (330, 80), (520, 420), (700, 180), (900, 360)):
         frame.alpha_composite(sparkle, (sx, sy))
     gaps = ((150, 260, ''), (320, 330, '-cry'), (490, 240, '-aim'), (660, 350, '-wish'), (830, 270, '-rain'))
@@ -631,14 +853,22 @@ def main() -> None:
     if '--rewards-only' in sys.argv:
         build_rewards()
         return
+    if '--characters-only' in sys.argv:
+        build_characters()
+        return
+    if '--backgrounds-only' in sys.argv:
+        build_backgrounds()
+        return
+    if '--favicon-only' in sys.argv:
+        build_favicon()
+        return
 
     build_characters()
     build_rewards()
     build_obstacles()
     build_fx()
-    build_sky()
-    build_city()
-    build_street()
+    build_backgrounds()
+    build_favicon()
     build_preview()
 
 

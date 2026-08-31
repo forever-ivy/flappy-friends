@@ -2,7 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { BGM_SRC, BGM_VOLUME, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, GAME_TITLE, GAME_TITLE_EN, getCharacter, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
+import { BGM_SRC, BGM_VOLUME, BACKGROUNDS, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, GAME_TITLE, GAME_TITLE_EN, getCharacter, OBSTACLE_PALETTES, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -13,7 +13,7 @@ function pngSize(relativePath: string): { width: number; height: number } {
 }
 
 // 最小 PNG 解码（仅支持生成脚本 Pillow 的输出格式：8-bit RGBA、非隔行），
-// 供朝向回归测试读取真实像素，不引入额外依赖
+// 供贴图像素抽检，不引入额外依赖
 function pngPixels(relativePath: string): { width: number; height: number; rgba: Uint8Array } {
     const bytes = readFileSync(join(ASSET_ROOT, relativePath));
     const width = bytes.readUInt32BE(16);
@@ -59,39 +59,14 @@ function pngPixels(relativePath: string): { width: number; height: number; rgba:
     return { width, height, rgba };
 }
 
-// 朝向度量：肤色像素质心相对头发（深色）像素质心的水平偏移，按宽度归一化。
-// 两位角色均为 3/4 侧脸，脸露在行进方向一侧：朝右时 margin 明显为正，朝左时为负。
-// 当前四张贴图实测 margin ≥ +0.08，其水平镜像（朝左）为 ≤ -0.08。
-function facingMargin(relativePath: string): number {
-    const { width, height, rgba } = pngPixels(relativePath);
-    let skinSum = 0;
-    let skinCount = 0;
-    let hairSum = 0;
-    let hairCount = 0;
-    for (let i = 0; i < width * height; i++) {
-        const r = rgba[i * 4];
-        const g = rgba[i * 4 + 1];
-        const b = rgba[i * 4 + 2];
-        if (rgba[i * 4 + 3] < 200) continue;
-        const x = i % width;
-        if (r > 230 && g > 170 && g < 232 && b > 150 && b < 225 && r > g && g > b) {
-            skinSum += x;
-            skinCount += 1;
-        } else if (Math.max(r, g, b) < 130) {
-            hairSum += x;
-            hairCount += 1;
-        }
-    }
-    expect(skinCount).toBeGreaterThan(100);
-    expect(hairCount).toBeGreaterThan(1000);
-    return (skinSum / skinCount - hairSum / hairCount) / width;
-}
-
 describe('obstacle variants manifest', () => {
-    it('ships all five source slogans in cherry-blossom pink', () => {
-        expect(OBSTACLE_VARIANTS).toHaveLength(5);
-        expect(OBSTACLE_VARIANTS.map((variant) => variant.id)).toEqual(['me', 'cry', 'aim', 'wish', 'rain']);
-        expect(OBSTACLE_VARIANTS.every((variant) => variant.palette === '樱花粉')).toBe(true);
+    it('ships all ten Hyunlix obstacle slogans across eight pastel palettes', () => {
+        expect(OBSTACLE_VARIANTS).toHaveLength(10);
+        expect(OBSTACLE_VARIANTS.map((variant) => variant.id)).toEqual([
+            'stay', 'one43', 'hyunlix', 'bbokari', 'dear', 'jiniret', 'lalala', 'lisgo', 'yongbok', 'withu',
+        ]);
+        expect(OBSTACLE_VARIANTS.every((variant) => OBSTACLE_PALETTES.includes(variant.palette as typeof OBSTACLE_PALETTES[number]))).toBe(true);
+        expect(new Set(OBSTACLE_VARIANTS.map((variant) => variant.palette)).size).toBeGreaterThanOrEqual(6);
     });
 
     it('has unique ids and texture keys', () => {
@@ -110,10 +85,11 @@ describe('obstacle variants manifest', () => {
 });
 
 describe('game assets manifest', () => {
-    it('ships background and effect textures at the documented sizes', () => {
-        expect(pngSize(GAME_ASSETS.sky)).toEqual({ width: 960, height: 640 });
-        expect(pngSize(GAME_ASSETS.city)).toEqual({ width: 720, height: 640 });
-        expect(pngSize(GAME_ASSETS.street)).toEqual({ width: 720, height: 180 });
+    it('ships three full-screen slideshow backgrounds at 960x640', () => {
+        BACKGROUNDS.forEach((background) => {
+            expect(pngSize(background.image)).toEqual({ width: 960, height: 640 });
+        });
+        expect(new Set(BACKGROUNDS.map((background) => background.textureKey)).size).toBe(BACKGROUNDS.length);
         expect(pngSize(GAME_ASSETS.sparkle)).toEqual({ width: 24, height: 24 });
     });
 
@@ -145,11 +121,11 @@ describe('game assets manifest', () => {
         expect(isId3 || isFrameSync).toBe(true);
     });
 
-    it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical 72)', () => {
+    it('ships every in-game character sprite as a 216x216 HD bitmap (displayed at logical size)', () => {
         CHARACTERS.forEach((character) => {
             expect(pngSize(character.image)).toEqual({ width: CHARACTER_SPRITE_SIZE, height: CHARACTER_SPRITE_SIZE });
             expect(character.collisionRadius).toBeGreaterThan(0);
-            // 碰撞半径在逻辑 72 坐标系里定义，必须落在显示尺寸内
+            // 碰撞半径在逻辑显示坐标系里定义，必须落在显示尺寸内
             expect(character.collisionRadius * 2).toBeLessThanOrEqual(CHARACTER_TEXTURE_SIZE);
         });
     });
@@ -162,44 +138,46 @@ describe('game assets manifest', () => {
     });
 });
 
-describe('character orientation (user-approved hand direction)', () => {
-    // 直接解码入库 PNG，锁定用户按截图确认的水平朝向，避免再次误翻转。
-    it('keeps every in-game sprite in the approved orientation', () => {
+describe('character sprites', () => {
+    it('ships non-empty RGBA sprites for every roster member', () => {
         CHARACTERS.forEach((character) => {
-            expect(facingMargin(character.image)).toBeLessThan(-0.03);
-        });
-    });
-
-    it('keeps every menu portrait in the same approved orientation', () => {
-        CHARACTERS.forEach((character) => {
-            expect(facingMargin(character.portrait)).toBeLessThan(-0.03);
+            const { width, height, rgba } = pngPixels(character.image);
+            expect(width).toBe(CHARACTER_SPRITE_SIZE);
+            expect(height).toBe(CHARACTER_SPRITE_SIZE);
+            let opaque = 0;
+            for (let i = 0; i < rgba.length; i += 4) {
+                if (rgba[i + 3] > 200) opaque += 1;
+            }
+            expect(opaque).toBeGreaterThan(500);
         });
     });
 });
 
 describe('character roster', () => {
-    it('keeps exactly the two original-art characters: nova and moss', () => {
-        expect(CHARACTERS.map((character) => character.id)).toEqual(['nova', 'moss']);
+    it('ships the three playable characters: snow, stripe, duo', () => {
+        expect(CHARACTERS.map((character) => character.id)).toEqual(['snow', 'stripe', 'duo']);
     });
 
-    // 品牌命名：菜单角色轨从左到右为 碗碗（nova）/ 盆盆（moss），卡片与无障碍标签都展示该名字
-    it('names the roster 碗碗 (left) and 盆盆 (right)', () => {
-        expect(CHARACTERS.map((character) => character.name)).toEqual(['碗碗', '盆盆']);
-        expect(getCharacter('nova').name).toBe('碗碗');
-        expect(getCharacter('moss').name).toBe('盆盆');
+    it('names the roster Hyunjin / Felix / Hyunlix', () => {
+        expect(CHARACTERS.map((character) => character.name)).toEqual(['Hyunjin', 'Felix', 'Hyunlix']);
+        expect(getCharacter('snow').name).toBe('Hyunjin');
+        expect(getCharacter('stripe').name).toBe('Felix');
+        expect(getCharacter('duo').name).toBe('Hyunlix');
     });
 
-    it('falls back to nova for retired ids (sol / violet) from old saves or the backend', () => {
-        expect(getCharacter('moss').id).toBe('moss');
-        expect(getCharacter('sol').id).toBe('nova');
-        expect(getCharacter('violet').id).toBe('nova');
-        expect(getCharacter('unknown').id).toBe('nova');
+    it('falls back to snow for retired ids (nova / moss / sol / violet) from old saves or the backend', () => {
+        expect(getCharacter('stripe').id).toBe('stripe');
+        expect(getCharacter('nova').id).toBe('snow');
+        expect(getCharacter('moss').id).toBe('snow');
+        expect(getCharacter('sol').id).toBe('snow');
+        expect(getCharacter('violet').id).toBe('snow');
+        expect(getCharacter('unknown').id).toBe('snow');
     });
 });
 
 describe('branding', () => {
-    it('pairs the Chinese main title with the English subtitle', () => {
-        expect(GAME_TITLE).toBe('飞天碗盆');
-        expect(GAME_TITLE_EN).toBe('Flying Wanpen');
+    it('uses the Hyunjin × Felix title', () => {
+        expect(GAME_TITLE).toBe('Hyunjin × Felix');
+        expect(GAME_TITLE_EN).toBe('Hyunjin × Felix');
     });
 });

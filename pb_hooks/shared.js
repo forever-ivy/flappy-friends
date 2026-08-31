@@ -4,9 +4,9 @@
 // 因此共享代码放在本模块，由回调内部 require(`${__hooks}/shared.js`) 加载
 // （__hooks 是 PocketBase 注入的 pb_hooks 绝对路径全局）。
 
-// 游戏内现役角色仅 nova / moss；sol / violet 为已下架的历史 id，
-// 仍保留在白名单里以兼容旧存档与旧客户端（前端渲染时统一回退到 nova）。
-var CHARACTER_IDS = ["nova", "moss", "sol", "violet"];
+// 游戏内现役角色 snow / stripe / duo；nova / moss / sol / violet 为历史 id，
+// 仍保留在白名单里以兼容旧存档与旧客户端（前端渲染时统一回退到 snow）。
+var CHARACTER_IDS = ["snow", "stripe", "duo", "nova", "moss", "sol", "violet"];
 
 // 宽松账号规则：唯一的硬规则是用户名不与已有账号重复（由唯一索引保证）。
 // 这里只做最基础检查：无首尾空格、1–24 个字符；中文、空格、符号均可，
@@ -51,7 +51,7 @@ function profile(record) {
     return {
         id: record.id,
         username: record.getString("username"),
-        characterId: record.getString("characterId") || "nova",
+        characterId: record.getString("characterId") || "snow",
         bestScore: record.getInt("bestScore"),
         totalScore: record.getInt("totalScore"),
         gamesPlayed: record.getInt("gamesPlayed"),
@@ -77,7 +77,7 @@ function leaderboardEntry(record, rank, type) {
         rank: rank,
         playerId: record.id,
         username: record.getString("username"),
-        characterId: record.getString("characterId") || "nova",
+        characterId: record.getString("characterId") || "snow",
         score: type === "total" ? record.getInt("totalScore") : record.getInt("bestScore"),
     };
 }

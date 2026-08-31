@@ -11,14 +11,14 @@ migrate((app) => {
     if (existing.length > 0) return;
 
     const SEEDS = [
-        { text: "碗碗今天也超可爱", author: "路过的碗" },
-        { text: "盆盆冲鸭！", author: "路过的盆" },
-        { text: "第一次飞就撞柱子了哈哈", author: "小笨碗" },
-        { text: "樱花柱子好粉好治愈", author: "小云朵" },
-        { text: "谁能比我先飞到 50 分！", author: "飞行新手" },
-        { text: "点「留言」也写一句吧 ✿", author: "路过的碗" },
-        { text: "叉子奖励 +5，冲！", author: "干饭碗" },
-        { text: "今天也要开心地飞呀 ♡", author: "路过的盆" },
+        { text: "Hyunjin looks so cute today", author: "STAY" },
+        { text: "Felix lets go!", author: "Passerby" },
+        { text: "Crashed on my first try lol", author: "Newbie" },
+        { text: "Love these pastel pillars", author: "Cloud" },
+        { text: "Who can hit 50 first!", author: "Rookie" },
+        { text: "Tap Message to say hi ✿", author: "STAY" },
+        { text: "Mirror bonus +5, go!", author: "Fan" },
+        { text: "Happy flying today ♡", author: "Passerby" },
     ];
     SEEDS.forEach((seed) => {
         const record = new Record(messages);

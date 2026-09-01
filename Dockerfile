@@ -3,6 +3,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Optional Umami inject (build-time). Empty → no analytics script in index.html.
+ARG VITE_UMAMI_SCRIPT_URL=
+ARG VITE_UMAMI_WEBSITE_ID=
+ENV VITE_UMAMI_SCRIPT_URL=$VITE_UMAMI_SCRIPT_URL \
+    VITE_UMAMI_WEBSITE_ID=$VITE_UMAMI_WEBSITE_ID
 RUN npm run build
 
 FROM alpine:3.22

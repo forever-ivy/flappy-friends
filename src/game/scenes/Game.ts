@@ -2,8 +2,9 @@ import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
 import {
     advanceEmojiTriggerState, calculateScore, computeGameWidth, computePlayerX, computeStageHeight,
-    createEmojiTriggerState, createRunId, createSeededRandom, EASTER_EGG_143_DANMAKU_MESSAGES,
-    EASTER_EGG_143_DANMAKU_MS, EASTER_EGG_143_DANMAKU_SPAWN_MS, EMOJI_FADE_MS, EMOJI_HOLD_MS,
+    createEmojiTriggerState, createRunId, createSeededRandom, EASTER_EGG_143_DANMAKU_BURST,
+    EASTER_EGG_143_DANMAKU_BURST_LITE, EASTER_EGG_143_DANMAKU_MESSAGES, EASTER_EGG_143_DANMAKU_MS,
+    EASTER_EGG_143_DANMAKU_SPAWN_MS, EMOJI_FADE_MS, EMOJI_HOLD_MS,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRandomEmoji,
     pickRewardKind, resetEmojiTriggerAfterEmit, RunResult, shouldEmitPlayerEmoji, shouldTrigger143EasterEgg,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
@@ -738,38 +739,49 @@ export class Game extends Scene {
         this.invincibleRainUntil = this.time.now + EASTER_EGG_143_DANMAKU_MS;
         this.player.setTint(0xffd0e4);
         this.danmakuRainSpawnIndex = 0;
-        const spawnMs = this.effectsLite ? 360 : EASTER_EGG_143_DANMAKU_SPAWN_MS;
-        this.spawn143DanmakuBullet();
+        const spawnMs = this.effectsLite ? 140 : EASTER_EGG_143_DANMAKU_SPAWN_MS;
+        this.spawn143DanmakuBurst();
         this.danmakuRainTimer = this.time.addEvent({
             delay: spawnMs,
             loop: true,
-            callback: () => this.spawn143DanmakuBullet(),
+            callback: () => this.spawn143DanmakuBurst(),
         });
         this.danmakuRainEndTimer = this.time.delayedCall(EASTER_EGG_143_DANMAKU_MS, () => this.stop143DanmakuRain());
     }
 
-    private spawn143DanmakuBullet() {
+    private spawn143DanmakuBurst() {
         if (!this.is143Invincible()) return;
+        const burst = this.effectsLite ? EASTER_EGG_143_DANMAKU_BURST_LITE : EASTER_EGG_143_DANMAKU_BURST;
+        for (let lane = 0; lane < burst; lane += 1) this.spawn143DanmakuBullet(lane, burst);
+    }
+
+    private spawn143DanmakuBullet(lane: number, burst: number) {
         const index = this.danmakuRainSpawnIndex;
         this.danmakuRainSpawnIndex += 1;
         const message = EASTER_EGG_143_DANMAKU_MESSAGES[index % EASTER_EGG_143_DANMAKU_MESSAGES.length];
         const width = this.logicalWidth();
-        const y = 52 + ((index * 41) % (GAME_HEIGHT - 108));
-        const fontSize = 13 + (index % 3) * 2;
-        const speed = 165 + this.random() * 70;
-        const travelMs = ((width + 180) / speed) * 1000;
-        const label = this.add.text(width + 48, y, message, {
+        const top = GAME_HEIGHT - this.logicalHeight() + 10;
+        const bottom = GAME_HEIGHT - 10;
+        const span = Math.max(56, bottom - top);
+        const laneY = top + ((lane + 0.5) / burst) * span;
+        const jitter = (this.random() - 0.5) * (span / burst) * 0.85;
+        const y = Phaser.Math.Clamp(laneY + jitter, top, bottom);
+        const fontSize = 15 + Math.floor(this.random() * 10);
+        const speed = 130 + this.random() * 130;
+        const startX = width + 36 + lane * 22 + this.random() * 48;
+        const travelMs = ((startX + 160) / speed) * 1000;
+        const label = this.add.text(startX, y, message, {
             fontFamily: 'Arial, Apple Color Emoji, Segoe UI Emoji, sans-serif',
             fontSize: `${fontSize}px`,
             color: '#d9598a',
-            backgroundColor: '#fff9fcbb',
-            padding: { x: 8, y: 3 },
+            backgroundColor: '#fff9fccc',
+            padding: { x: 10, y: 4 },
             resolution: this.renderScale,
-        }).setDepth(24).setAlpha(0.9);
+        }).setDepth(24).setAlpha(0.92 + this.random() * 0.06);
 
         this.tweens.add({
             targets: label,
-            x: -140,
+            x: -180,
             duration: travelMs,
             ease: 'Linear',
             onComplete: () => label.destroy(),

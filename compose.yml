@@ -4,6 +4,8 @@ services:
       context: .
       args:
         PB_VERSION: 0.39.11
+        VITE_UMAMI_SCRIPT_URL: ${VITE_UMAMI_SCRIPT_URL:-}
+        VITE_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
     restart: unless-stopped
     environment:
       PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL}

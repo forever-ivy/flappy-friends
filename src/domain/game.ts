@@ -24,8 +24,10 @@ export function shouldTrigger143EasterEgg(previousScore: number, nextScore: numb
     return previousScore < EASTER_EGG_143_SCORE && nextScore >= EASTER_EGG_143_SCORE;
 }
 
-export const EASTER_EGG_143_DANMAKU_MS = 4800;
-export const EASTER_EGG_143_DANMAKU_SPAWN_MS = 240;
+export const EASTER_EGG_143_DANMAKU_MS = 5200;
+export const EASTER_EGG_143_DANMAKU_SPAWN_MS = 85;
+export const EASTER_EGG_143_DANMAKU_BURST = 4;
+export const EASTER_EGG_143_DANMAKU_BURST_LITE = 2;
 
 export const EASTER_EGG_143_DANMAKU_MESSAGES = [
     '143 ♡', 'I love you', 'Hyunlix', 'STAY', '143', '현릭스', 'Fly high together!',

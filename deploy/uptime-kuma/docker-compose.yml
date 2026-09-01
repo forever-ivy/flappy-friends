@@ -1,0 +1,21 @@
+# Uptime Kuma for hyunlix.top
+# Usage on VPS:
+#   mkdir -p /opt/uptime-kuma && cp this file there
+#   docker compose up -d
+# Dashboard: https://status.hyunlix.top  (nginx → 127.0.0.1:3001)
+# Monitors to add:
+#   - https://hyunlix.top/
+#   - https://hyunlix.top/api/health
+# Alert: Telegram / Discord / email
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - uptime-kuma:/app/data
+
+volumes:
+  uptime-kuma:

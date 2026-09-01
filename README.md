@@ -44,6 +44,8 @@ docker compose up -d --build
 
 Put the service behind the existing Nginx/Caddy HTTPS reverse proxy. Keep the `pb_data` volume backed up. The PocketBase dashboard is available at `/_/`; restrict it to an administrator network or IP in the reverse proxy.
 
+站长流量 / 宕机监控（Umami + Uptime Kuma）见 [`deploy/MONITORING.md`](deploy/MONITORING.md)。
+
 支撑约 1000 人同时在线的容量设计（排行榜索引化 + 进程内缓存、按 IP 限流、静态资源强缓存、压测数字与机器/反代建议）见 [`docs/concurrency.md`](docs/concurrency.md)；压测脚本为 `scripts/loadtest.mjs`。
 
 ## 游戏规则

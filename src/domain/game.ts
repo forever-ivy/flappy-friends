@@ -16,6 +16,13 @@ export const PLAYER_MAX_X = 240;
 export const REWARD_POINTS = 5;
 export const REWARD_CHANCE = 0.35;
 
+/** 新设备前 N 局：点击引导 + 限时无敌 + 未操作时自动飞 */
+export const NEWBIE_ASSIST_MAX_RUNS = 3;
+/** 新手无敌时长（毫秒） */
+export const NEWBIE_INVINCIBLE_MS = 10000;
+/** 自动飞：角色低于此 Y 时自动拍翅（逻辑坐标，画布高 640） */
+export const NEWBIE_AUTO_FLAP_Y = 340;
+
 // 143 分彩蛋：Hyunjin「I love you」暗号，每局至多触发一次
 export const EASTER_EGG_143_SCORE = 143;
 

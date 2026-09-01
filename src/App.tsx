@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Share2, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
+import { CircleUserRound, Cloud, Flower, Hand, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Share2, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
-import { EASTER_EGG_143_SCORE, RunResult } from './domain/game';
+import { EASTER_EGG_143_SCORE, NEWBIE_ASSIST_MAX_RUNS, RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, getCharacter } from './game/assets';
 import { getCharacterCopy, getCountdownSequence, LOCALE_OPTIONS, type Locale, useI18n } from './i18n';
 import { initBgm } from './game/bgm';
@@ -50,6 +50,32 @@ interface ScoreState {
 
 const initialScore: ScoreState = { total: 0, pipeCount: 0, rewardCount: 0 };
 
+/** 新设备前 N 局显示「点击跳跃」引导；存 localStorage，换设备会重新出现 */
+const TAP_HINT_KEY = 'hyunlix-tap-hint-v1';
+/** 游客前 N 次结算显示「注册存分」引导 */
+const AUTH_HINT_KEY = 'hyunlix-auth-hint-v1';
+const AUTH_HINT_MAX = 3;
+
+function readHintCount(key: string): number {
+    try {
+        const n = Number(localStorage.getItem(key) || '0');
+        return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    } catch {
+        return Number.MAX_SAFE_INTEGER;
+    }
+}
+
+function consumeHintSlot(key: string, max: number): boolean {
+    const shown = readHintCount(key);
+    if (shown >= max) return false;
+    try {
+        localStorage.setItem(key, String(shown + 1));
+    } catch {
+        // 无法写入时仍展示本局
+    }
+    return true;
+}
+
 function App() {
     const { locale, setLocale, t } = useI18n();
     const [screen, setScreen] = useState<Screen>('menu');
@@ -65,19 +91,25 @@ function App() {
     const [burst, setBurst] = useState<DanmakuBurst | null>(null);
     const [shareToast, setShareToast] = useState<string | null>(null);
     const [shareSheet, setShareSheet] = useState<ShareSheetState | null>(null);
+    const [showTapHint, setShowTapHint] = useState(false);
+    const [showAuthHint, setShowAuthHint] = useState(false);
     const shareToastTimer = useRef<number | null>(null);
     const selected = useMemo(() => getCharacter(progress.selectedCharacter), [progress.selectedCharacter]);
     const wantsPlayRef = useRef(false);
     const progressRef = useRef(progress);
     const localeRef = useRef(locale);
+    const playerRef = useRef(player);
     progressRef.current = progress;
     localeRef.current = locale;
+    playerRef.current = player;
 
     const emitGameStart = () => {
         if (!wantsPlayRef.current) return;
         EventBus.emit('game:start', {
             characterId: progressRef.current.selectedCharacter,
             countdownSequence: getCountdownSequence(localeRef.current),
+            // 与点击引导共用计数：前 N 局无敌 + 未操作时自动飞
+            newbieAssist: readHintCount(TAP_HINT_KEY) < NEWBIE_ASSIST_MAX_RUNS,
         });
     };
 
@@ -138,12 +170,23 @@ function App() {
             emitGameStart();
         };
         const onScore = (next: ScoreState) => setScore(next);
+        const onPhase = (phase: string) => {
+            if (phase === 'playing') {
+                setShowTapHint(consumeHintSlot(TAP_HINT_KEY, NEWBIE_ASSIST_MAX_RUNS));
+                return;
+            }
+            setShowTapHint(false);
+        };
+        const onFlap = () => setShowTapHint(false);
         const onOver = (run: RunResult) => {
             wantsPlayRef.current = false;
+            setShowTapHint(false);
             const next = recordRun(progress, run);
             setProgress(next);
             setLastRun(run);
             setScreen('gameover');
+            // 游客前几局结算：高亮「注册存分」入口
+            setShowAuthHint(!playerRef.current && consumeHintSlot(AUTH_HINT_KEY, AUTH_HINT_MAX));
             // 持久化放最后并兜底：隐私模式禁写 localStorage / 配额满时只丢存档，
             // 绝不阻断结算面板展示（死亡必出结算）
             try {
@@ -154,10 +197,14 @@ function App() {
         };
         EventBus.on('game:ready', onReady);
         EventBus.on('score:changed', onScore);
+        EventBus.on('game:phase', onPhase);
+        EventBus.on('game:flap', onFlap);
         EventBus.on('game:over', onOver);
         return () => {
             EventBus.off('game:ready', onReady);
             EventBus.off('score:changed', onScore);
+            EventBus.off('game:phase', onPhase);
+            EventBus.off('game:flap', onFlap);
             EventBus.off('game:over', onOver);
         };
     }, [progress, locale]);
@@ -186,6 +233,7 @@ function App() {
         wantsPlayRef.current = true;
         setScore(initialScore);
         setLastRun(null);
+        setShowAuthHint(false);
         setOverlay('none');
         setScreen('playing');
         emitGameStart();
@@ -327,6 +375,13 @@ function App() {
                 <section className="hud" aria-live="polite">
                     <div className="score-number" key={score.total}>{score.total}</div>
                     <div className="reward-count"><Sparkles size={15} /> {score.rewardCount}</div>
+                    {showTapHint && (
+                        <div className="tap-hint" role="status">
+                            <span className="tap-hint-ring" aria-hidden="true" />
+                            <Hand className="tap-hint-icon" size={28} strokeWidth={2.4} aria-hidden="true" />
+                            <span className="tap-hint-text">{t.tapToJumpHint}</span>
+                        </div>
+                    )}
                 </section>
             )}
 
@@ -335,12 +390,22 @@ function App() {
                     <div className="result-sheet">
                         <div className="result-score">{lastRun.totalScore}</div>
                         {!player && (
-                            <button className="save-button" onClick={() => setOverlay('auth')} aria-label={t.loginToSave}>
-                                <LogIn size={18} />
-                            </button>
+                            <div className={`save-guide${showAuthHint ? ' save-guide--hint' : ''}`}>
+                                {showAuthHint && (
+                                    <p className="save-guide-tip" role="status">{t.registerGuideHint}</p>
+                                )}
+                                <button
+                                    className={`save-button${showAuthHint ? ' save-button--pulse' : ''}`}
+                                    onClick={() => setOverlay('auth')}
+                                    aria-label={t.loginToSave}
+                                >
+                                    <LogIn size={18} />
+                                    <span>{t.loginToSave}</span>
+                                </button>
+                            </div>
                         )}
                         <div className="result-actions">
-                            <button className="secondary-button" onClick={() => { stopPlayRequest(); setScreen('menu'); }} aria-label={t.pickCharacter}><Home size={19} /></button>
+                            <button className="secondary-button" onClick={() => { stopPlayRequest(); setScreen('menu'); setShowAuthHint(false); }} aria-label={t.pickCharacter}><Home size={19} /></button>
                             <button className="secondary-button" onClick={shareScore} aria-label={t.shareScore}><Share2 size={19} /></button>
                             <button className="primary-button compact" onClick={play} aria-label={t.playAgain}><RotateCcw size={19} /></button>
                         </div>
@@ -352,7 +417,11 @@ function App() {
                 <AuthDialog
                     characterId={progress.selectedCharacter}
                     onClose={() => setOverlay('none')}
-                    onSuccess={(profile) => { setPlayer(profile); setOverlay('none'); }}
+                    onSuccess={(profile) => {
+                        setPlayer(profile);
+                        setShowAuthHint(false);
+                        setOverlay('none');
+                    }}
                 />
             )}
             {overlay === 'leaderboard' && <LeaderboardDialog onClose={() => setOverlay('none')} />}
@@ -518,6 +587,7 @@ function AuthDialog({ characterId, onClose, onSuccess }: { characterId: string; 
                 <button className="dialog-close" onClick={onClose} aria-label={t.close}><X size={20} /></button>
                 <p className="eyebrow">{t.saveProgressEyebrow}</p>
                 <h2 id="auth-title">{t.signInTitle}</h2>
+                <p className="auth-hint">{t.authHint}</p>
                 <form onSubmit={submit}>
                     <label>{t.username}<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={USERNAME_MAX} /></label>
                     <label>{t.password}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={PASSWORD_MAX} /></label>

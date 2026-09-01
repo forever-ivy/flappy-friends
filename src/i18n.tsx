@@ -37,8 +37,10 @@ interface Dictionary {
     chooseCharacter: string;
     chooseCharacterNamed: (name: string) => string;
     startGame: string;
+    tapToJumpHint: string;
     saveProgressEyebrow: string;
     signInTitle: string;
+    authHint: string;
     username: string;
     password: string;
     signInBusy: string;
@@ -65,6 +67,7 @@ interface Dictionary {
     noteSubmit: string;
     close: string;
     loginToSave: string;
+    registerGuideHint: string;
     pickCharacter: string;
     playAgain: string;
     shareGame: string;
@@ -110,12 +113,14 @@ const EN: Dictionary = {
     chooseCharacter: 'Choose character',
     chooseCharacterNamed: (name) => `Choose ${name}`,
     startGame: 'Start game',
+    tapToJumpHint: 'Tap to jump',
     saveProgressEyebrow: 'Save progress',
-    signInTitle: 'Sign in',
+    signInTitle: 'Sign in / Sign up',
+    authHint: 'First time? Choose a username and password to create an account. Use the same ones later to sign back in.',
     username: 'Username',
     password: 'Password',
     signInBusy: 'Please wait…',
-    signInSubmit: 'Sign in',
+    signInSubmit: 'Sign in / Sign up',
     authErrorTaken: 'That username is taken or the password is wrong.',
     authErrorGeneric: 'Sign-in failed. Please try again.',
     leaderboardEyebrow: 'Global ranks',
@@ -133,7 +138,8 @@ const EN: Dictionary = {
     noteSending: 'Sending…',
     noteSubmit: 'Send danmaku',
     close: 'Close',
-    loginToSave: 'Sign in to save',
+    loginToSave: 'Sign up to save',
+    registerGuideHint: 'Save your score & join the leaderboard',
     pickCharacter: 'Character select',
     playAgain: 'Play again',
     shareGame: 'Share game',
@@ -197,12 +203,14 @@ const PT: Dictionary = {
     chooseCharacter: 'Escolher personagem',
     chooseCharacterNamed: (name) => `Escolher ${name}`,
     startGame: 'Iniciar jogo',
+    tapToJumpHint: 'Toque para pular',
     saveProgressEyebrow: 'Salvar progresso',
-    signInTitle: 'Entrar',
+    signInTitle: 'Entrar / Criar conta',
+    authHint: 'Primeira vez? Escolha um usuário e senha para criar a conta. Use os mesmos depois para entrar de novo.',
     username: 'Usuário',
     password: 'Senha',
     signInBusy: 'Aguarde…',
-    signInSubmit: 'Entrar',
+    signInSubmit: 'Entrar / Criar conta',
     authErrorTaken: 'Esse usuário já existe ou a senha está errada.',
     authErrorGeneric: 'Falha ao entrar. Tente de novo.',
     leaderboardEyebrow: 'Ranking global',
@@ -220,7 +228,8 @@ const PT: Dictionary = {
     noteSending: 'Enviando…',
     noteSubmit: 'Enviar danmaku',
     close: 'Fechar',
-    loginToSave: 'Entrar para salvar',
+    loginToSave: 'Criar conta para salvar',
+    registerGuideHint: 'Salve sua pontuação e entre no ranking',
     pickCharacter: 'Escolher personagem',
     playAgain: 'Jogar de novo',
     shareGame: 'Compartilhar jogo',
@@ -284,12 +293,14 @@ const ES: Dictionary = {
     chooseCharacter: 'Elegir personaje',
     chooseCharacterNamed: (name) => `Elegir ${name}`,
     startGame: 'Iniciar juego',
+    tapToJumpHint: 'Toca para saltar',
     saveProgressEyebrow: 'Guardar progreso',
-    signInTitle: 'Iniciar sesión',
+    signInTitle: 'Iniciar sesión / Registrarse',
+    authHint: '¿Primera vez? Elige usuario y contraseña para crear la cuenta. Usa los mismos después para volver a entrar.',
     username: 'Usuario',
     password: 'Contraseña',
     signInBusy: 'Espera…',
-    signInSubmit: 'Entrar',
+    signInSubmit: 'Entrar / Registrarse',
     authErrorTaken: 'Ese usuario ya existe o la contraseña es incorrecta.',
     authErrorGeneric: 'Error al iniciar sesión. Inténtalo de nuevo.',
     leaderboardEyebrow: 'Ranking global',
@@ -307,7 +318,8 @@ const ES: Dictionary = {
     noteSending: 'Enviando…',
     noteSubmit: 'Enviar danmaku',
     close: 'Cerrar',
-    loginToSave: 'Inicia sesión para guardar',
+    loginToSave: 'Regístrate para guardar',
+    registerGuideHint: 'Guarda tu puntuación y súbete al ranking',
     pickCharacter: 'Elegir personaje',
     playAgain: 'Jugar de nuevo',
     shareGame: 'Compartir juego',
@@ -371,12 +383,14 @@ const KO: Dictionary = {
     chooseCharacter: '캐릭터 선택',
     chooseCharacterNamed: (name) => `${name} 선택`,
     startGame: '게임 시작',
+    tapToJumpHint: '탭해서 점프',
     saveProgressEyebrow: '진행 저장',
-    signInTitle: '로그인',
+    signInTitle: '로그인 / 가입',
+    authHint: '처음인가요? 아이디와 비밀번호를 정하면 계정이 만들어져요. 다음에 같은 정보로 다시 로그인하세요.',
     username: '사용자 이름',
     password: '비밀번호',
     signInBusy: '잠시만…',
-    signInSubmit: '로그인',
+    signInSubmit: '로그인 / 가입',
     authErrorTaken: '이미 사용 중인 이름이거나 비밀번호가 틀렸습니다.',
     authErrorGeneric: '로그인에 실패했습니다. 다시 시도해 주세요.',
     leaderboardEyebrow: '글로벌 랭킹',
@@ -394,7 +408,8 @@ const KO: Dictionary = {
     noteSending: '전송 중…',
     noteSubmit: 'Danmaku 보내기',
     close: '닫기',
-    loginToSave: '저장하려면 로그인',
+    loginToSave: '가입해서 점수 저장',
+    registerGuideHint: '점수를 저장하고 랭킹에 올라가요',
     pickCharacter: '캐릭터 선택',
     playAgain: '다시 하기',
     shareGame: '게임 공유',

@@ -6,8 +6,9 @@ import {
     EASTER_EGG_143_DANMAKU_BURST_LITE, EASTER_EGG_143_DANMAKU_MESSAGES, EASTER_EGG_143_DANMAKU_MS,
     EASTER_EGG_143_DANMAKU_SPAWN_MS, EMOJI_FADE_MS, EMOJI_HOLD_MS,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRandomEmoji,
-    pickRewardKind, resetEmojiTriggerAfterEmit, RunResult, shouldEmitPlayerEmoji, shouldTrigger143EasterEgg,
-    shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
+    NEWBIE_AUTO_FLAP_Y, NEWBIE_INVINCIBLE_MS, pickRewardKind, resetEmojiTriggerAfterEmit, RunResult,
+    shouldEmitPlayerEmoji, shouldTrigger143EasterEgg, shouldSpawnReward, SPAWN_OFFSCREEN_X,
+    SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
 import { BACKGROUNDS, BACKGROUND_SLIDE_FADE_MS, BACKGROUND_SLIDE_INTERVAL_MS, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, getObstacleVariant, type ObstacleVariant, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE } from '../assets';
 import { getEffectQuality, getRenderScale } from '../renderScale';
@@ -80,7 +81,13 @@ export class Game extends Scene {
     private danmakuRainTimer?: Phaser.Time.TimerEvent;
     private danmakuRainEndTimer?: Phaser.Time.TimerEvent;
     private danmakuRainSpawnIndex = 0;
-    private flapKeyHandler = () => this.flap();
+    /** 本局是否启用新手辅助（由 React 按 localStorage 前 N 局传入） */
+    private pendingNewbieAssist = false;
+    private newbieInvincibleUntil = 0;
+    private newbieAutoFly = false;
+    private newbieInvincibleEndTimer?: Phaser.Time.TimerEvent;
+    private lastNewbieAutoFlapAt = 0;
+    private flapKeyHandler = () => this.flap(true);
     private resizeHandler = () => {
         this.maybeApplyStageSize();
         this.layout();
@@ -106,7 +113,7 @@ export class Game extends Scene {
 
         this.physics.add.collider(this.player, this.obstacles, () => this.finishRun());
         this.physics.add.overlap(this.player, this.rewards, (_player, reward) => this.collectReward(reward as Phaser.Physics.Arcade.Image));
-        this.input.on('pointerdown', () => this.flap());
+        this.input.on('pointerdown', () => this.flap(true));
         this.input.keyboard?.on('keydown-SPACE', this.flapKeyHandler);
         this.input.keyboard?.on('keydown-UP', this.flapKeyHandler);
         this.input.keyboard?.on('keydown-W', this.flapKeyHandler);
@@ -215,11 +222,21 @@ export class Game extends Scene {
         if (!latest || latest.top.x < this.logicalWidth() - SPAWN_TRIGGER_FROM_RIGHT) this.spawnPair();
 
         this.player.setAngle(Phaser.Math.Clamp((this.player.body?.velocity.y ?? 0) * 0.08, -22, 72));
-        if (!this.is143Invincible() && isOutOfBounds(this.player.y)) this.finishRun();
+        if (
+            this.newbieAutoFly
+            && this.player.y > NEWBIE_AUTO_FLAP_Y
+            && this.time.now - this.lastNewbieAutoFlapAt >= 280
+        ) {
+            this.lastNewbieAutoFlapAt = this.time.now;
+            this.flap(false);
+        }
+        if (!this.isInvincible() && isOutOfBounds(this.player.y)) this.finishRun();
     }
 
-    private is143Invincible(): boolean {
-        return this.invincibleRainUntil > 0 && this.time.now < this.invincibleRainUntil;
+    private isInvincible(): boolean {
+        const now = this.time.now;
+        return (this.invincibleRainUntil > 0 && now < this.invincibleRainUntil)
+            || (this.newbieInvincibleUntil > 0 && now < this.newbieInvincibleUntil);
     }
 
     // 把当前难度速度一次性下发给场上全部柱子与未收集奖励；新生成的对在 spawnPair 里单独赋速
@@ -358,13 +375,20 @@ export class Game extends Scene {
         this.player.setCircle(textureRadius, offset, offset);
     }
 
-    private startRun = (payload: { characterId: string; seed?: number; countdownSequence?: readonly string[] }) => {
+    private startRun = (payload: {
+        characterId: string;
+        seed?: number;
+        countdownSequence?: readonly string[];
+        newbieAssist?: boolean;
+    }) => {
         if (this.phase === 'countdown' || this.phase === 'playing') return;
         this.time.removeAllEvents();
         this.scheduleBackgroundSlideshow();
         this.clearWorld();
         this.phase = 'countdown';
         this.selectedCharacter = payload.characterId;
+        this.pendingNewbieAssist = Boolean(payload.newbieAssist);
+        this.clearNewbieAssist();
         this.random = createSeededRandom(payload.seed ?? Date.now());
         this.lastGapSkewSign = 0;
         this.lastVariantIndex = -1;
@@ -405,6 +429,7 @@ export class Game extends Scene {
                         this.startedAt = Date.now();
                         this.playerBody().setAllowGravity(true);
                         this.spawnPair(this.logicalWidth() + FIRST_PIPE_EXTRA);
+                        if (this.pendingNewbieAssist) this.beginNewbieAssist();
                         EventBus.emit('game:phase', 'playing');
                     });
                 }
@@ -425,8 +450,12 @@ export class Game extends Scene {
         this.countdownText = undefined;
     }
 
-    private flap() {
+    private flap(fromUser = true) {
         if (this.phase !== 'playing') return;
+        if (fromUser) {
+            this.newbieAutoFly = false;
+            EventBus.emit('game:flap');
+        }
         playSfx('flap');
         this.player.setVelocityY(-330);
         // 连点保护：先终止上一发未结束的挤压 tween 并复位到等比基准 scale，再从基准做挤压。
@@ -441,6 +470,29 @@ export class Game extends Scene {
             duration: 80,
             yoyo: true,
         });
+    }
+
+    private beginNewbieAssist() {
+        this.clearNewbieAssist();
+        this.newbieAutoFly = true;
+        this.lastNewbieAutoFlapAt = 0;
+        this.newbieInvincibleUntil = this.time.now + NEWBIE_INVINCIBLE_MS;
+        this.player.setTint(0xffd0e4);
+        this.flap(false);
+        this.newbieInvincibleEndTimer = this.time.delayedCall(NEWBIE_INVINCIBLE_MS, () => {
+            this.newbieInvincibleUntil = 0;
+            this.newbieAutoFly = false;
+            // 143 雨期间保留其染色；否则清掉新手粉 tint
+            if (this.invincibleRainUntil <= this.time.now) this.player.clearTint();
+        });
+    }
+
+    private clearNewbieAssist() {
+        this.newbieInvincibleEndTimer?.remove(false);
+        this.newbieInvincibleEndTimer = undefined;
+        this.newbieInvincibleUntil = 0;
+        this.newbieAutoFly = false;
+        this.lastNewbieAutoFlapAt = 0;
     }
 
     private spawnPair(x = this.logicalWidth() + SPAWN_OFFSCREEN_X) {
@@ -659,8 +711,9 @@ export class Game extends Scene {
     }
 
     private finishRun() {
-        if (this.phase !== 'playing' || this.is143Invincible()) return;
+        if (this.phase !== 'playing' || this.isInvincible()) return;
         this.phase = 'over';
+        this.clearNewbieAssist();
         playSfx('hit');
         this.playerBody().setAllowGravity(false);
         this.player.setVelocity(0, 0).setTint(0xff97a6);
@@ -750,7 +803,7 @@ export class Game extends Scene {
     }
 
     private spawn143DanmakuBurst() {
-        if (!this.is143Invincible()) return;
+        if (!(this.invincibleRainUntil > 0 && this.time.now < this.invincibleRainUntil)) return;
         const burst = this.effectsLite ? EASTER_EGG_143_DANMAKU_BURST_LITE : EASTER_EGG_143_DANMAKU_BURST;
         for (let lane = 0; lane < burst; lane += 1) this.spawn143DanmakuBullet(lane, burst);
     }
@@ -809,6 +862,7 @@ export class Game extends Scene {
         this.clearEmojiFollowers();
         this.clearEasterEgg143Text();
         this.stop143DanmakuRain();
+        this.clearNewbieAssist();
         this.pairs.forEach((pair) => {
             pair.top.destroy();
             pair.bottom.destroy();

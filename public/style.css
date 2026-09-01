@@ -691,6 +691,48 @@ body {
 .secondary-button { flex: 1; color: #7a4459; background: var(--pink-pale); border-color: var(--stroke-soft); box-shadow: 0 4px 0 var(--stroke-soft); }
 .save-button { width: 100%; color: #fff5f8; background: var(--pink-strong); border-color: #b04a6d; box-shadow: 0 4px 0 #b04a6d; }
 
+.save-guide {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.save-guide-tip {
+    margin: 0;
+    padding: 8px 12px;
+    color: var(--pink-strong);
+    background: rgba(255, 232, 242, .95);
+    border: 2px dashed rgba(242, 127, 165, .55);
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
+    animation: save-guide-in .35s ease-out both;
+}
+
+.save-button--pulse {
+    animation: save-guide-pulse 1.35s ease-in-out infinite;
+}
+
+@keyframes save-guide-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes save-guide-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 4px 0 #b04a6d; }
+    50% { transform: scale(1.03); box-shadow: 0 6px 0 #b04a6d, 0 0 0 6px rgba(242, 127, 165, .28); }
+}
+
+.auth-hint {
+    margin: -8px 0 0;
+    color: #bb8ba0;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
 /* 计分 HUD：纵向流式排布（大分数 → 奖励徽章），彻底避免绝对定位叠压 */
 .hud {
     z-index: 15;
@@ -730,6 +772,75 @@ body {
     font-weight: 900;
     font-variant-numeric: tabular-nums;
     box-shadow: 0 3px 0 rgba(198, 112, 122, .25);
+}
+
+/* 新设备前 3 局：屏幕中下方「点击跳跃」引导（pointer-events 继承 hud 的 none，不挡点击） */
+.tap-hint {
+    position: absolute;
+    left: 50%;
+    top: 58%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transform: translate(-50%, -50%);
+    animation: tap-hint-in .35s ease-out both;
+}
+
+.tap-hint-ring {
+    position: absolute;
+    top: 6px;
+    width: 64px;
+    height: 64px;
+    border: 3px solid rgba(255, 169, 200, .85);
+    border-radius: 50%;
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, .28);
+    animation: tap-hint-pulse 1.15s ease-out infinite;
+}
+
+.tap-hint-icon {
+    position: relative;
+    z-index: 1;
+    width: 52px;
+    height: 52px;
+    padding: 12px;
+    color: var(--pink-strong);
+    background: rgba(255, 251, 245, .94);
+    border: 3px solid var(--stroke);
+    border-radius: 50%;
+    box-shadow: 0 6px 0 rgba(149, 128, 184, .16);
+    animation: tap-hint-bob 1.15s ease-in-out infinite;
+}
+
+.tap-hint-text {
+    position: relative;
+    z-index: 1;
+    padding: 7px 16px;
+    color: var(--pink-strong);
+    background: rgba(255, 251, 245, .94);
+    border: 2px solid var(--stroke-soft);
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    box-shadow: 0 4px 0 rgba(149, 128, 184, .14);
+    white-space: nowrap;
+}
+
+@keyframes tap-hint-in {
+    from { opacity: 0; transform: translate(-50%, -42%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes tap-hint-pulse {
+    0% { transform: scale(.72); opacity: .95; }
+    70% { transform: scale(1.35); opacity: 0; }
+    100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes tap-hint-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(7px); }
 }
 
 .result-sheet {

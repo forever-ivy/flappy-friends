@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { Scene } from 'phaser';
-import { BACKGROUNDS, CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS } from '../assets';
+import { BACKGROUNDS, CHARACTERS, GAME_ASSETS, OBSTACLE_VARIANTS, phaserAsset } from '../assets';
 import { GAME_HEIGHT } from '../../domain/game';
 import { getRenderScale } from '../renderScale';
 import { syncStageVars } from '../stageSync';
@@ -69,15 +69,15 @@ export class Preloader extends Scene
         // 角色（216x216）与奖励（144x144）为高清位图，按实际像素原生加载（不降采样），
         // Game 场景用 setDisplaySize 分别缩到逻辑 72 / 48
         // 背景音乐不在此加载：约 3.1MB mp3 由 src/game/bgm.ts 用 HTMLAudioElement 流式播放，不阻塞进度条
-        BACKGROUNDS.forEach((background) => this.load.image(background.textureKey, background.image));
-        this.load.image('reward', GAME_ASSETS.reward);
-        this.load.image('reward-mirror', GAME_ASSETS.rewardMirror);
-        this.load.image('fx-sparkle', GAME_ASSETS.sparkle);
+        BACKGROUNDS.forEach((background) => this.load.image(background.textureKey, phaserAsset(background.image)));
+        this.load.image('reward', phaserAsset(GAME_ASSETS.reward));
+        this.load.image('reward-mirror', phaserAsset(GAME_ASSETS.rewardMirror));
+        this.load.image('fx-sparkle', phaserAsset(GAME_ASSETS.sparkle));
         OBSTACLE_VARIANTS.forEach((variant) => {
-            this.load.image(variant.bottomKey, variant.bottomImage);
-            this.load.image(variant.topKey, variant.topImage);
+            this.load.image(variant.bottomKey, phaserAsset(variant.bottomImage));
+            this.load.image(variant.topKey, phaserAsset(variant.topImage));
         });
-        CHARACTERS.forEach((character) => this.load.image(character.textureKey, character.image));
+        CHARACTERS.forEach((character) => this.load.image(character.textureKey, phaserAsset(character.image)));
     }
 
     create ()

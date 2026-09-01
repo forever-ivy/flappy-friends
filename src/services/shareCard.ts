@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { CHARACTERS, GAME_TITLE, getCharacter } from '../game/assets';
+import { assetUrl, CHARACTERS, GAME_TITLE, getCharacter } from '../game/assets';
 
 export const SHARE_CARD_WIDTH = 1080;
 export const SHARE_CARD_HEIGHT = 1920;
@@ -244,7 +244,7 @@ export async function renderShareCard(options: {
 
     if (options.mode === 'game') {
         const portraits = await Promise.all(
-            CHARACTERS.map((c) => loadImage(`/assets/${c.portrait}`)),
+            CHARACTERS.map((c) => loadImage(assetUrl(c.portrait))),
         );
         const centers = [
             SHARE_CARD_WIDTH / 2 - 280,
@@ -264,7 +264,7 @@ export async function renderShareCard(options: {
         const score = options.score;
         if (!score) throw new Error('score payload required');
         const character = getCharacter(score.characterId);
-        const portrait = await loadImage(`/assets/${character.portrait}`);
+        const portrait = await loadImage(assetUrl(character.portrait));
         drawPortrait(ctx, portrait, SHARE_CARD_WIDTH / 2, 1000, 280);
         drawScoreNumber(ctx, score.totalScore);
         if (score.hit143) drawBadge143(ctx);

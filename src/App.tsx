@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { CircleUserRound, Cloud, Flower, Hand, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Share2, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
 import { EASTER_EGG_143_SCORE, NEWBIE_ASSIST_MAX_RUNS, RunResult } from './domain/game';
-import { CHARACTERS, GAME_TITLE, getCharacter } from './game/assets';
+import { assetUrl, CHARACTERS, GAME_TITLE, getCharacter } from './game/assets';
 import { getCharacterCopy, getCountdownSequence, LOCALE_OPTIONS, type Locale, useI18n } from './i18n';
 import { initBgm } from './game/bgm';
 import { EventBus } from './game/EventBus';
@@ -355,7 +355,7 @@ function App() {
                                     aria-pressed={character.id === selected.id}
                                     aria-label={t.chooseCharacterNamed(copy.name)}
                                 >
-                                    <img src={`/assets/${character.portrait}`} alt="" />
+                                    <img src={assetUrl(character.portrait)} alt="" decoding="async" />
                                     <span className="character-name">{copy.name}</span>
                                 </button>
                                 );
@@ -637,7 +637,7 @@ function LeaderboardDialog({ onClose }: { onClose: () => void }) {
                         return (
                             <div className="leaderboard-row" key={entry.playerId}>
                                 <b className="rank">{entry.rank}</b>
-                                <img src={`/assets/${character.portrait}`} alt={copy.name} />
+                                <img src={assetUrl(character.portrait)} alt={copy.name} decoding="async" />
                                 <span>{entry.username}</span>
                                 <strong>{entry.score}</strong>
                             </div>

@@ -2,7 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { BGM_SRC, BGM_VOLUME, BACKGROUNDS, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, GAME_TITLE, GAME_TITLE_EN, getCharacter, OBSTACLE_PALETTES, OBSTACLE_VARIANTS, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
+import { ASSET_REV, assetUrl, BGM_SRC, BGM_VOLUME, BACKGROUNDS, CHARACTER_PORTRAIT_SIZE, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, CHARACTERS, GAME_ASSETS, GAME_TITLE, GAME_TITLE_EN, getCharacter, OBSTACLE_PALETTES, OBSTACLE_VARIANTS, phaserAsset, REWARD_BITMAP_SIZE, REWARD_TEXTURE_SIZE } from './assets';
 
 const ASSET_ROOT = join(__dirname, '..', '..', 'public', 'assets');
 
@@ -135,6 +135,13 @@ describe('game assets manifest', () => {
             expect(pngSize(character.portrait)).toEqual({ width: CHARACTER_PORTRAIT_SIZE, height: CHARACTER_PORTRAIT_SIZE });
             expect(character.portrait).not.toBe(character.image);
         });
+    });
+
+    it('cache-busts public asset URLs so Safari cannot reuse a poisoned PNG cache', () => {
+        expect(assetUrl('game/portrait-snow-hand-right.png')).toBe(
+            `/assets/game/portrait-snow-hand-right.png?v=${ASSET_REV}`,
+        );
+        expect(phaserAsset('game/character-snow-hand-right.png')).toContain(`?v=${ASSET_REV}`);
     });
 });
 

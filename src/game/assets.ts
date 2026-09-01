@@ -32,6 +32,21 @@ export const CHARACTER_TEXTURE_SIZE = 88;
 // 菜单头像位图边长（正方形），独立于局内精灵
 export const CHARACTER_PORTRAIT_SIZE = 256;
 
+/** 静态资源缓存戳。Safari 对带 `Vary: Origin` 的图片缓存会把 <img> 判失败；
+ *  部署中断时 SPA HTML 也曾被当成 PNG 缓存。换查询串可立刻绕开毒缓存。 */
+export const ASSET_REV = '20260901e';
+
+/** 菜单 / 分享卡用的根路径资源 URL（带缓存戳） */
+export function assetUrl(path: string): string {
+    const trimmed = path.replace(/^\/+/, '').replace(/^assets\//, '');
+    return `/assets/${trimmed}?v=${ASSET_REV}`;
+}
+
+/** Phaser Loader 在 setPath('assets') 之后使用的相对路径（带缓存戳） */
+export function phaserAsset(path: string): string {
+    return `${path}?v=${ASSET_REV}`;
+}
+
 // 奖励物位图实际像素（Preloader 按此原生尺寸加载，144 = 逻辑 48 的 3x，匹配 renderScale 上限）
 export const REWARD_BITMAP_SIZE = 144;
 // 奖励物在画布上的逻辑显示尺寸（Game 里 setDisplaySize 缩放），碰撞体随缩放同步收缩，物理零改动

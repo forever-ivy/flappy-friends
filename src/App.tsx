@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CircleUserRound, Cloud, Flower, Hand, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Share2, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
-import { EASTER_EGG_143_SCORE, NEWBIE_ASSIST_MAX_RUNS, RunResult } from './domain/game';
+import { EASTER_EGG_143_SCORE, RunResult } from './domain/game';
 import { assetUrl, CHARACTERS, GAME_TITLE, getCharacter } from './game/assets';
 import { getCharacterCopy, getCountdownSequence, LOCALE_OPTIONS, type Locale, useI18n } from './i18n';
 import { initBgm } from './game/bgm';
@@ -52,6 +52,7 @@ const initialScore: ScoreState = { total: 0, pipeCount: 0, rewardCount: 0 };
 
 /** 新设备前 N 局显示「点击跳跃」引导；存 localStorage，换设备会重新出现 */
 const TAP_HINT_KEY = 'hyunlix-tap-hint-v1';
+const TAP_HINT_MAX = 3;
 /** 游客前 N 次结算显示「注册存分」引导 */
 const AUTH_HINT_KEY = 'hyunlix-auth-hint-v1';
 const AUTH_HINT_MAX = 3;
@@ -108,8 +109,6 @@ function App() {
         EventBus.emit('game:start', {
             characterId: progressRef.current.selectedCharacter,
             countdownSequence: getCountdownSequence(localeRef.current),
-            // 与点击引导共用计数：前 N 局无敌 + 未操作时自动飞
-            newbieAssist: readHintCount(TAP_HINT_KEY) < NEWBIE_ASSIST_MAX_RUNS,
         });
     };
 
@@ -172,7 +171,7 @@ function App() {
         const onScore = (next: ScoreState) => setScore(next);
         const onPhase = (phase: string) => {
             if (phase === 'playing') {
-                setShowTapHint(consumeHintSlot(TAP_HINT_KEY, NEWBIE_ASSIST_MAX_RUNS));
+                setShowTapHint(consumeHintSlot(TAP_HINT_KEY, TAP_HINT_MAX));
                 return;
             }
             setShowTapHint(false);

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { umamiHtmlPlugin } from './umami-html-plugin.mjs';
+import { googleVerificationHtmlPlugin } from './google-verification-html-plugin.mjs';
 
 const phasermsg = () => {
     return {
@@ -23,6 +24,7 @@ export default defineConfig({
     plugins: [
         react(),
         umamiHtmlPlugin(),
+        googleVerificationHtmlPlugin(),
         phasermsg()
     ],
     logLevel: 'warning',

@@ -67,6 +67,24 @@ interface Dictionary {
     loginToSave: string;
     pickCharacter: string;
     playAgain: string;
+    shareGame: string;
+    shareScore: string;
+    shareCopied: string;
+    shareFailed: string;
+    shareGameTitle: string;
+    shareScoreTitle: string;
+    shareGameText: string;
+    shareScoreText: (score: number, characterName: string, hit143: boolean) => string;
+    shareAction: string;
+    shareSave: string;
+    shareCaption: string;
+    shareGenerating: string;
+    shareSaved: string;
+    sharePipes: string;
+    shareRewards: string;
+    shareAs: string;
+    shareTagline: string;
+    shareSite: string;
     countdownSequence: readonly string[];
     defaultMessages: readonly { text: string; author: string }[];
     characters: Record<string, CharacterCopy>;
@@ -74,7 +92,7 @@ interface Dictionary {
 
 const EN: Dictionary = {
     languageLabel: 'Language',
-    metaDescription: 'Hyunjin × Felix (Hyunlix): a cute duo fan flying game with three characters, leaderboards, and danmaku messages.',
+    metaDescription: 'Play Hyunjin × Felix (Hyunlix): a cute Stray Kids fan flying game with Hyunjin, Felix & duo mode, leaderboards, danmaku, and a 143 easter egg. Free in your browser — EN/PT/ES/KO.',
     bootLoading: 'Loading…',
     bootErrorTitle: 'Load failed or network is slow',
     bootErrorHint: 'Tap retry. If it keeps failing, try a newer browser.',
@@ -118,6 +136,28 @@ const EN: Dictionary = {
     loginToSave: 'Sign in to save',
     pickCharacter: 'Character select',
     playAgain: 'Play again',
+    shareGame: 'Share game',
+    shareScore: 'Share score',
+    shareCopied: 'Copied! Paste it anywhere ♡',
+    shareFailed: 'Share failed. Please try again.',
+    shareGameTitle: 'Hyunjin × Felix',
+    shareScoreTitle: 'My Hyunlix score',
+    shareGameText: 'Play Hyunjin × Felix — a cute Hyunlix fan flying game ♡',
+    shareScoreText: (score, characterName, hit143) => (
+        hit143
+            ? `I scored ${score} as ${characterName} in Hyunjin × Felix ♡\nTriggered the 143 easter egg!\nCan you beat me?`
+            : `I scored ${score} as ${characterName} in Hyunjin × Felix ♡\nCan you beat me?`
+    ),
+    shareAction: 'Share',
+    shareSave: 'Save',
+    shareCaption: 'Copy caption',
+    shareGenerating: 'Creating card…',
+    shareSaved: 'Saved ♡',
+    sharePipes: 'pipes',
+    shareRewards: 'rewards',
+    shareAs: 'as',
+    shareTagline: 'STAY · 143 ♡',
+    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', 'GO!'],
     leaderboardLoading: 'Loading…',
     leaderboardUnavailable: 'Leaderboard unavailable',
@@ -139,7 +179,7 @@ const EN: Dictionary = {
 
 const PT: Dictionary = {
     languageLabel: 'Idioma',
-    metaDescription: 'Hyunjin × Felix (Hyunlix): um jogo fofo de fã com três personagens, ranking e mensagens danmaku.',
+    metaDescription: 'Jogue Hyunjin × Felix (Hyunlix): um fofo jogo fan de Stray Kids com Hyunjin, Felix e modo duo, ranking, danmaku e easter egg 143. Grátis no navegador — EN/PT/ES/KO.',
     bootLoading: 'Carregando…',
     bootErrorTitle: 'Falha ao carregar ou rede lenta',
     bootErrorHint: 'Toque em tentar de novo. Se continuar falhando, use um navegador mais recente.',
@@ -183,6 +223,28 @@ const PT: Dictionary = {
     loginToSave: 'Entrar para salvar',
     pickCharacter: 'Escolher personagem',
     playAgain: 'Jogar de novo',
+    shareGame: 'Compartilhar jogo',
+    shareScore: 'Compartilhar pontuação',
+    shareCopied: 'Copiado! Cole onde quiser ♡',
+    shareFailed: 'Falha ao compartilhar. Tente de novo.',
+    shareGameTitle: 'Hyunjin × Felix',
+    shareScoreTitle: 'Minha pontuação Hyunlix',
+    shareGameText: 'Jogue Hyunjin × Felix — um fofo jogo fan Hyunlix ♡',
+    shareScoreText: (score, characterName, hit143) => (
+        hit143
+            ? `Fiz ${score} com ${characterName} em Hyunjin × Felix ♡\nAtivei o easter egg 143!\nConsegue me superar?`
+            : `Fiz ${score} com ${characterName} em Hyunjin × Felix ♡\nConsegue me superar?`
+    ),
+    shareAction: 'Compartilhar',
+    shareSave: 'Salvar',
+    shareCaption: 'Copiar texto',
+    shareGenerating: 'Criando card…',
+    shareSaved: 'Salvo ♡',
+    sharePipes: 'pilares',
+    shareRewards: 'prêmios',
+    shareAs: 'com',
+    shareTagline: 'STAY · 143 ♡',
+    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', 'VAI!'],
     leaderboardLoading: 'Carregando…',
     leaderboardUnavailable: 'Ranking indisponível',
@@ -204,7 +266,7 @@ const PT: Dictionary = {
 
 const ES: Dictionary = {
     languageLabel: 'Idioma',
-    metaDescription: 'Hyunjin × Felix (Hyunlix): un juego fan adorable con tres personajes, ranking y mensajes danmaku.',
+    metaDescription: 'Juega Hyunjin × Felix (Hyunlix): un lindo juego fan de Stray Kids con Hyunjin, Felix y modo dúo, ranking, danmaku y easter egg 143. Gratis en el navegador — EN/PT/ES/KO.',
     bootLoading: 'Cargando…',
     bootErrorTitle: 'Error al cargar o red lenta',
     bootErrorHint: 'Toca reintentar. Si sigue fallando, prueba un navegador más reciente.',
@@ -248,6 +310,28 @@ const ES: Dictionary = {
     loginToSave: 'Inicia sesión para guardar',
     pickCharacter: 'Elegir personaje',
     playAgain: 'Jugar de nuevo',
+    shareGame: 'Compartir juego',
+    shareScore: 'Compartir puntuación',
+    shareCopied: '¡Copiado! Pégalo donde quieras ♡',
+    shareFailed: 'Error al compartir. Inténtalo de nuevo.',
+    shareGameTitle: 'Hyunjin × Felix',
+    shareScoreTitle: 'Mi puntuación Hyunlix',
+    shareGameText: 'Juega Hyunjin × Felix — un lindo juego fan Hyunlix ♡',
+    shareScoreText: (score, characterName, hit143) => (
+        hit143
+            ? `Saqué ${score} con ${characterName} en Hyunjin × Felix ♡\n¡Activé el easter egg 143!\n¿Puedes superarme?`
+            : `Saqué ${score} con ${characterName} en Hyunjin × Felix ♡\n¿Puedes superarme?`
+    ),
+    shareAction: 'Compartir',
+    shareSave: 'Guardar',
+    shareCaption: 'Copiar texto',
+    shareGenerating: 'Creando tarjeta…',
+    shareSaved: 'Guardado ♡',
+    sharePipes: 'pilares',
+    shareRewards: 'premios',
+    shareAs: 'como',
+    shareTagline: 'STAY · 143 ♡',
+    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', '¡YA!'],
     leaderboardLoading: 'Cargando…',
     leaderboardUnavailable: 'Ranking no disponible',
@@ -269,7 +353,7 @@ const ES: Dictionary = {
 
 const KO: Dictionary = {
     languageLabel: '언어',
-    metaDescription: 'Hyunjin × Felix (Hyunlix): 세 캐릭터, 랭킹, danmaku 메시지가 있는 귀여운 팬 플라이 게임.',
+    metaDescription: 'Hyunjin × Felix (Hyunlix)를 플레이하세요: Hyunjin, Felix, 듀오 모드, 랭킹, danmaku, 143 이스터에그가 있는 귀여운 스트레이키즈 팬 비행 게임. 브라우저에서 무료 — EN/PT/ES/KO.',
     bootLoading: '로딩 중…',
     bootErrorTitle: '불러오기 실패 또는 네트워크가 느립니다',
     bootErrorHint: '다시 시도해 주세요. 계속 실패하면 최신 브라우저를 사용해 보세요.',
@@ -313,6 +397,28 @@ const KO: Dictionary = {
     loginToSave: '저장하려면 로그인',
     pickCharacter: '캐릭터 선택',
     playAgain: '다시 하기',
+    shareGame: '게임 공유',
+    shareScore: '점수 공유',
+    shareCopied: '복사됨! 어디에든 붙여넣기 ♡',
+    shareFailed: '공유에 실패했어요. 다시 시도해 주세요.',
+    shareGameTitle: 'Hyunjin × Felix',
+    shareScoreTitle: '내 Hyunlix 점수',
+    shareGameText: 'Hyunjin × Felix — 귀여운 Hyunlix 팬 비행 게임을 플레이해 봐 ♡',
+    shareScoreText: (score, characterName, hit143) => (
+        hit143
+            ? `Hyunjin × Felix에서 ${characterName}(으)로 ${score}점 ♡\n143 이스터에그 발동!\n나보다 잘할 수 있어?`
+            : `Hyunjin × Felix에서 ${characterName}(으)로 ${score}점 ♡\n나보다 잘할 수 있어?`
+    ),
+    shareAction: '공유',
+    shareSave: '저장',
+    shareCaption: '문구 복사',
+    shareGenerating: '카드 만드는 중…',
+    shareSaved: '저장됨 ♡',
+    sharePipes: '기둥',
+    shareRewards: '보상',
+    shareAs: '',
+    shareTagline: 'STAY · 143 ♡',
+    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', '출발!'],
     leaderboardLoading: '로딩 중…',
     leaderboardUnavailable: '랭킹을 불러올 수 없습니다',
@@ -378,10 +484,26 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }), [locale, setLocale]);
 
     useEffect(() => {
+        const dict = DICTIONARIES[locale];
+        const pageTitle = `${GAME_TITLE} | Hyunlix Fan Flying Game — Play Free`;
         document.documentElement.lang = localeToHtmlLang(locale);
-        document.title = GAME_TITLE;
-        const meta = document.querySelector('meta[name="description"]');
-        if (meta) meta.setAttribute('content', DICTIONARIES[locale].metaDescription);
+        document.title = pageTitle;
+
+        const setMeta = (selector: string, attr: string, value: string) => {
+            const el = document.querySelector(selector);
+            if (el) el.setAttribute(attr, value);
+        };
+        setMeta('meta[name="description"]', 'content', dict.metaDescription);
+        setMeta('meta[property="og:title"]', 'content', `${GAME_TITLE} | Hyunlix Fan Flying Game`);
+        setMeta('meta[property="og:description"]', 'content', dict.metaDescription);
+        setMeta('meta[name="twitter:title"]', 'content', `${GAME_TITLE} | Hyunlix Fan Flying Game`);
+        setMeta('meta[name="twitter:description"]', 'content', dict.metaDescription);
+
+        const ogLocale = locale === 'pt' ? 'pt_BR'
+            : locale === 'es' ? 'es_ES'
+                : locale === 'ko' ? 'ko_KR'
+                    : 'en_US';
+        setMeta('meta[property="og:locale"]', 'content', ogLocale);
     }, [locale]);
 
     return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

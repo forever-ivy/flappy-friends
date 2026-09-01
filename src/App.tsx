@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CircleUserRound, Cloud, Flower, Heart, Home, LogIn, LogOut, MessageCircle, Play, Ribbon, RotateCcw, Send, Share2, Sparkles, Star, Trophy, Volume2, VolumeX, X } from 'lucide-react';
 import { PhaserGame } from './PhaserGame';
-import { RunResult } from './domain/game';
+import { EASTER_EGG_143_SCORE, RunResult } from './domain/game';
 import { CHARACTERS, GAME_TITLE, getCharacter } from './game/assets';
 import { getCharacterCopy, getCountdownSequence, LOCALE_OPTIONS, type Locale, useI18n } from './i18n';
 import { initBgm } from './game/bgm';
@@ -11,10 +11,17 @@ import { isSfxMuted, setSfxMuted } from './game/sfx';
 import { currentPlayer, DanmakuMessage, enter, getDanmaku, getLeaderboard, LeaderboardResponse, onAuthChange, PasswordMismatchError, PlayerProfile, postDanmaku, signOut, syncRuns, updateCharacter } from './services/api';
 import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
 import { buildPool, bulletStyle, BulletStyle, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage } from './services/danmaku';
+import { ShareCardMode, ShareCardScoreInput } from './services/shareCard';
+import { ShareSheet } from './components/ShareSheet';
 import { loadProgress, Progress, recordRun, removeSyncedRuns, saveProgress, selectCharacter } from './state/progress';
 
 type Screen = 'menu' | 'playing' | 'gameover';
 type Overlay = 'none' | 'auth' | 'leaderboard' | 'note';
+
+interface ShareSheetState {
+    mode: ShareCardMode;
+    score?: ShareCardScoreInput;
+}
 
 // 发出去的留言立刻作为一发弹幕飘起来；nonce 区分同文本的多次发送
 interface DanmakuBurst {
@@ -56,6 +63,9 @@ function App() {
     // 弹幕留言板：菜单时拉取最近留言；发送成功后 burst 让新留言立刻飘出
     const [messages, setMessages] = useState<DanmakuMessage[]>([]);
     const [burst, setBurst] = useState<DanmakuBurst | null>(null);
+    const [shareToast, setShareToast] = useState<string | null>(null);
+    const [shareSheet, setShareSheet] = useState<ShareSheetState | null>(null);
+    const shareToastTimer = useRef<number | null>(null);
     const selected = useMemo(() => getCharacter(progress.selectedCharacter), [progress.selectedCharacter]);
     const wantsPlayRef = useRef(false);
     const progressRef = useRef(progress);
@@ -186,9 +196,39 @@ function App() {
         setMuted(!muted);
     };
 
+    const showShareToast = useCallback((message: string) => {
+        if (shareToastTimer.current) window.clearTimeout(shareToastTimer.current);
+        setShareToast(message);
+        shareToastTimer.current = window.setTimeout(() => setShareToast(null), 2200);
+    }, []);
+
+    const shareGame = () => {
+        setShareSheet({ mode: 'game' });
+    };
+
+    const shareScore = () => {
+        if (!lastRun) return;
+        const characterName = getCharacterCopy(locale, lastRun.characterId).name;
+        setShareSheet({
+            mode: 'score',
+            score: {
+                totalScore: lastRun.totalScore,
+                pipeCount: lastRun.pipeCount,
+                rewardCount: lastRun.rewardCount,
+                characterId: lastRun.characterId,
+                characterName,
+                hit143: lastRun.totalScore >= EASTER_EGG_143_SCORE,
+            },
+        });
+    };
+
     return (
         <main className="game-shell">
             <PhaserGame />
+
+            {shareToast && (
+                <div className="share-toast" role="status" aria-live="polite">{shareToast}</div>
+            )}
 
             {screen !== 'playing' && (
                 <header className="topbar">
@@ -248,9 +288,14 @@ function App() {
                         <p className="title-sub">{t.gameSubtitle}</p>
                     </header>
                     <div className="menu-controls">
-                        <button className="note-button" onClick={() => setOverlay('note')} aria-label={t.leaveMessage}>
-                            <MessageCircle size={14} /> {t.leaveMessage}
-                        </button>
+                        <div className="menu-chip-row">
+                            <button className="note-button" onClick={() => setOverlay('note')} aria-label={t.leaveMessage}>
+                                <MessageCircle size={14} /> {t.leaveMessage}
+                            </button>
+                            <button className="share-chip-button" onClick={shareGame} aria-label={t.shareGame}>
+                                <Share2 size={14} /> {t.shareGame}
+                            </button>
+                        </div>
                         <div className="character-rail" role="list" aria-label={t.chooseCharacter}>
                             {CHARACTERS.map((character) => {
                                 const copy = getCharacterCopy(locale, character.id);
@@ -296,6 +341,7 @@ function App() {
                         )}
                         <div className="result-actions">
                             <button className="secondary-button" onClick={() => { stopPlayRequest(); setScreen('menu'); }} aria-label={t.pickCharacter}><Home size={19} /></button>
+                            <button className="secondary-button" onClick={shareScore} aria-label={t.shareScore}><Share2 size={19} /></button>
                             <button className="primary-button compact" onClick={play} aria-label={t.playAgain}><RotateCcw size={19} /></button>
                         </div>
                     </div>
@@ -318,6 +364,14 @@ function App() {
                         setBurst({ text: message.text, author: message.author, nonce: Date.now() });
                         setOverlay('none');
                     }}
+                />
+            )}
+            {shareSheet && (
+                <ShareSheet
+                    mode={shareSheet.mode}
+                    score={shareSheet.score}
+                    onClose={() => setShareSheet(null)}
+                    onToast={showShareToast}
                 />
             )}
 

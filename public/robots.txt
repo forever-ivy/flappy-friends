@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Game API / admin — no need to index
+Disallow: /api/
+Disallow: /_/
+Disallow: /_admin/
+
+Sitemap: https://hyunlix.top/sitemap.xml

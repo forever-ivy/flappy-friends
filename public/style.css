@@ -922,6 +922,24 @@ body {
 .segmented button.active { color: var(--ink-strong); background: var(--pink-soft); }
 
 .auth-dialog form, .note-dialog form { display: grid; gap: 12px; margin-top: 16px; }
+
+/* 死亡转发复活弹窗：分数徽章 + 一句引导 + 主/次按钮 */
+.revive-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 12px;
+    padding: 9px 18px;
+    color: var(--pink-strong);
+    background: var(--pink-pale);
+    border: 2px dashed rgba(242, 127, 165, .55);
+    border-radius: 999px;
+    font-family: "Arial Black", Impact, sans-serif;
+    font-size: 19px;
+}
+
+.revive-hint { margin: 0 0 16px; color: #bb8ba0; font-size: 12.5px; font-weight: 700; line-height: 1.5; }
+.revive-dialog .secondary-button { width: fit-content; margin: 9px auto 0; padding: 0 24px; }
 .auth-dialog label, .note-dialog label { display: grid; gap: 6px; color: #bb8ba0; font-size: 11px; font-weight: 800; }
 .auth-dialog input, .note-dialog input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); background: #fff; border: 2px solid var(--stroke-soft); border-radius: var(--radius-control); outline: none; }
 .auth-dialog input:focus, .note-dialog input:focus { border-color: var(--pink); box-shadow: 0 0 0 2px rgba(242, 127, 165, .18); }

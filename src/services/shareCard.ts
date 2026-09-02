@@ -1,11 +1,11 @@
 import QRCode from 'qrcode';
-import { assetUrl, CHARACTERS, GAME_TITLE, getCharacter } from '../game/assets';
+import { assetUrl } from '../game/assets';
 
-export const SHARE_CARD_WIDTH = 1080;
-export const SHARE_CARD_HEIGHT = 1920;
+/** 海报原始尺寸（主页海报与得分模板同为 941×1672） */
+export const SHARE_CARD_WIDTH = 941;
+export const SHARE_CARD_HEIGHT = 1672;
 /** QR always points at the live site so scans work from screenshots. */
 export const SHARE_SITE_URL = 'https://hyunlix.top';
-
 
 export type ShareCardMode = 'game' | 'score';
 
@@ -18,14 +18,26 @@ export interface ShareCardScoreInput {
     hit143: boolean;
 }
 
-export interface ShareCardLabels {
-    subtitle: string;
-    site: string;
-    tagline: string;
-    pipesLabel: string;
-    rewardsLabel: string;
-    asLabel: string;
-}
+// 主页分享海报池（AI 生成的整张海报，多数自带可扫二维码），每次分享随机抽一张
+const POSTER_POOL: readonly string[] = Array.from(
+    { length: 9 }, (_, index) => `assets/posters/poster-${index + 1}.jpg`,
+);
+// 得分分享模板：SCORE / PIPES / REWARDS 三个虚线框留白，数字由前端实时绘制
+const SCORE_POSTER = 'assets/posters/poster-score.jpg';
+
+// BarcodeDetector 实测扫不出的 AI 二维码海报：在原白底板上盖一枚真码。
+// 矩形为海报里白色 QR 底板的像素测量值（941×1672 坐标系）。
+const QR_PLATE_OVERLAYS: Record<string, { x: number; y: number; w: number; h: number }> = {
+    'assets/posters/poster-1.jpg': { x: 313, y: 1232, w: 311, h: 321 },
+    'assets/posters/poster-3.jpg': { x: 320, y: 1266, w: 300, h: 292 },
+    'assets/posters/poster-5.jpg': { x: 324, y: 1326, w: 295, h: 262 },
+    'assets/posters/poster-6.jpg': { x: 344, y: 1295, w: 244, h: 245 },
+};
+
+// 得分模板三个虚线框的内沿坐标（同上坐标系），数字画在内切区域
+const SCORE_BOX = { x0: 190, x1: 756, y0: 1116, y1: 1246 };
+const PIPES_BOX = { x0: 256, x1: 428, y0: 1313, y1: 1362 };
+const REWARDS_BOX = { x0: 560, x1: 740, y0: 1313, y1: 1362 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -51,184 +63,140 @@ function roundRect(
     ctx.closePath();
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D) {
-    const gradient = ctx.createLinearGradient(0, 0, 0, SHARE_CARD_HEIGHT);
-    gradient.addColorStop(0, '#fff7f1');
-    gradient.addColorStop(0.45, '#ffe4ef');
-    gradient.addColorStop(1, '#f7d4e4');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT);
+/** 随机抽主页海报；randomValue 注入便于测试 */
+export function pickSharePoster(randomValue: number = Math.random()): string {
+    const rolled = Math.floor(Math.max(0, Math.min(0.999999, randomValue)) * POSTER_POOL.length);
+    return POSTER_POOL[rolled]!;
+}
 
-    // Soft paper grain / stars
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    for (let i = 0; i < 48; i += 1) {
-        const x = (i * 173 + 41) % SHARE_CARD_WIDTH;
-        const y = (i * 311 + 67) % SHARE_CARD_HEIGHT;
-        const r = 1 + (i % 3);
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
+/** 海报同款泡泡字：白描边 + 下坠软阴影，粉/紫填充随海报画风 */
+function drawPosterNumber(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    box: { x0: number; x1: number; y0: number; y1: number },
+    fill: string | CanvasGradient,
+    maxFontSize: number,
+) {
+    const cx = (box.x0 + box.x1) / 2;
+    const cy = (box.y0 + box.y1) / 2;
+    const maxW = box.x1 - box.x0 - 32;
+    const font = (size: number) => `900 ${size}px "Arial Rounded MT Bold", "Arial Black", Impact, sans-serif`;
+    let size = maxFontSize;
+    ctx.font = font(size);
+    while (size > 24 && ctx.measureText(text).width > maxW) {
+        size -= 4;
+        ctx.font = font(size);
     }
-
-    // Outer paper frame
-    ctx.strokeStyle = 'rgba(211, 104, 139, 0.35)';
-    ctx.lineWidth = 8;
-    roundRect(ctx, 48, 48, SHARE_CARD_WIDTH - 96, SHARE_CARD_HEIGHT - 96, 56);
-    ctx.stroke();
-}
-
-function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.translate(x, y);
-    ctx.beginPath();
-    ctx.moveTo(0, size * 0.3);
-    ctx.bezierCurveTo(-size * 0.55, -size * 0.25, -size * 0.9, size * 0.45, 0, size);
-    ctx.bezierCurveTo(size * 0.9, size * 0.45, size * 0.55, -size * 0.25, 0, size * 0.3);
-    ctx.fill();
-    ctx.restore();
-}
-
-function drawBow(ctx: CanvasRenderingContext2D, x: number, y: number, scale = 1) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(scale, scale);
-    ctx.fillStyle = '#f27fa5';
-    ctx.beginPath();
-    ctx.ellipse(-28, 0, 28, 18, -0.35, 0, Math.PI * 2);
-    ctx.ellipse(28, 0, 28, 18, 0.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(0, 0, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-}
-
-function drawTitle(ctx: CanvasRenderingContext2D, subtitle: string) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#5c2440';
-    ctx.font = '700 72px Fredoka, "Arial Rounded MT Bold", Arial, sans-serif';
-    ctx.fillText(GAME_TITLE, SHARE_CARD_WIDTH / 2, 220);
-
-    ctx.fillStyle = '#d3688b';
-    ctx.font = '600 40px Fredoka, Arial, sans-serif';
-    ctx.fillText(subtitle, SHARE_CARD_WIDTH / 2, 290);
-
-    drawBow(ctx, SHARE_CARD_WIDTH / 2, 140, 1.15);
-}
-
-async function drawFooter(
-    ctx: CanvasRenderingContext2D,
-    labels: ShareCardLabels,
-    siteUrl: string,
-) {
-    const qrSize = 220;
-    const qrX = SHARE_CARD_WIDTH / 2 - qrSize / 2;
-    const qrY = SHARE_CARD_HEIGHT - 430;
-
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#a2536b';
-    ctx.font = '600 34px Fredoka, Arial, sans-serif';
-    ctx.fillText(labels.tagline, SHARE_CARD_WIDTH / 2, qrY - 36);
-
-    // White plate behind QR
-    ctx.fillStyle = '#ffffff';
-    roundRect(ctx, qrX - 18, qrY - 18, qrSize + 36, qrSize + 36, 28);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(211, 104, 139, 0.45)';
-    ctx.lineWidth = 4;
-    roundRect(ctx, qrX - 18, qrY - 18, qrSize + 36, qrSize + 36, 28);
-    ctx.stroke();
-
-    const qrCanvas = document.createElement('canvas');
-    await QRCode.toCanvas(qrCanvas, siteUrl, {
-        width: qrSize,
-        margin: 1,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#5c2440', light: '#ffffff' },
-    });
-    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
-
-    ctx.fillStyle = '#5c2440';
-    ctx.font = '700 40px Fredoka, Arial, sans-serif';
-    ctx.fillText(labels.site, SHARE_CARD_WIDTH / 2, qrY + qrSize + 58);
-
-    drawHeart(ctx, SHARE_CARD_WIDTH / 2 - 200, qrY - 50, 16, '#ff8fb4');
-    drawHeart(ctx, SHARE_CARD_WIDTH / 2 + 200, qrY - 50, 16, '#ff8fb4');
-}
-
-
-function drawPortrait(
-    ctx: CanvasRenderingContext2D,
-    img: HTMLImageElement,
-    cx: number, cy: number, size: number,
-) {
-    const half = size / 2;
-    ctx.save();
-    // Soft plate behind portrait
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
-    ctx.beginPath();
-    ctx.arc(cx, cy, half + 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(211, 104, 139, 0.4)';
-    ctx.lineWidth = 5;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, half, 0, Math.PI * 2);
-    ctx.clip();
-
-    const scale = Math.max(size / img.width, size / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
-    ctx.restore();
-}
-
-function drawScoreNumber(ctx: CanvasRenderingContext2D, score: number) {
-    const text = String(score);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
-    ctx.font = '900 220px "Arial Black", Impact, sans-serif';
-    ctx.strokeStyle = '#c898d8';
-    ctx.lineWidth = 28;
-    ctx.strokeText(text, SHARE_CARD_WIDTH / 2, 720);
-    ctx.fillStyle = '#fff6f9';
-    ctx.fillText(text, SHARE_CARD_WIDTH / 2, 720);
+    ctx.miterLimit = 2;
+    const outline = Math.max(6, size * 0.15);
+    ctx.save();
+    // 阴影只打在白描边上：先带阴影描白边，再补一遍白边、最后填色
+    ctx.shadowColor = 'rgba(150, 62, 105, 0.38)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 7;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = outline;
+    ctx.strokeText(text, cx, cy);
+    ctx.restore();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = outline;
+    ctx.strokeText(text, cx, cy);
+    ctx.fillStyle = fill;
+    ctx.fillText(text, cx, cy);
 }
 
+function scoreNumberFill(ctx: CanvasRenderingContext2D, box: { y0: number; y1: number }): CanvasGradient {
+    const gradient = ctx.createLinearGradient(0, box.y0, 0, box.y1);
+    gradient.addColorStop(0, '#ff9cc2');
+    gradient.addColorStop(1, '#ec5f96');
+    return gradient;
+}
+
+/** 143 彩蛋贴纸：贴在得分面板左上角空白处，轻微歪头 */
 function drawBadge143(ctx: CanvasRenderingContext2D) {
-    const x = SHARE_CARD_WIDTH - 220;
-    const y = 360;
     ctx.save();
-    ctx.fillStyle = '#ffa9c8';
-    roundRect(ctx, x, y, 150, 64, 32);
+    ctx.translate(238, 1078);
+    ctx.rotate(-6 * Math.PI / 180);
+    ctx.fillStyle = '#ff85b0';
+    roundRect(ctx, -66, -23, 132, 46, 23);
     ctx.fill();
-    ctx.strokeStyle = '#d3688b';
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 4;
-    roundRect(ctx, x, y, 150, 64, 32);
+    roundRect(ctx, -66, -23, 132, 46, 23);
     ctx.stroke();
     ctx.fillStyle = '#5c2440';
-    ctx.font = '700 32px Fredoka, Arial, sans-serif';
+    ctx.font = '900 26px "Arial Rounded MT Bold", "Arial Black", Impact, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('143 ♡', x + 75, y + 34);
+    ctx.fillText('143 ♡', 0, 1);
     ctx.restore();
 }
 
-async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+/** 盖回可扫真码：白圆角底板 + 深梅色码点，完全覆盖海报里扫不出的 AI 二维码 */
+async function drawQrOverlay(
+    ctx: CanvasRenderingContext2D,
+    siteUrl: string,
+    plate: { x: number; y: number; w: number; h: number },
+) {
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, plate.x - 7, plate.y - 7, plate.w + 14, plate.h + 14, 26);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(214, 116, 148, 0.55)';
+    ctx.lineWidth = 5;
+    roundRect(ctx, plate.x - 7, plate.y - 7, plate.w + 14, plate.h + 14, 26);
+    ctx.stroke();
+
+    const side = Math.min(plate.w, plate.h) - 20;
+    const qrCanvas = document.createElement('canvas');
+    await QRCode.toCanvas(qrCanvas, siteUrl, {
+        width: side,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#43223c', light: '#ffffff' },
+    });
+    ctx.drawImage(
+        qrCanvas,
+        plate.x + (plate.w - side) / 2,
+        plate.y + (plate.h - side) / 2,
+        side, side,
+    );
+}
+
+async function drawPosterCard(ctx: CanvasRenderingContext2D, poster: string, siteUrl: string) {
+    const img = await loadImage(assetUrl(poster));
+    ctx.drawImage(img, 0, 0, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT);
+    const plate = QR_PLATE_OVERLAYS[poster];
+    if (plate) await drawQrOverlay(ctx, siteUrl, plate);
+}
+
+async function drawScoreCard(
+    ctx: CanvasRenderingContext2D,
+    score: ShareCardScoreInput,
+) {
+    const img = await loadImage(assetUrl(SCORE_POSTER));
+    ctx.drawImage(img, 0, 0, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT);
+
+    drawPosterNumber(ctx, String(Math.max(0, score.totalScore)), SCORE_BOX, scoreNumberFill(ctx, SCORE_BOX), 130);
+    const statFill = '#8a5cd6';
+    drawPosterNumber(ctx, String(Math.max(0, score.pipeCount)), PIPES_BOX, statFill, 54);
+    drawPosterNumber(ctx, String(Math.max(0, score.rewardCount)), REWARDS_BOX, statFill, 54);
+    if (score.hit143) drawBadge143(ctx);
+}
+
+async function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     return new Promise((resolve, reject) => {
         canvas.toBlob((blob) => {
             if (blob) resolve(blob);
-            else reject(new Error('PNG encode failed'));
-        }, 'image/png');
+            else reject(new Error('JPEG encode failed'));
+        }, 'image/jpeg', 0.92);
     });
 }
 
 export async function renderShareCard(options: {
     mode: ShareCardMode;
-    labels: ShareCardLabels;
     score?: ShareCardScoreInput;
     siteUrl?: string;
 }): Promise<{ blob: Blob; dataUrl: string; file: File }> {
@@ -239,62 +207,18 @@ export async function renderShareCard(options: {
     if (!ctx) throw new Error('Canvas unavailable');
     const siteUrl = options.siteUrl || SHARE_SITE_URL;
 
-    drawBackground(ctx);
-    drawTitle(ctx, options.labels.subtitle);
-
     if (options.mode === 'game') {
-        const portraits = await Promise.all(
-            CHARACTERS.map((c) => loadImage(assetUrl(c.portrait))),
-        );
-        const centers = [
-            SHARE_CARD_WIDTH / 2 - 280,
-            SHARE_CARD_WIDTH / 2,
-            SHARE_CARD_WIDTH / 2 + 280,
-        ];
-        portraits.forEach((img, index) => {
-            drawPortrait(ctx, img, centers[index], 760, index === 1 ? 300 : 240);
-        });
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#7a4459';
-        ctx.font = '600 36px Fredoka, Arial, sans-serif';
-        CHARACTERS.forEach((c, index) => {
-            ctx.fillText(c.name, centers[index], 960);
-        });
+        await drawPosterCard(ctx, pickSharePoster(), siteUrl);
     } else {
-        const score = options.score;
-        if (!score) throw new Error('score payload required');
-        const character = getCharacter(score.characterId);
-        const portrait = await loadImage(assetUrl(character.portrait));
-        drawPortrait(ctx, portrait, SHARE_CARD_WIDTH / 2, 1000, 280);
-        drawScoreNumber(ctx, score.totalScore);
-        if (score.hit143) drawBadge143(ctx);
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#5c2440';
-        ctx.font = '700 48px Fredoka, Arial, sans-serif';
-        ctx.fillText(
-            [options.labels.asLabel, score.characterName].filter(Boolean).join(' '),
-            SHARE_CARD_WIDTH / 2,
-            1220,
-        );
-
-        ctx.fillStyle = '#a2536b';
-        ctx.font = '600 36px Fredoka, Arial, sans-serif';
-        ctx.fillText(
-            `${score.pipeCount} ${options.labels.pipesLabel}  ·  ${score.rewardCount} ${options.labels.rewardsLabel}`,
-            SHARE_CARD_WIDTH / 2,
-            1290,
-        );
+        if (!options.score) throw new Error('score payload required');
+        await drawScoreCard(ctx, options.score);
     }
 
-    await drawFooter(ctx, options.labels, siteUrl);
-
-    const blob = await canvasToPngBlob(canvas);
-    const dataUrl = canvas.toDataURL('image/png');
+    const blob = await canvasToJpegBlob(canvas);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const fileName = options.mode === 'score'
-        ? `hyunlix-score-${options.score?.totalScore ?? 0}.png`
-        : 'hyunlix-share.png';
-    const file = new File([blob], fileName, { type: 'image/png' });
+        ? `hyunlix-score-${options.score?.totalScore ?? 0}.jpg`
+        : 'hyunlix-share.jpg';
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
     return { blob, dataUrl, file };
 }
-

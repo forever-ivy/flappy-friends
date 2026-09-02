@@ -6,7 +6,7 @@ import {
     EASTER_EGG_143_DANMAKU_BURST_LITE, EASTER_EGG_143_DANMAKU_MESSAGES, EASTER_EGG_143_DANMAKU_MS,
     EASTER_EGG_143_DANMAKU_SPAWN_MS, EMOJI_FADE_MS, EMOJI_HOLD_MS,
     FIRST_PIPE_EXTRA, GAME_HEIGHT, GAME_WIDTH, getDifficulty, isOutOfBounds, pickRandomEmoji,
-    pickRewardKind, resetEmojiTriggerAfterEmit, RunResult, shouldEmitPlayerEmoji, shouldTrigger143EasterEgg,
+    pickRewardKind, resetEmojiTriggerAfterEmit, REVIVE_INVINCIBLE_MS, RunResult, shouldEmitPlayerEmoji, shouldTrigger143EasterEgg,
     shouldSpawnReward, SPAWN_OFFSCREEN_X, SPAWN_TRIGGER_FROM_RIGHT,
 } from '../../domain/game';
 import { BACKGROUNDS, BACKGROUND_SLIDE_FADE_MS, BACKGROUND_SLIDE_INTERVAL_MS, CHARACTER_SPRITE_SIZE, CHARACTER_TEXTURE_SIZE, getCharacter, getObstacleVariant, type ObstacleVariant, OBSTACLE_VARIANTS, REWARD_TEXTURE_SIZE } from '../assets';
@@ -111,6 +111,7 @@ export class Game extends Scene {
         this.input.keyboard?.on('keydown-UP', this.flapKeyHandler);
         this.input.keyboard?.on('keydown-W', this.flapKeyHandler);
         EventBus.on('game:start', this.startRun, this);
+        EventBus.on('game:revive', this.reviveRun, this);
         EventBus.on('character:selected', this.selectCharacter, this);
 
         // 视口变化时先校正画布逻辑尺寸（宽 360–960 / 高 640–800），再按新尺寸重排版
@@ -125,6 +126,7 @@ export class Game extends Scene {
             this.input.keyboard?.off('keydown-UP', this.flapKeyHandler);
             this.input.keyboard?.off('keydown-W', this.flapKeyHandler);
             EventBus.off('game:start', this.startRun, this);
+            EventBus.off('game:revive', this.reviveRun, this);
             EventBus.off('character:selected', this.selectCharacter, this);
         });
 
@@ -691,6 +693,24 @@ export class Game extends Scene {
         };
         EventBus.emit('game:over', result);
     }
+
+    // 转发复活：game:over 已发出但 App 侧尚未结算（玩家选择转发）时，把对局原地救回。
+    // 复用 143 弹幕雨的无敌窗口（期间 finishRun 直接返回、出界被夹住），可无伤穿过眼前的柱子；
+    // 不重置 pipeCount/随机序列，本局分数无缝续算，最终结算时以新的 clientRunId 记一次完整对局。
+    private reviveRun = () => {
+        if (this.phase !== 'over') return;
+        this.phase = 'playing';
+        this.tweens.killTweensOf(this.player);
+        this.player.clearTint().setPosition(this.player.x, GAME_HEIGHT * 0.45).setAngle(0).setVelocity(0, 0);
+        this.applyCharacterBody(this.selectedCharacter);
+        this.playerBody().setAllowGravity(true);
+        this.invincibleRainUntil = this.time.now + REVIVE_INVINCIBLE_MS;
+        this.player.setTint(0xffd0e4);
+        this.time.delayedCall(REVIVE_INVINCIBLE_MS, () => {
+            // 窗口内若触发 143 彩蛋（更长无敌）不能误清它的 tint，由弹幕雨自身结束时清理
+            if (!this.isInvincible() && this.player?.active) this.player.clearTint();
+        });
+    };
 
     private emitScore() {
         const previous = this.lastEmittedScore;

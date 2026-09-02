@@ -29,6 +29,10 @@ export const EASTER_EGG_143_DANMAKU_SPAWN_MS = 85;
 export const EASTER_EGG_143_DANMAKU_BURST = 4;
 export const EASTER_EGG_143_DANMAKU_BURST_LITE = 2;
 
+// 转发复活的穿越窗口：原地救回后 3 秒内 finishRun/出界判定都被跳过（复用 143 无敌机制），
+// 足够让眼前的 1–2 根柱子完全通过玩家锚点（玩家 x≤240 + 柱宽，速度 ≥150 时单柱 ≤2.2s）
+export const REVIVE_INVINCIBLE_MS = 3000;
+
 export const EASTER_EGG_143_DANMAKU_MESSAGES = [
     '143 ♡', 'I love you', 'Hyunlix', 'STAY', '143', '현릭스', 'Fly high together!',
     'Hyunjin × Felix', 'WITH U', 'LISGO', '♡ 143 ♡', 'You got this!', '143 forever',

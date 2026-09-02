@@ -40,14 +40,6 @@ export function ShareSheet({ mode, score, onClose, onToast }: ShareSheetProps) {
             mode,
             score,
             siteUrl: 'https://hyunlix.top',
-            labels: {
-                subtitle: t.gameSubtitle,
-                site: t.shareSite,
-                tagline: t.shareTagline,
-                pipesLabel: t.sharePipes,
-                rewardsLabel: t.shareRewards,
-                asLabel: t.shareAs,
-            },
         }).then((result) => {
             if (cancelled) return;
             setPreviewUrl(result.dataUrl);
@@ -61,7 +53,7 @@ export function ShareSheet({ mode, score, onClose, onToast }: ShareSheetProps) {
             onToast(t.shareFailed);
         });
         return () => { cancelled = true; };
-        // Intentionally key off mode/score fields + locale strings, not whole `t` / onToast identity.
+        // Intentionally key off mode/score fields + t.shareFailed identity, not whole `t` / onToast identity.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         mode,
@@ -71,12 +63,6 @@ export function ShareSheet({ mode, score, onClose, onToast }: ShareSheetProps) {
         score?.characterId,
         score?.characterName,
         score?.hit143,
-        t.gameSubtitle,
-        t.shareSite,
-        t.shareTagline,
-        t.sharePipes,
-        t.shareRewards,
-        t.shareAs,
         t.shareFailed,
         onToast,
     ]);

@@ -68,6 +68,14 @@ interface Dictionary {
     close: string;
     loginToSave: string;
     registerGuideHint: string;
+    reviveEyebrow: string;
+    reviveTitle: string;
+    reviveScore: (score: number) => string;
+    reviveHint: string;
+    reviveAccept: string;
+    reviveSharing: string;
+    reviveDecline: string;
+    reviveSuccess: string;
     pickCharacter: string;
     playAgain: string;
     shareGame: string;
@@ -83,11 +91,6 @@ interface Dictionary {
     shareCaption: string;
     shareGenerating: string;
     shareSaved: string;
-    sharePipes: string;
-    shareRewards: string;
-    shareAs: string;
-    shareTagline: string;
-    shareSite: string;
     countdownSequence: readonly string[];
     defaultMessages: readonly { text: string; author: string }[];
     characters: Record<string, CharacterCopy>;
@@ -140,6 +143,14 @@ const EN: Dictionary = {
     close: 'Close',
     loginToSave: 'Sign up to save',
     registerGuideHint: 'Save your score & join the leaderboard',
+    reviveEyebrow: 'Second chance',
+    reviveTitle: 'Share to revive!',
+    reviveScore: (score) => `Score ${score} saved`,
+    reviveHint: 'Share Hyunlix to a friend and keep flying right where you fell.',
+    reviveAccept: 'Share & revive',
+    reviveSharing: 'Sharing…',
+    reviveDecline: 'No thanks',
+    reviveSuccess: 'Revived! Keep flying ♡',
     pickCharacter: 'Character select',
     playAgain: 'Play again',
     shareGame: 'Share game',
@@ -159,11 +170,6 @@ const EN: Dictionary = {
     shareCaption: 'Copy caption',
     shareGenerating: 'Creating card…',
     shareSaved: 'Saved ♡',
-    sharePipes: 'pipes',
-    shareRewards: 'rewards',
-    shareAs: 'as',
-    shareTagline: 'STAY · 143 ♡',
-    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', 'GO!'],
     leaderboardLoading: 'Loading…',
     leaderboardUnavailable: 'Leaderboard unavailable',
@@ -230,6 +236,14 @@ const PT: Dictionary = {
     close: 'Fechar',
     loginToSave: 'Criar conta para salvar',
     registerGuideHint: 'Salve sua pontuação e entre no ranking',
+    reviveEyebrow: 'Segunda chance',
+    reviveTitle: 'Compartilhe para reviver!',
+    reviveScore: (score) => `${score} pontos salvos`,
+    reviveHint: 'Compartilhe o Hyunlix com alguém e continue voando de onde caiu.',
+    reviveAccept: 'Compartilhar e reviver',
+    reviveSharing: 'Compartilhando…',
+    reviveDecline: 'Agora não',
+    reviveSuccess: 'Reviveu! Continue voando ♡',
     pickCharacter: 'Escolher personagem',
     playAgain: 'Jogar de novo',
     shareGame: 'Compartilhar jogo',
@@ -249,11 +263,6 @@ const PT: Dictionary = {
     shareCaption: 'Copiar texto',
     shareGenerating: 'Criando card…',
     shareSaved: 'Salvo ♡',
-    sharePipes: 'pilares',
-    shareRewards: 'prêmios',
-    shareAs: 'com',
-    shareTagline: 'STAY · 143 ♡',
-    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', 'VAI!'],
     leaderboardLoading: 'Carregando…',
     leaderboardUnavailable: 'Ranking indisponível',
@@ -320,6 +329,14 @@ const ES: Dictionary = {
     close: 'Cerrar',
     loginToSave: 'Regístrate para guardar',
     registerGuideHint: 'Guarda tu puntuación y súbete al ranking',
+    reviveEyebrow: 'Segunda oportunidad',
+    reviveTitle: '¡Comparte para revivir!',
+    reviveScore: (score) => `${score} puntos guardados`,
+    reviveHint: 'Comparte Hyunlix con alguien y sigue volando justo donde caíste.',
+    reviveAccept: 'Compartir y revivir',
+    reviveSharing: 'Compartiendo…',
+    reviveDecline: 'Ahora no',
+    reviveSuccess: '¡Reviviste! Sigue volando ♡',
     pickCharacter: 'Elegir personaje',
     playAgain: 'Jugar de nuevo',
     shareGame: 'Compartir juego',
@@ -339,11 +356,6 @@ const ES: Dictionary = {
     shareCaption: 'Copiar texto',
     shareGenerating: 'Creando tarjeta…',
     shareSaved: 'Guardado ♡',
-    sharePipes: 'pilares',
-    shareRewards: 'premios',
-    shareAs: 'como',
-    shareTagline: 'STAY · 143 ♡',
-    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', '¡YA!'],
     leaderboardLoading: 'Cargando…',
     leaderboardUnavailable: 'Ranking no disponible',
@@ -410,6 +422,14 @@ const KO: Dictionary = {
     close: '닫기',
     loginToSave: '가입해서 점수 저장',
     registerGuideHint: '점수를 저장하고 랭킹에 올라가요',
+    reviveEyebrow: '두 번째 기회',
+    reviveTitle: '공유하고 부활!',
+    reviveScore: (score) => `${score}점을 지켰어요`,
+    reviveHint: 'Hyunlix를 친구에게 공유하면 넘어진 바로 그 자리에서 다시 날아갈 수 있어요.',
+    reviveAccept: '공유하고 부활',
+    reviveSharing: '공유 중…',
+    reviveDecline: '다음에 할게요',
+    reviveSuccess: '부활! 계속 날아가요 ♡',
     pickCharacter: '캐릭터 선택',
     playAgain: '다시 하기',
     shareGame: '게임 공유',
@@ -429,11 +449,6 @@ const KO: Dictionary = {
     shareCaption: '문구 복사',
     shareGenerating: '카드 만드는 중…',
     shareSaved: '저장됨 ♡',
-    sharePipes: '기둥',
-    shareRewards: '보상',
-    shareAs: '',
-    shareTagline: 'STAY · 143 ♡',
-    shareSite: 'hyunlix.top',
     countdownSequence: ['3', '2', '1', '출발!'],
     leaderboardLoading: '로딩 중…',
     leaderboardUnavailable: '랭킹을 불러올 수 없습니다',

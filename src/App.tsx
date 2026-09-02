@@ -12,6 +12,8 @@ import { currentPlayer, DanmakuMessage, enter, getDanmaku, getLeaderboard, Leade
 import { normalizeUsername, PASSWORD_MAX, USERNAME_MAX, validateCredentials } from './services/authRules';
 import { buildPool, bulletStyle, BulletStyle, MESSAGE_MAX, NICKNAME_MAX, normalizeMessage } from './services/danmaku';
 import { ShareCardMode, ShareCardScoreInput } from './services/shareCard';
+import { buildShareUrl, shareOrCopy } from './services/share';
+import { noteReviveOfferShown, noteTrueDeath, shouldOfferShareRevive } from './domain/revive';
 import { ShareSheet } from './components/ShareSheet';
 import { loadProgress, Progress, recordRun, removeSyncedRuns, saveProgress, selectCharacter } from './state/progress';
 
@@ -94,6 +96,10 @@ function App() {
     const [shareSheet, setShareSheet] = useState<ShareSheetState | null>(null);
     const [showTapHint, setShowTapHint] = useState(false);
     const [showAuthHint, setShowAuthHint] = useState(false);
+    // 死亡转发复活：reviveOffer 非空时对局画面冻结、弹复活卡；busy 标记转发进行中
+    const [reviveOffer, setReviveOffer] = useState<RunResult | null>(null);
+    const [reviveBusy, setReviveBusy] = useState(false);
+    const reviveUsedRef = useRef(false);
     const shareToastTimer = useRef<number | null>(null);
     const selected = useMemo(() => getCharacter(progress.selectedCharacter), [progress.selectedCharacter]);
     const wantsPlayRef = useRef(false);
@@ -162,6 +168,24 @@ function App() {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [screen, overlay, progress]);
 
+    // 真正结算：没有弹复活卡、或玩家放弃复活时走这里；真死亡累计进保底计数
+    const finalizeRun = useCallback((run: RunResult) => {
+        const withDeath = { ...progressRef.current, revive: noteTrueDeath(progressRef.current.revive) };
+        const next = recordRun(withDeath, run);
+        setProgress(next);
+        setLastRun(run);
+        setScreen('gameover');
+        // 游客前几局结算：高亮「注册存分」入口
+        setShowAuthHint(!playerRef.current && consumeHintSlot(AUTH_HINT_KEY, AUTH_HINT_MAX));
+        // 持久化放最后并兜底：隐私模式禁写 localStorage / 配额满时只丢存档，
+        // 绝不阻断结算面板展示（死亡必出结算）
+        try {
+            saveProgress(next);
+        } catch {
+            // 忽略：进度同步仍可在登录后走 pendingRuns 内存态
+        }
+    }, []);
+
     useEffect(() => {
         const onReady = () => {
             EventBus.emit('character:selected', progressRef.current.selectedCharacter);
@@ -180,19 +204,27 @@ function App() {
         const onOver = (run: RunResult) => {
             wantsPlayRef.current = false;
             setShowTapHint(false);
-            const next = recordRun(progress, run);
-            setProgress(next);
-            setLastRun(run);
-            setScreen('gameover');
-            // 游客前几局结算：高亮「注册存分」入口
-            setShowAuthHint(!playerRef.current && consumeHintSlot(AUTH_HINT_KEY, AUTH_HINT_MAX));
-            // 持久化放最后并兜底：隐私模式禁写 localStorage / 配额满时只丢存档，
-            // 绝不阻断结算面板展示（死亡必出结算）
-            try {
-                saveProgress(next);
-            } catch {
-                // 忽略：进度同步仍可在登录后走 pendingRuns 内存态
+            // 死亡转发复活：由算法决定是否弹复活卡（本局未复活过 + 分数达标 + 冷却/每日上限内，
+            // 保底或按分数接近个人最佳的概率）。弹卡时不结算，Phaser 停在死亡瞬间等玩家选择。
+            if (!reviveUsedRef.current && shouldOfferShareRevive({
+                score: run.totalScore,
+                bestScore: progressRef.current.bestScore,
+                reviveUsedThisRun: reviveUsedRef.current,
+                state: progressRef.current.revive,
+                now: Date.now(),
+                randomValue: Math.random(),
+            })) {
+                const next = { ...progressRef.current, revive: noteReviveOfferShown(progressRef.current.revive, Date.now()) };
+                setProgress(next);
+                try {
+                    saveProgress(next);
+                } catch {
+                    // 无法写入时本局仍展示复活卡，只是节奏状态不持久化
+                }
+                setReviveOffer(run);
+                return;
             }
+            finalizeRun(run);
         };
         EventBus.on('game:ready', onReady);
         EventBus.on('score:changed', onScore);
@@ -206,7 +238,7 @@ function App() {
             EventBus.off('game:flap', onFlap);
             EventBus.off('game:over', onOver);
         };
-    }, [progress, locale]);
+    }, [progress, locale, finalizeRun]);
 
     useEffect(() => {
         if (!player || progress.pendingRuns.length === 0 || syncing) return;
@@ -234,6 +266,10 @@ function App() {
         setLastRun(null);
         setShowAuthHint(false);
         setOverlay('none');
+        // 新局重置复活状态：本局还没转发复活过，也不会残留旧弹窗
+        reviveUsedRef.current = false;
+        setReviveOffer(null);
+        setReviveBusy(false);
         setScreen('playing');
         emitGameStart();
     };
@@ -267,6 +303,33 @@ function App() {
                 hit143: lastRun.totalScore >= EASTER_EGG_143_SCORE,
             },
         });
+    };
+
+    const handleReviveDecline = () => {
+        const run = reviveOffer;
+        if (!run) return;
+        setReviveOffer(null);
+        finalizeRun(run);
+    };
+
+    // 复活卡转发与普通分享共用 Web Share API→剪贴板兜底：发出（shared）或已复制（copied）
+    // 都算完成转发，原地复活并继续本局；取消分享（aborted）留在弹窗可重试或放弃
+    const handleReviveAccept = async () => {
+        if (!reviveOffer || reviveBusy) return;
+        setReviveBusy(true);
+        try {
+            const outcome = await shareOrCopy({ title: t.shareGameTitle, text: t.shareGameText, url: buildShareUrl('game') });
+            if (outcome === 'shared' || outcome === 'copied') {
+                reviveUsedRef.current = true;
+                setReviveOffer(null);
+                EventBus.emit('game:revive');
+                showShareToast(t.reviveSuccess);
+            } else if (outcome === 'failed') {
+                showShareToast(t.shareFailed);
+            }
+        } finally {
+            setReviveBusy(false);
+        }
     };
 
     return (
@@ -382,6 +445,15 @@ function App() {
                         </div>
                     )}
                 </section>
+            )}
+
+            {reviveOffer && (
+                <ReviveDialog
+                    score={reviveOffer.totalScore}
+                    busy={reviveBusy}
+                    onAccept={() => void handleReviveAccept()}
+                    onDecline={handleReviveDecline}
+                />
             )}
 
             {screen === 'gameover' && lastRun && (
@@ -503,6 +575,27 @@ function MenuDanmaku({ messages, burst, fallbackMessages }: { messages: DanmakuM
                     <i>{bullet.author}</i>
                 </span>
             ))}
+        </div>
+    );
+}
+
+// 死亡转发复活弹窗：Phaser 停在死亡瞬间、对局画面在下面冻结；转发完成即原地续飞。
+// 关闭按钮与「放弃」等效——都会真正结算本局（弹卡已消耗当次机会）。
+function ReviveDialog({ score, busy, onAccept, onDecline }: { score: number; busy: boolean; onAccept: () => void; onDecline: () => void }) {
+    const { t } = useI18n();
+    return (
+        <div className="dialog-backdrop" role="presentation">
+            <section className="dialog revive-dialog" role="dialog" aria-modal="true" aria-labelledby="revive-title">
+                <button className="dialog-close" onClick={onDecline} aria-label={t.close}><X size={20} /></button>
+                <p className="eyebrow">{t.reviveEyebrow}</p>
+                <h2 id="revive-title">{t.reviveTitle}</h2>
+                <p className="revive-score"><Sparkles size={16} aria-hidden="true" /> {t.reviveScore(score)}</p>
+                <p className="revive-hint">{t.reviveHint}</p>
+                <button className="primary-button" onClick={onAccept} disabled={busy}>
+                    {busy ? t.reviveSharing : <><Share2 size={18} /> {t.reviveAccept}</>}
+                </button>
+                <button className="secondary-button" onClick={onDecline} disabled={busy}>{t.reviveDecline}</button>
+            </section>
         </div>
     );
 }

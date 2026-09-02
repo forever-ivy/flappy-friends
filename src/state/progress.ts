@@ -1,4 +1,5 @@
 import { RunResult } from '../domain/game';
+import { DEFAULT_REVIVE_STATE, normalizeReviveState, ReviveProgressState } from '../domain/revive';
 import { getCharacter } from '../game/assets';
 
 const STORAGE_KEY = 'skyline-hop-progress-v1';
@@ -9,10 +10,13 @@ export interface Progress {
     totalScore: number;
     gamesPlayed: number;
     pendingRuns: RunResult[];
+    /** 死亡转发复活的节奏状态（冷却/每日上限/保底计数），跨会话生效 */
+    revive: ReviveProgressState;
 }
 
 export const DEFAULT_PROGRESS: Progress = {
     selectedCharacter: 'snow', bestScore: 0, totalScore: 0, gamesPlayed: 0, pendingRuns: [],
+    revive: { ...DEFAULT_REVIVE_STATE },
 };
 
 export function loadProgress(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Progress {
@@ -28,6 +32,7 @@ export function loadProgress(storage: Pick<Storage, 'getItem'> | undefined = glo
             totalScore: Number.isFinite(parsed.totalScore) ? Math.max(0, parsed.totalScore!) : 0,
             gamesPlayed: Number.isFinite(parsed.gamesPlayed) ? Math.max(0, parsed.gamesPlayed!) : 0,
             pendingRuns: Array.isArray(parsed.pendingRuns) ? parsed.pendingRuns.slice(-50) : [],
+            revive: normalizeReviveState(parsed.revive),
         };
     } catch {
         return { ...DEFAULT_PROGRESS };

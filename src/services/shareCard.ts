@@ -69,6 +69,21 @@ export function pickSharePoster(randomValue: number = Math.random()): string {
     return POSTER_POOL[rolled]!;
 }
 
+/** 量出字形墨迹相对 middle 基线/锚点的偏移：Arial Black 与 iOS 的 Arial Rounded MT Bold
+ *  的 em 盒中缝不同，直接按 textBaseline='middle' 画会让数字在虚线框里肉眼可见地偏上/偏下。
+ *  这里把「墨迹包围盒中心」对齐到目标点，任何设备字体都居中。 */
+function inkCenteredShift(ctx: CanvasRenderingContext2D, text: string): { dx: number; dy: number } {
+    const metrics = ctx.measureText(text);
+    const ascent = metrics.actualBoundingBoxAscent;
+    const descent = metrics.actualBoundingBoxDescent;
+    const left = metrics.actualBoundingBoxLeft;
+    const right = metrics.actualBoundingBoxRight;
+    if (typeof ascent !== 'number' || typeof descent !== 'number') return { dx: 0, dy: 0 };
+    const dy = (ascent - descent) / 2;
+    const dx = typeof left === 'number' && typeof right === 'number' ? (right - left) / 2 : 0;
+    return { dx, dy };
+}
+
 /** 海报同款泡泡字：白描边 + 下坠软阴影，粉/紫填充随海报画风 */
 function drawPosterNumber(
     ctx: CanvasRenderingContext2D,
@@ -83,14 +98,20 @@ function drawPosterNumber(
     const font = (size: number) => `900 ${size}px "Arial Rounded MT Bold", "Arial Black", Impact, sans-serif`;
     let size = maxFontSize;
     ctx.font = font(size);
-    while (size > 24 && ctx.measureText(text).width > maxW) {
-        size -= 4;
-        ctx.font = font(size);
-    }
+    // 对齐状态必须在测量之前定好：actualBoundingBox* 是相对锚点给出的，
+    // 带着»上一次绘制残留的对齐状态«量出来的偏移是错的
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
     ctx.miterLimit = 2;
+    while (size > 24 && ctx.measureText(text).width > maxW) {
+        size -= 4;
+        ctx.font = font(size);
+    }
+    // 墨迹中心对齐框中心（含描边后仍略小于框高，见 maxFontSize 取值）
+    const { dx, dy } = inkCenteredShift(ctx, text);
+    const x = cx - dx;
+    const y = cy + dy;
     const outline = Math.max(6, size * 0.15);
     ctx.save();
     // 阴影只打在白描边上：先带阴影描白边，再补一遍白边、最后填色
@@ -99,13 +120,13 @@ function drawPosterNumber(
     ctx.shadowOffsetY = 7;
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = outline;
-    ctx.strokeText(text, cx, cy);
+    ctx.strokeText(text, x, y);
     ctx.restore();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = outline;
-    ctx.strokeText(text, cx, cy);
+    ctx.strokeText(text, x, y);
     ctx.fillStyle = fill;
-    ctx.fillText(text, cx, cy);
+    ctx.fillText(text, x, y);
 }
 
 function scoreNumberFill(ctx: CanvasRenderingContext2D, box: { y0: number; y1: number }): CanvasGradient {
@@ -179,10 +200,11 @@ async function drawScoreCard(
     const img = await loadImage(assetUrl(SCORE_POSTER));
     ctx.drawImage(img, 0, 0, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT);
 
-    drawPosterNumber(ctx, String(Math.max(0, score.totalScore)), SCORE_BOX, scoreNumberFill(ctx, SCORE_BOX), 130);
+    // 字号上限按「墨迹高 + 白描边」略小于虚线框高取值，任何设备字体都不压线
+    drawPosterNumber(ctx, String(Math.max(0, score.totalScore)), SCORE_BOX, scoreNumberFill(ctx, SCORE_BOX), 116);
     const statFill = '#8a5cd6';
-    drawPosterNumber(ctx, String(Math.max(0, score.pipeCount)), PIPES_BOX, statFill, 54);
-    drawPosterNumber(ctx, String(Math.max(0, score.rewardCount)), REWARDS_BOX, statFill, 54);
+    drawPosterNumber(ctx, String(Math.max(0, score.pipeCount)), PIPES_BOX, statFill, 46);
+    drawPosterNumber(ctx, String(Math.max(0, score.rewardCount)), REWARDS_BOX, statFill, 46);
     if (score.hit143) drawBadge143(ctx);
 }
 

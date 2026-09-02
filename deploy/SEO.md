@@ -120,6 +120,20 @@ certbot --expand -d hyunlix.top -d www.hyunlix.top
 3. 用 [Rich Results Test](https://search.google.com/test/rich-results) 验证 VideoGame 结构化数据
 4. PSI API 匿名配额经常 429；如需跑分到 [PageSpeed Insights](https://pagespeed.web.dev/) 手动测
 
+### 性能基线（2026-09-03，本地 Lighthouse 移动模拟）
+
+| 指标 | 线上（改动前） | 本地新构建（改动后，未部署） |
+|------|------|------|
+| Performance | 28 | 74 |
+| FCP | 4.1s | 1.4s |
+| LCP | 7.9s | 1.7s |
+| TBT | 12.7s | 1.4s |
+| SEO / Best Practices | 100 / 100 | 100 / 100 |
+
+注意：本地构建跑在 localhost，网络部分偏乐观；**部署后请到 [PageSpeed Insights](https://pagespeed.web.dev/) 用线上 URL 复测**，才是真实的"改动后"分数（PSI API 匿名配额常 429，网页版可用）。
+
+第三轮候选优化（本轮未动）：落地页当前会立刻加载 Phaser 主包，移动模拟 TBT 偏高（线上 12.7s）；可考虑把游戏 bundle 推迟到点击「Start game」再加载，或给落地页加骨架预览，对 LCP/TBT 都有收益。
+
 ### 遗留事项
 
 - **Search Console 验证 meta 仍未上线**：线上 HTML 没有 `google-site-verification`，说明服务器 `.env` 没写 `VITE_GOOGLE_SITE_VERIFICATION`。若已用 DNS 验证可忽略；否则按第 1 节配置。

@@ -29,3 +29,8 @@ yarn-error.log*
 docker/pocketbase
 .playwright-cli/
 __pycache__/
+
+# agent skills 工具的项目本地产物（全局装在 ~/.agents）
+.agents/
+.claude/
+skills-lock.json

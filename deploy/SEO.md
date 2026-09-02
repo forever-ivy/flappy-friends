@@ -82,3 +82,45 @@ docker compose up -d --build
 ```
 
 `public/` 下的 `robots.txt`、`sitemap.xml`、`og-image.png` 会进 Vite `dist`，由 PocketBase 静态托管。
+
+## 7. 第二轮 SEO 优化（2026-09-03）
+
+仓库侧已改：
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| Fredoka 字体自托管 | `public/fonts/` + `public/style.css` + `index.html` | 去掉 fonts.googleapis 渲染阻塞 CSS（2 个 preconnect + 1 个 CSS 请求），改为同源 preload 单个 latin 可变字体文件 |
+| JSON-LD 补充 | `index.html` | 新增 `playMode`、`screenshot`、`dateModified`、author `logo` |
+| noscript 真实文案 | `index.html` | 不执行 JS 的爬虫也能看到游戏介绍 |
+| description 控制在 ~160 字符 | `index.html` + `src/i18n.tsx`（EN/PT/ES） | 避免 SERP 摘要截断 |
+| sitemap 只保留 canonical | `public/sitemap.xml` | 移除 `www.hyunlix.top`（非规范域）；`lastmod` 同步为变更日 |
+| www → apex 301 | `deploy/nginx.hyunlix-reskin.conf` | 修复 www 与主域同时返回 200 的重复内容问题 |
+
+### 服务器侧需手工执行
+
+```bash
+# 1. 同步代码并重建（字体 / sitemap / index.html 都在构建产物里）
+cd /opt/hyunlix-reskin
+git pull   # 或同步本分支
+docker compose up -d --build
+
+# 2. www 301：同步 deploy/nginx.hyunlix-reskin.conf 到 /etc/nginx/conf.d/ 后
+nginx -t && nginx -s reload
+# 验证（应返回 301 → https://hyunlix.top/）：
+curl -sI https://www.hyunlix.top/ | head -3
+
+# 3. 若 443 的 www 握手失败，扩展证书把 www 纳入 SAN：
+certbot --expand -d hyunlix.top -d www.hyunlix.top
+```
+
+### Google 侧跟进
+
+1. Search Console → 重新提交 `https://hyunlix.top/sitemap.xml`（www 已移除）
+2. 「网址检查」→ 请求重新编入索引 `https://hyunlix.top/`
+3. 用 [Rich Results Test](https://search.google.com/test/rich-results) 验证 VideoGame 结构化数据
+4. PSI API 匿名配额经常 429；如需跑分到 [PageSpeed Insights](https://pagespeed.web.dev/) 手动测
+
+### 遗留事项
+
+- **Search Console 验证 meta 仍未上线**：线上 HTML 没有 `google-site-verification`，说明服务器 `.env` 没写 `VITE_GOOGLE_SITE_VERIFICATION`。若已用 DNS 验证可忽略；否则按第 1 节配置。
+- 单 URL 承载四语（客户端切换），不符合 hreflang 的"多 URL"前提，故未加 hreflang——这是有意决策，不是遗漏。

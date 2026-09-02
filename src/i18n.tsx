@@ -95,7 +95,7 @@ interface Dictionary {
 
 const EN: Dictionary = {
     languageLabel: 'Language',
-    metaDescription: 'Play Hyunjin × Felix (Hyunlix): a cute Stray Kids fan flying game with Hyunjin, Felix & duo mode, leaderboards, danmaku, and a 143 easter egg. Free in your browser — EN/PT/ES/KO.',
+    metaDescription: 'Play Hyunjin × Felix (Hyunlix): a cute Stray Kids fan flying game with duo mode, leaderboards and a 143 easter egg. Free in your browser — EN/PT/ES/KO.',
     bootLoading: 'Loading…',
     bootErrorTitle: 'Load failed or network is slow',
     bootErrorHint: 'Tap retry. If it keeps failing, try a newer browser.',
@@ -185,7 +185,7 @@ const EN: Dictionary = {
 
 const PT: Dictionary = {
     languageLabel: 'Idioma',
-    metaDescription: 'Jogue Hyunjin × Felix (Hyunlix): um fofo jogo fan de Stray Kids com Hyunjin, Felix e modo duo, ranking, danmaku e easter egg 143. Grátis no navegador — EN/PT/ES/KO.',
+    metaDescription: 'Jogue Hyunjin × Felix (Hyunlix): um fofo jogo fan de Stray Kids com modo duo, ranking, danmaku e easter egg 143. Grátis no navegador — EN/PT/ES/KO.',
     bootLoading: 'Carregando…',
     bootErrorTitle: 'Falha ao carregar ou rede lenta',
     bootErrorHint: 'Toque em tentar de novo. Se continuar falhando, use um navegador mais recente.',
@@ -275,7 +275,7 @@ const PT: Dictionary = {
 
 const ES: Dictionary = {
     languageLabel: 'Idioma',
-    metaDescription: 'Juega Hyunjin × Felix (Hyunlix): un lindo juego fan de Stray Kids con Hyunjin, Felix y modo dúo, ranking, danmaku y easter egg 143. Gratis en el navegador — EN/PT/ES/KO.',
+    metaDescription: 'Juega Hyunjin × Felix (Hyunlix): un lindo juego fan de Stray Kids con modo dúo, ranking, danmaku y easter egg 143. Gratis en el navegador — EN/PT/ES/KO.',
     bootLoading: 'Cargando…',
     bootErrorTitle: 'Error al cargar o red lenta',
     bootErrorHint: 'Toca reintentar. Si sigue fallando, prueba un navegador más reciente.',

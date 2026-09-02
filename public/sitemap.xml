@@ -1,15 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 只列 canonical 域名：www 由 nginx 301 到 apex，不再作为独立 URL 提交；
+     changefreq/priority 已被 Google 忽略，省略 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://hyunlix.top/</loc>
-    <lastmod>2026-09-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://www.hyunlix.top/</loc>
-    <lastmod>2026-09-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
 </urlset>

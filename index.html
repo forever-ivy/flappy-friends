@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
     <title>Hyunjin × Felix | Hyunlix Fan Flying Game — Play Free</title>
-    <meta name="description" content="Play Hyunjin × Felix (Hyunlix): a cute Stray Kids fan flying game with Hyunjin, Felix &amp; duo mode, leaderboards, danmaku, and a 143 easter egg. Free in your browser — EN/PT/ES/KO." />
+    <meta name="description" content="Play Hyunjin × Felix (Hyunlix): a cute Stray Kids fan flying game with duo mode, leaderboards and a 143 easter egg. Free in your browser — EN/PT/ES/KO." />
     <meta name="keywords" content="Hyunlix, Hyunjin, Felix, Stray Kids, STAY, fan game, flying game, flappy, browser game, 143" />
     <meta name="author" content="Hyunlix fan project" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -36,9 +36,9 @@
     <meta name="twitter:image" content="https://hyunlix.top/og-image.png" />
     <meta name="twitter:image:alt" content="Hyunjin × Felix — Hyunlix fan flying game" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+    <!-- 字体已自托管（public/fonts + style.css @font-face），去掉第三方渲染阻塞 CSS；
+         仅预载标题实际用到的 latin 可变字体文件 -->
+    <link rel="preload" href="/fonts/fredoka-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/png" sizes="128x128" href="/favicon-duo.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/style.css">
@@ -53,11 +53,14 @@
       "image": "https://hyunlix.top/og-image.png",
       "description": "A cute Hyunlix (Hyunjin × Felix) fan flying game with three characters, leaderboards, danmaku messages, and a 143 easter egg. Free browser game in English, Portuguese, Spanish, and Korean.",
       "genre": ["Casual", "Arcade", "Fan Game"],
+      "playMode": "SinglePlayer",
       "gamePlatform": "Web Browser",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Any",
       "inLanguage": ["en", "pt", "es", "ko"],
       "isAccessibleForFree": true,
+      "dateModified": "2026-09-03",
+      "screenshot": "https://hyunlix.top/og-image.png",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -66,7 +69,11 @@
       "author": {
         "@type": "Organization",
         "name": "Hyunlix fan project",
-        "url": "https://hyunlix.top/"
+        "url": "https://hyunlix.top/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://hyunlix.top/apple-touch-icon.png"
+        }
       }
     }
     </script>
@@ -105,6 +112,15 @@
 
 <body>
     <div id="root"></div>
+    <noscript>
+        <h1>Hyunjin × Felix — Hyunlix Fan Flying Game</h1>
+        <p>
+            Play a cute Stray Kids fan flying game right in your browser: choose Hyunjin, Felix or
+            duo mode, chase the leaderboard, send danmaku messages, and find the 143 easter egg.
+            Free, no download — English, Portuguese, Spanish, and Korean.
+        </p>
+        <p>This game needs JavaScript enabled to run.</p>
+    </noscript>
     <div id="boot-fallback">
         <div class="boot-inner">
             <div id="boot-loading">Loading…</div>

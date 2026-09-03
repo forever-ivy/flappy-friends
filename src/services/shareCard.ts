@@ -34,10 +34,12 @@ const QR_PLATE_OVERLAYS: Record<string, { x: number; y: number; w: number; h: nu
     'assets/posters/poster-6.jpg': { x: 344, y: 1295, w: 244, h: 245 },
 };
 
-// 得分模板三个虚线框的内沿坐标（同上坐标系），数字画在内切区域
-const SCORE_BOX = { x0: 190, x1: 756, y0: 1116, y1: 1246 };
-const PIPES_BOX = { x0: 256, x1: 428, y0: 1313, y1: 1362 };
-const REWARDS_BOX = { x0: 560, x1: 740, y0: 1313, y1: 1362 };
+// 得分模板三个虚线框的内沿坐标（同上坐标系），数字画在内切区域。
+// 由模板像素实测（虚线描边中心）：SCORE 183-771 / 1090-1240，
+// PIPES 251-423 / REWARDS 596-772，两小框 1299-1354。勿凭视觉估算。
+const SCORE_BOX = { x0: 183, x1: 771, y0: 1090, y1: 1240 };
+const PIPES_BOX = { x0: 251, x1: 423, y0: 1299, y1: 1354 };
+const REWARDS_BOX = { x0: 596, x1: 772, y0: 1299, y1: 1354 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -139,7 +141,7 @@ function scoreNumberFill(ctx: CanvasRenderingContext2D, box: { y0: number; y1: n
 /** 143 彩蛋贴纸：贴在得分面板左上角空白处，轻微歪头 */
 function drawBadge143(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.translate(238, 1078);
+    ctx.translate(228, 1058);
     ctx.rotate(-6 * Math.PI / 180);
     ctx.fillStyle = '#ff85b0';
     roundRect(ctx, -66, -23, 132, 46, 23);
@@ -201,7 +203,7 @@ async function drawScoreCard(
     ctx.drawImage(img, 0, 0, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT);
 
     // 字号上限按「墨迹高 + 白描边」略小于虚线框高取值，任何设备字体都不压线
-    drawPosterNumber(ctx, String(Math.max(0, score.totalScore)), SCORE_BOX, scoreNumberFill(ctx, SCORE_BOX), 116);
+    drawPosterNumber(ctx, String(Math.max(0, score.totalScore)), SCORE_BOX, scoreNumberFill(ctx, SCORE_BOX), 126);
     const statFill = '#8a5cd6';
     drawPosterNumber(ctx, String(Math.max(0, score.pipeCount)), PIPES_BOX, statFill, 46);
     drawPosterNumber(ctx, String(Math.max(0, score.rewardCount)), REWARDS_BOX, statFill, 46);

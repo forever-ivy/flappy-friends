@@ -124,10 +124,10 @@ certbot --expand -d hyunlix.top -d www.hyunlix.top
 
 | 指标 | 线上（改动前） | 本地新构建（改动后，未部署） |
 |------|------|------|
-| Performance | 28 | 74 |
+| Performance | 28 | 74（二轮）/ **100**（三轮 Phaser 按需启动后，TBT 0ms） |
 | FCP | 4.1s | 1.4s |
 | LCP | 7.9s | 1.7s |
-| TBT | 12.7s | 1.4s |
+| TBT | 12.7s | 1.4s → **0ms** |
 | SEO / Best Practices | 100 / 100 | 100 / 100 |
 
 注意：本地构建跑在 localhost，网络部分偏乐观；**部署后请到 [PageSpeed Insights](https://pagespeed.web.dev/) 用线上 URL 复测**，才是真实的"改动后"分数（PSI API 匿名配额常 429，网页版可用）。
@@ -138,3 +138,34 @@ certbot --expand -d hyunlix.top -d www.hyunlix.top
 
 - **Search Console 验证 meta 仍未上线**：线上 HTML 没有 `google-site-verification`，说明服务器 `.env` 没写 `VITE_GOOGLE_SITE_VERIFICATION`。若已用 DNS 验证可忽略；否则按第 1 节配置。
 - 单 URL 承载四语（客户端切换），不符合 hreflang 的"多 URL"前提，故未加 hreflang——这是有意决策，不是遗漏。
+
+## 8. Cloudflare 接入手册（TTFB 优化，待执行）
+
+线上 TTFB 实测 1.5–2.3s（源站直连），是 LCP 的最大构成项，比任何前端优化收益都大。Cloudflare 免费版即可：
+
+1. 注册 Cloudflare → Add site `hyunlix.top`（Free 计划）
+2. NameSilo → Domain Manager → `hyunlix.top` → DNS → NameServers 改为 Cloudflare 分配的 NS
+3. Cloudflare DNS 面板：A 记录指向现有服务器 IP，开启橙色云（代理）；`www` 同理（已有 301，代理后依然生效）
+4. SSL/TLS 模式选 **Full (strict)**（源站已有 certbot 证书，不要选 Flexible，会造成重定向循环）
+5. Speed → Optimization：开启 Brotli、Early Hints；Caching 保持默认（`/assets/` 已带 immutable 长缓存，会自动边缘缓存）
+6. 回滚方式：NameSilo 把 NS 改回原值即可，DNS 生效后恢复直连
+
+验证与注意：
+
+```bash
+curl -sI https://hyunlix.top/ | grep -i cf-ray   # 出现 cf-ray 即已走边缘
+```
+
+- HTML 默认不缓存（正确，改动即时生效）
+- 换 NS 有最长 24h 传播期，期间部分地区仍走旧解析，属正常
+
+## 9. 第三轮优化记录（2026-09-03）
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| Phaser 引擎按需启动 | `src/PhaserGame.tsx` + `src/game/EventBus.ts` | 1.35MB（gzip 349KB）主包原随落地页同步执行，是 TBT 主因；改为首次用户交互（pointerdown/keydown/click）时动态 import。实测空闲定时器方案更差：启动只是被挪出 FCP，仍落在 TTI 窗口内，且晚启动的 canvas 反超成为新 LCP。就绪前的点击由既有 wantsPlay → game:ready 握手补发 |
+| EventBus 去 phaser 依赖 | `src/game/EventBus.ts` | 原静态 import phaser 会把引擎拖回首屏关键链路；改为语义对齐的轻量实现，并镜像 window 事件供静态层使用 |
+| 玩法说明弹层（可抓取文案） | `index.html` | 落地页正文原来接近零文本；新增原生「How to play」弹层（玩法/角色/143 彩蛋/多语言），不改锁屏布局、不依赖 React |
+| HSTS | `deploy/nginx.hyunlix-reskin.conf` | 服务器 443 块如由 certbot 管理，需手工合并该行 |
+
+第三轮遗留（规模较大，再议）：多语言子目录 `/ko/` `/pt/` `/es/` + hreflang；游戏背景 PNG 转 WebP。
